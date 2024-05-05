@@ -1,0 +1,9 @@
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.fixAll.stylelint": "explicit",
+    "source.addMissingImports": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "cSpell.words": ["doeunnkimm", "Heojoooon"]
+}

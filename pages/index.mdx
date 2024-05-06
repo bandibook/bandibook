@@ -1,6 +1,12 @@
-# BandiBook
+import { membersInfo } from '@/../constants';
+import { Member } from '@/../components';
 
-<img
-  src='https://github.com/bandibook/bandibook/assets/112946860/6b116f46-b4fd-4d8c-b03c-1a6981bea2f6'
-  width='400'
-/>
+# 반디북 멤버
+
+<br />
+
+<div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+  {membersInfo.map((member) => (
+    <Member key={member.username} {...member} />
+  ))}
+</div>

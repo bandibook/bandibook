@@ -12,7 +12,8 @@
 
   1. 이를 base로 하여 `week{N}/{username}`으로 브랜치를 생성해요.
   2. `notes/{name}` 폴더에서 자유롭게 내용을 정리해요.
-  3. 모임날에 같이 내용을 취합해요!
+  3. 모임 전까지 Pull Request를 올려야 해요. (`제목 ex. [리액트 훅을 활용한 마이크로 상태 관리] ch1~ch3 김도은`)
+  4. 모임날에 같이 내용을 취합해요!
 
 ### 진행 방식
 
@@ -25,4 +26,4 @@
 
 ## 🗺️ 책 지도
 
-<img src="https://github.com/bandibook/bandibook/assets/112946860/946807d5-67d2-49c8-86e5-2e6b87b89162" />
+<img src="https://github.com/bandibook/bandibook/assets/112946860/946807d5-67d2-49c8-86e5-2e6b87b89162" width="600" />

@@ -2,13 +2,17 @@ name: 반디북
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types:
+      - opened
+      - reopened
+      - ready_for_review
 
 jobs:
   comment:
     runs-on: ubuntu-latest
     steps:
       - name: Comment on PR
+        if: ${{ github.event.pull_request.draft == false }}
         uses: peter-evans/create-or-update-comment@v1
         with:
           issue-number: ${{ github.event.pull_request.number }}

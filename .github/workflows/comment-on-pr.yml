@@ -1,0 +1,23 @@
+name: 반디북
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment on PR
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### 이번 주도 유익했나요?
+            코멘트를 통해 다음 내용을 자유롭게 더해주세요 🔥
+
+            - 읽다가 같이 의논해보고 싶었던 부분
+            - 어려웠던 부분
+            - 너무 좋았던 내용이라 꼭! 짚고 넘어가고 싶은 부분
+            - 이외에도 자유롭게!
+          token: ${{ secrets.ACCESS_TOKEN }}

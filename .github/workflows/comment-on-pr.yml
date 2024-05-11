@@ -15,14 +15,14 @@ jobs:
           script: |
             const issue_number = context.issue.number;
             const message = `
-### 이번 주도 유익했나요?
-코멘트를 통해 다음 내용을 자유롭게 더해주세요 🔥
+                ### 이번 주도 유익했나요?
+                코멘트를 통해 다음 내용을 자유롭게 더해주세요 🔥
 
-- 읽다가 같이 의논해보고 싶었던 부분
-- 어려웠던 부분
-- 너무 좋았던 내용이라 꼭! 짚고 넘어가고 싶은 부분
-- 이외에도 자유롭게!
-`;
+                - 읽다가 같이 의논해보고 싶었던 부분
+                - 어려웠던 부분
+                - 너무 좋았던 내용이라 꼭! 짚고 넘어가고 싶은 부분
+                - 이외에도 자유롭게!
+            `;
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

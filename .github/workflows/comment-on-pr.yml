@@ -20,4 +20,4 @@ jobs:
             - 어려웠던 부분
             - 너무 좋았던 내용이라 꼭! 짚고 넘어가고 싶은 부분
             - 이외에도 자유롭게!
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.ACCESS_TOKEN }}

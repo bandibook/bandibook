@@ -1,7 +1,7 @@
 name: '반디북 봇'
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, reopened]
 
 jobs:

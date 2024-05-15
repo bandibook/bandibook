@@ -1,0 +1,160 @@
+### useState와 useContext 탐구하기
+
+**`📌 너무 좋았던 자료 공유!`**
+
+- [다른 사람들이 안 알려주는 리액트에서 Context API 잘 쓰는 방법](https://velog.io/@velopert/react-context-tutorial)
+
+#### useCotext와 useState 사용하기
+
+```jsx
+const App = () => {
+  const [count, setCount] = useState(0);
+
+  return (
+    <CountStateContext.Provider value={{ count, setCount }}>
+      <Parent />
+    </CountStateContext.Provider>
+  );
+};
+```
+
+- 가까운 `Provider`로부터 컨텍스트 값을 가져온다.
+
+### 컨텍스트 이해하기
+
+```
+💡 Provider가 새로운 값을 갖게 되면, 이 값을 사용하고 있는 컴포넌트들은 모두 리렌더링된다.
+``
+```
+
+#### 컨텍스트 전파의 작동 방식
+
+내용 끌어올리기 또는 memo를 사용하면
+**Context의 값이 변경되지 않았는데도 리렌더링이 발생하는 것을 방지**할 수 있다.
+
+```jsx
+const ColorContext = createContext('black');
+
+const ColorComponent = () => {
+  const color = useContext(ColorContext);
+  const renderCount = useRef(1);
+
+  useEffect(() => {
+    renderCount.current += 1;
+  });
+
+  return (
+    <div style={{ color }}>
+      Hello {color} (renders: {renderCount.current})
+    </div>
+  );
+};
+```
+
+```
+💡 memo도 컨텍스트 값을 사용하고 있는 컴포넌트의 리렌더링을 막지는 못한다.
+```
+
+#### 컨텍스트에 객체를 사용할 때의 한계점
+
+```jsx
+const CountContext = createContext({ count1: 0, count2: 0 });
+```
+
+위와 같이 만들고, Component1에서는 count1만을 가져와 사용하고 Component2에서는 count2만을 가져와 사용한다고 해보자.
+
+👉 이럴 경우, count1이 변경 → context 값 변경 → 이를 사용하고 있는 모든 컴포넌트 리렌더링
+
+즉, 사용하고 있지 않던 Component2도 같은 context를 사용하고 있다는 이유만으로 리렌더링
+
+### 전역 상태를 위한 컨텍스트 만들기
+
+```
+📌 궁금한 점
+- 전역 상태를 위하지 않은 컨텍스트도 있는가?
+```
+
+- 원래, props drilling을 피하기 위해 사용되었는데
+- 이걸 useState와 useReducer와 조합하면서 전역 상태를 관리할 수 있게 된 것
+
+```
+🤔 컨텍스트를 전역 상태로 사용했을 때, 리렌더링 문제 존재 어떻게 해결해볼 수 있을까?
+```
+
+#### 1. 작은 상태 조각 만들기
+
+- 합쳐진 큰 객체 사용 X → 각 조각에 대한 컨텍스트
+
+👉 상태마다 컨텍스트를 따로 두어, 다같이 리렌더링이 되던 문제를 해결하고 싶은 것
+
+#### 2. useReducer로 하나의 상태를 만들고 여러 컨텍스트로 전파하기
+
+- 단일 상태를 만들고, 여러 컨텍스트를 사용해 상태 조각을 배포
+- 상태와 상태를 업데이트 하는 함수를 각각의 컨텍스트로
+
+👉 useReducer 하나를 통해 상태들(ex. count1, count2)를 관리하고 Provider는 따로 둔다
+
+**즉, 관리는 한 곳에서 하되, 전파를 따로 해주는 것으로 이해했다.**
+
+### 컨텍스트 사용을 위한 모범 사례
+
+전역 상태를 위한 컨텍스트를 다루는 세 가지 패턴
+
+- 커스텀 훅과 Provider 컴포넌트 만들기
+- 커스텀 훅이 있는 팩토리 패턴
+- reduceRight를 이용한 Provider 중첩 방지하기
+
+#### 1. 커스텀 훅과 Provider 컴포넌트 만들기
+
+- 상태를 생성하고 Provider에 전달하는 로직을 Provider 컴포넌트로 만들 수 있다.
+
+```jsx
+export const Count1Provider = ({ children }) => {
+  return <Count1Context.Provider value={useState(0)}>{children}</Count1Context.Provider>;
+};
+```
+
+- useContext로 값을 가져올 때, 상위에 Provider가 없으면 에러가 발생하게 되는데
+- 올바를 때는 값을, 올바르지 않을 때는 에러를 던지는 로직을 커스텀 훅으로
+
+```jsx
+export const useCount1 = () => {
+  const value = useContext(Count1Context);
+  if (value === null) throw new Error('Provider missing');
+  return value;
+};
+```
+
+#### 2. 커스텀 훅이 있는 팩토리 패턴
+
+- 커스텀 훅을 만들고 Provider 컴포넌트를 만드는 것은 반복적일 수 있다.
+  - 상태가 필요할 때마다 해야하는 것이므로
+
+```jsx
+const createStateContext = (useValue) => {
+  const StateContext = createContext(null);
+  const StateProvider = ({ initialValue, children }) => {
+    return <StateContext.Provider value={useValue(initialValue)}>{children}</StateContext.Provider>;
+  };
+
+  const useContextState = () => {
+    const value = useContext(StateContext);
+    if (value === null) throw new Error('Provider missing');
+    return value;
+  };
+
+  return [StateProvider, useContextState] as const
+};
+```
+
+```
+📌 toss/slash에서도 이런 느낌(?)의 유틸을 제공하고 있다.
+```
+
+- [import { buildContext } from '@toss/react'](https://www.slash.page/ko/libraries/react/react/src/utils/buildContext.i18n)
+- [코드 뜯어보기](https://github.com/toss/slash/blob/main/packages/react/react/src/utils/buildContext.tsx)
+
+#### 3. reduceRight를 이용한 Provider 중첩 방지
+
+- reduceRight = reduce랑 똑같은데, 마지막 index부터 출발
+- reduceRight를 사용하여 Provider를 return 하는 로직을 리팩터링 가능

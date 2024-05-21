@@ -6,6 +6,12 @@
 - 모듈 상태는 **리액트 컴포넌트 외부에 존재**
 - 때문에 컴포넌트 트리나 하위 트리마다 다른 상태를 가질 수 없다는 한계
 
+**`🤔 Context를 생각해본다면?`**
+
+- `Context`의 경우 `Provider`를 통해 그 하위 컴포넌트들끼리만 공유하는 것이 가능
+- 모듈 상태의 경우는
+  - 컴포넌트 트리와는 무관한 아이이므로.. 트리마다 관리하는 것이 불가능
+
 ```jsx
 const Counter = () => {
   const [state, setState] = useStore(store);
@@ -45,7 +51,7 @@ const createStore = (initialState) => {
 Context를 생성하는 `createContext`로, 기본값을 `createStore`로 전달한다.
 
 ```jsx
-const StoreContext = createStore({ count: 0, text: 'hello' });
+const StoreContext = createContext(createStore({ count: 0, text: 'hello' }));
 ```
 
 스토어 객체를 사용하기 위해 `useSelector`라는 훅을 구현한다.
@@ -66,11 +72,78 @@ const useSelector = (selector) => {
 };
 ```
 
+**`🤔 useSelector`**
+
+- `useContext`를 사용하여 스토어 값을 컴포넌트 트리 내부에서 사용할 수 있도록 제공
+- 그렇지만, `selector`를 이용하여 필요한 부분만 사용 및 업데이트할 수 있도록
+
 다만, 모듈 상태와 다르게 Context를 사용해 상태를 갱신하는 방법을 제공할 필요가 있다.
 
 ```jsx
 const useSetState = () => {
   const store = useContext(StoreContext);
   return store.setState;
+};
+```
+
+**`🤔 팩토리 패턴로 싸매보자~`**
+
+```jsx
+export const createSelectContext = (contextName, defaultValues) => {
+  const Context = createContext(defaultValues);
+
+  const Provider = ({ children, ...contextValues }) => {
+    const value = useMemo(() => contextValues, [...Object.values(contextValues)]);
+    return <Context.Provider value={value}>{children}</Context.Provider>;
+  };
+
+  const useSelector = (selector) => {
+    const context = useContext(Context);
+
+    if (context == null) {
+      throw new Error(`${contextName} must be used within ${contextName}.Provider`);
+    }
+
+    return useSubscription(
+      useMemo(
+        () => ({
+          getCurrentValue: () => selector(store.getState()),
+          subscribe: store.subscribe,
+        }),
+        [store, selector],
+      ),
+    );
+  };
+
+  const useSetState = () => {
+    const store = useContext(StoreContext);
+    return store.setState;
+  };
+
+  return [Provider, useSelector, useSetState];
+};
+```
+
+사용할 때는 다음과 같다.
+
+```jsx
+export const ComponentParent = ({ count, text }) => {
+  const FooContext = createContext('FooContext');
+
+  export const [FooProvider, useFooContextSelector] = createSelectContext();
+
+  return (
+    <FooProvider count={count} text={text}>
+      {children}
+    </FooProvider>
+  );
+};
+```
+
+```jsx
+export const ComponentChild = () => {
+  const textFromCtx = useFooContextSelector(useCallback((state) => state.text, [])); // text 외의 프로퍼티들하고는 무관해짐
+
+  return <div>{textFromCtx}</div>;
 };
 ```

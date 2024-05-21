@@ -1,0 +1,76 @@
+- 컨텐스트는 하위 트리에 전역 상태를 제공할 수 있고 컨텍스트 Provider를 중첩하는 것이 가능하다. 컨텍스트를 사용하면 리액트 생명 주기 내에서 useState와 같은 훅으로 전역 상태를 제어할 수 있다.
+- 반면 구독을 사용하면 단일 컨텍스트로는 불가능한 리렌더링 문제를 해결할 수 있다.
+
+### 모듈 상태의 한계
+
+- 모듈 상태는 **리액트 컴포넌트 외부에 존재**
+- 때문에 컴포넌트 트리나 하위 트리마다 다른 상태를 가질 수 없다는 한계
+
+```jsx
+const Counter = () => {
+  const [state, setState] = useStore(store);
+  ...
+};
+```
+
+### Context와 구독 패턴 사용하기
+
+- Context를 사용해 전역 상태 값을 전파 → 불필요한 리렌더링
+- 구독을 이용한 모듈 상태 → 전체 컴포넌트 트리에 대해 하나의 값만 제공
+
+이 둘을 함께 사용한다면 두 가지 문제점을 극복할 수 있다.
+
+모듈 상태를 만들 때 사용한 `createStore`
+
+```jsx
+const createStore = (initialState) => {
+  let state = initalState;
+
+  const callbacks = new Set();
+  const getState = () => state;
+  const setState = (nextState) => {
+    state = typeof nextState === 'function' ? nextState(state) : nextState;
+  };
+  const subscribe = (callback) => {
+    callbacks.add(callback);
+    return () => {
+      callbacks.delte(callback);
+    };
+  };
+
+  return { getState, setState, subscribe };
+};
+```
+
+Context를 생성하는 `createContext`로, 기본값을 `createStore`로 전달한다.
+
+```jsx
+const StoreContext = createStore({ count: 0, text: 'hello' });
+```
+
+스토어 객체를 사용하기 위해 `useSelector`라는 훅을 구현한다.
+
+```jsx
+const useSelector = (selector) => {
+  const store = useContext(StoreContext);
+
+  return useSubscription(
+    useMemo(
+      () => ({
+        getCurrentValue: () => selector(store.getState()),
+        subscribe: store.subscribe,
+      }),
+      [store, selector],
+    ),
+  );
+};
+```
+
+다만, 모듈 상태와 다르게 Context를 사용해 상태를 갱신하는 방법을 제공할 필요가 있다.
+
+```jsx
+const useSetState = () => {
+  const store = useContext(StoreContext);
+  return store.setState;
+};
+```

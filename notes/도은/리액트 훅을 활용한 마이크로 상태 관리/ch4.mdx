@@ -1,0 +1,152 @@
+### 모듈 상태 살펴보기
+
+- 모듈 상태(module state)는 모듈 수준에서 정의된 변수
+- 리액트에서는 함수를 통해 상태를 갱신
+
+```jsx
+export const setState = (nextState) => {
+  state = typeof nextState === 'function' ? nextState(state) : nextState;
+};
+```
+
+그럼 다음과 같이 함수 갱신을 사용 가능
+
+```jsx
+setState((prev) => ({
+  ...prev,
+  count: prev.count + 1,
+}));
+```
+
+- 컨테이너를 생성하는 함수를 만들어보자
+
+```jsx
+export const createContainer = (initialState) => {
+  let state = initialState;
+  const getState = () => state;
+  const setState = (nextState) => {
+    state = typeof nextState === 'function' ? nextState(state) : nextState;
+  };
+
+  return { getState, setState };
+};
+```
+
+### 리액트에서 전역 상태를 다루기 위한 모듈 상태 사용법
+
+- 싱글턴 전역 상태에 대해 리액트 컨텍스트를 사용하는 것도 가능
+- 전체 트리에서 전역 상태가 필요하다면, 모듈 상태가 더 적합할 수 있다.
+
+### 기초적인 구독 추가하기
+
+- 구독은 **갱신에 대한 알림을 받기 위한 방법**
+
+구독의 일반적인 사용법은 다음과 같다.
+
+```jsx
+const unsubscribe = store.subscribe(() => {
+  console.log('store is update');
+});
+```
+
+- `subscribe`라는 메서드는 callback 함수를 받는다.
+- store가 **갱신될 때마다 콜백 함수가 호출**되고 로그가 출력된다고 예상해볼 수 있다.
+
+이제 구독으로 모듈 상태를 구현해보자.
+
+```jsx
+const createStore = (initialState) => {
+  let state = initialState;
+  const callbacks = new Set();
+  const getState = () => state;
+  const setState = (nextState) => {
+    state = typeof nextState === 'function' ? nextState(state) : nextState;
+  };
+
+  const subscribe = (callback) => {
+    callbacks.add(callback);
+    return () => {
+      callbacks.delete(callback);
+    };
+  };
+
+  return { getState, setState, subscribe };
+};
+```
+
+이번에는 `store`의 상태 값과 갱신 함수를 반환하는 훅 `useStore` 훅을 구현해보자.
+
+```jsx
+const useStore = (store) => {
+  const [state, useState] = useState(store.getState());
+
+  useEffect(() => {
+    const unsubscribe = store.subscribe(() => {
+      setState(store.getState());
+    });
+    setState(store.getState());
+    return unsubscribe;
+  }, [store]);
+
+  return [state, store.setState];
+};
+```
+
+### 선택자와 useSubscription 사용하기
+
+- 상태 객체에서 **일부분만 변경 되더라도 모든 useStore 훅에 전달** → 불필요한 리렌더링
+- **필요로 하는 상태의 일부분만 반환하는 선택자(selector)**를 도입해보자
+
+다음과 같은 store가 있다.
+
+```jsx
+const store = createStore({ count1: 0, count2: 0 });
+```
+
+`useStoreSelector`을 구현해보자
+
+```jsx
+const useStoreSelector = (store, selector) => {
+  const [state, setState] = useState(() => selector(store.getState()));
+
+  // 상태가 변경될 때마다 subscribe 메서드 호출
+  useEffect(() => {
+    const unsubscribe = store.subscribe(() => {
+      // 상태가 변경될 때마다 setState를 호출하여 컴포넌트의 상태를 업데이트
+      // 이때도 selector 함수를 이용해 필요한 부분의 상태만을 선택하여 업데이트
+      setState(selector(store.getState()));
+    });
+    // 마운트될 때 초기상태 설정을 위함
+    setState(selector(store.getState()));
+
+    // 컴포넌트가 언마운트될 때 구독 취소 메서드 호출
+    return unsubscribe;
+  }, [store, selector]);
+
+  return state;
+};
+```
+
+사용할 때는 다음과 같다.
+
+```jsx
+const Component1 = () => {
+  const state = useStoreSelector(
+    store,
+    useCallback((state) => state.count1, []),
+  );
+
+  const inc = () => {
+    store.setState((prev) => ({
+      ...prev,
+      count1: prev.count1 + 1,
+    }));
+  };
+};
+```
+
+- 안정적으로 selctor 함수를 넘기려면 `useCallback`을 사용해야 한다.
+- 그렇지 않으면 렌더링될 때마다 store를 구독 해제하고 구독하는 것을 반복
+- store 또는 selctor가 변경될 때 주의할 점
+  - `useEffect`는 조금 늦게 실행되기 때문에
+  - 재구독될 때까지는 갱신되기 이전 상태 값을 반환한다.

@@ -1,8 +1,398 @@
-## 03. 리액트 컨텍스트를 이용한 컴포넌트 상태 공유
+### 03. 리액트 컨텍스트를 이용한 컴포넌트 상태 공유
 
 <details>
   <summary>준영</summary>
+  리액트 16.3 버전부터 `Context`라는 기능을 제공하기 시작했다.<br/>
+이를 통해 Props 대신 컴포넌트 간 데이터를 전달할 수 있다.<br/>
+따라서 이를 상태와 결합하여 전역 상태로 사용할 수 있다.
+
+> `useContext` + `useState` ⇒ 전역 상태를 위한 커스텀 훅으로 활용!
+
+하지만 `Context` 활용으로 불필요한 렌더링이 발생할 수 있으므로 전역 상태를 여러 조각으로 나누어 사용하는 것이 권장된다고 한다.<br/>
+✅ `Context Provider`를 필요에 따라 범위를 잘 지정하여 사용하라는 말인 것 같다.
+
+### useState와 useContext 탐구하기
+
+useState와 useContext를 조합하여 만든 전역 상태를 통해 props drilling을 줄일 수 있다.<br/>
+drilling의 깊이가 깊어지면 중간에 거쳐가는 컴포넌트에서 사용하지 않는 prop 때문에 가독성을 해치고, 이는 프로젝트의 크기가 커질수록 악영향을 미치게 된다.
+
+```jsx
+const App = () => {
+  const [count, setCount] = useState(0);
+  return <Parent count={count} setCount={setCount} />;
+};
+
+const Parent = ({ count, setCount }) => {
+  return (
+    <>
+      <Child1 count={count} setCount={setCount} />
+      <Child2 count={count} setCount={setCount} />
+    </>
+  );
+};
+```
+
+위의 코드에서 Parent 컴포넌트는 `count`와 `setCount`를 props로 전달 받아 Child 컴포넌트에 넘겨준다.<br/>
+하지만 Parent 컴포넌트에서는 두 prop을 전혀 활용하지 않고 있기 때문에 없애는 편이 좀더 합리적일 수도 있다.<br/>
+따라서 이를 `Context`를 통해 바꿔보자
+
+```jsx
+const CountStateContext = createContext({
+	count: 0,
+	setCount: () => {},
+});
+
+const App = () => {
+  const [count, setCount] = useState(0);
+	return (
+		<CountStateContext.Provider
+			value={{ count, setCount }}
+		>
+			<Parent />
+		</CountStateContext.Provider>
+	);
+}
+
+const Parent = () => {
+  return (
+    <>
+      <Child1 />
+      <Child2 />
+    </>
+  );
+};
+
+const Child1 = () => {
+	const { count, setCount } = useContext(CountStateContext);
+	return ~~~~;
+}
+const Child2 = () => {
+	const { count, setCount } = useContext(CountStateContext);
+	return ~~~~;
+}
+```
+
+### 컨텍스트 이해하기
+
+컨텍스트의 기본 동작은 다음과 같다.
+
+1. 컨텍스트 공급자를 통해 **새로운 컨텍스트 값**을 갖게 된다.
+2. **모든 컨텍스트 소비자들은 새로운 값으로 인해 리렌더링**된다.
+
+만약 컨텍스트 값이 변경되지 않았는데도 리렌더링이 발생한다면, `**memo` 혹은 내용 끌어올리기 기법**을 통해 방지할 수 있다.<br/>
+`memo`는 컴포넌트를 감싸 사용할 수 있고, 컴포넌트를 **메모이제이션**하여 **같은 props**에 대해서는 리렌더링되지 않도록 한다. 하지만 컨텍스트 값의 변화에 대한 리렌더링을 막을 순 없다.<br/>
+✅ 이는 같은 프로바이더 내부에 존재하지만, **전역 상태에 의존성이 없는 자식 컴포넌트들의 불필요한 리렌더링을 줄이기 위해\*\* 사용하는 것 같다.
+
+컨텍스트에 **객체**를 사용할 때에는 주의가 필요하다.<br/>
+객체는 여러 값을 포함할 수 있지만, 컨텍스트 소비자 컴포넌트들은 이 값을 모두 사용하지 않을 수도 있다.<br/>
+여러 컴포넌트에서 다른 값을 사용하지만 하나의 컨텍스트의 객체 안에 값을 넣어둘 경우, 하나의 전역 상태 값의 갱신으로 인해 모든 소비자 컴포넌트들이 리렌더링되는 불상사가 생길 수 있다.
+
+하지만 이 또한 성능에 큰 영향이 없다면 오버엔지니어링일 수 있으니 조심하자!
+
+### 전역 상태를 위한 컨텍스트 만들기
+
+위에서 언급한 합쳐진 큰 객체 사용으로 인한 한계점은 단순히 `작은 상태 조각 만들기`를 통해 극복할 수 있다.
+
+```jsx
+// 합쳐진 큰 객체
+const CountContext = createContext({ count1: 0, count2: 0, ... });
+
+// 작은 상태 조각 만들기
+const Count1Context = createContext({ count1: 0, ... });
+const Count2Context = createContext({ count2: 0, ... });
+
+=> 말은 거창하지만 위와 같이 단순히 같은 주제의 데이터끼리 하나의 컨텍스트로 묶어 합쳐진 큰 객체 사용에서
+	 하나의 상태 변경으로 인한 여러 소비자 컴포넌트의 리렌더링을 줄일 수 있다.
+```
+
+하지만 이 경우, 공급자 컴포넌트의 중첩이 많이 쌓일 수 있다.
+
+### useReducer로 하나의 상태를 만들고 여러 개의 컨텍스트로 전파하기
+
+두번째 해결 방법은 여러 컨텍스트를 사용하여 상태 조각을 배포하고, 배포하는 함수 또한 하나의 컨텍스트로 등록하여 사용하는 것이다.<br/>
+지금까지의 예시를 가지고 이야기를 하자면 count1, count2를 각각의 컨텍스트로 나누고 상태 갱신 함수 또한 컨텍스트로 나누어 두는 것이다.
+
+```tsx
+const Count1Context = createContext(0);
+const Count2Context = createContext(0);
+const DispatchContext = createContext<Dispatch<Action>>(() => {});
+
+const Count1 = () => {
+  const count1 = useContext(Count1Context);
+  const dispatch = useContext(DispatchContext);
+
+  return (
+    <button>
+      <button onClick={() => dispatch({ type: ACITON_NAME })}></button>
+      // ...
+    </>
+  );
+};
+
+const Count2 = () => {
+  const count2 = useContext(Count2Context);
+  const dispatch = useContext(DispatchContext);
+
+  return (
+    <>
+      <button onClick={() => dispatch({ type: ACITON_NAME })}></button>
+      // ...
+    </>
+  );
+};
+
+// 상위 컴포넌트에서 useReducer를 통해 상태를 생성하고, 공급자를 통해 컨텍스트에 값을 넣어줌
+```
+
+✅ 이때 그럼 합쳐진 큰 객체를 사용할 때는 리렌더링이 발생하지만, `useReducer`를 사용하였을때 리렌더링이 발생하지 않는 이유는 뭘까?<br/>
+`useReducer`를 통해 객체의 상태로 선언되었지만, 각각 다른 컨텍스트에 등록이 되었다. 그리고 `dispatch` 함수를 통해 상태 값이 업데이트된다.<br/>
+리듀서에 전달된 `action`을 통해 객체 상태 내부의 하나의 값을 업데이트하여 객체 상태가 새롭게 만들어지긴 하지만, 컨텍스트가 나누어져 있기 때문에 해당 값을 구독하고 있는 소비자 컴포넌트만 리렌더링이 되는 것이 아닐까 조심스럽게 추측해본다.
+
+### 컨텍스트 사용을 위한 모범 사례
+
+#### 사용자 정의 훅과 공급자 컴포넌트 만들기
+
+```tsx
+type CountContextType = [
+	number,
+	Dispatch<SetStateAction<number>>
+];
+
+const CountContext = createContext<CountContext | null>(null);
+
+// 공급자 컴포넌트
+export const CountProvider = ({
+	children
+} : {
+	children: ReactNode
+}) => (
+	<CounterContext.Provider value={useState(0)}>
+		{children}
+	</CounterContext.Provider>
+);
+
+// 사용자 정의 훅
+export const useCount = () => {
+	cosnt value = useContext(CountContext);
+	if(value == null) throw new Error("Provider missing!");
+	return value;
+}
+```
+
+`<CounterContext.Provider value={useState(0)}>` 와 같은 코드로 상태를 선언하고, 다시 선언된 상태와 업데이트 함수를 할당해주는 코드를 한줄로 줄일 수 있다.<br/>
+또한 기본값으로 `null`을 넣어 공급자 컴포넌트를 통해 이를 초기화하지 않으면 사용할 수 없도록 지정하여 에러를 방지하고 항상 공급자가 필요함을 나타낼 수 있다.
+
+#### 사용자 정의 훅이 있는 팩토리 패턴
+
+```tsx
+const createStateContext = (
+	useValue: (init) => State,
+) => {
+  const StateContext = createContext(null);
+  const StateProvider = ({
+	  initialValue,
+	  children
+	}) => (
+		<StateContext.Provider value={useValue(initialValue)}>
+			{children}
+		</StateContext.Provider>;
+  );
+
+  const useContextState = () => {
+    const value = useContext(StateContext);
+    if (value === null) throw new Error('Provider missing!');
+    return value;
+  };
+
+  return [StateProvider, useContextState] as const
+};
+```
+
+매번 전역 상태를 새로 정의할 때마다 사용자 정의 훅과 공급자 컴포넌트를 만드는 일은 반복적이고 중복된 코드가 존재하는 작업일 수 있다.<br/>
+따라서 위와 같이 팩토리 패턴을 통해 이를 일반화하여 사용할 수 있다.
+
+#### reduceRight를 이용한 공급자 중첩 방지
+
+많은 컨텍스트로 인해 공급자 컴포넌트가 계속 중첩된다면 `Callback Hell`과 같이 가독성을 저하시킨다.<br/>
+이때 책에서는 `reduceRight`를 통해 리팩토링하는 방법을 소개한다.<br/>
+`reduceRight`는 `reduce`와 동일하게 동작하지만, 0번 인덱스부터 실행하는 `reduce`와 다르게 **마지막 인덱스부터 0번 인덱스 순서로 실행**하는 함수이다.
+
+```tsx
+const App = () => {
+	const providers = [...]; as const;
+
+	return providers.reduceRight(
+		(children, [Component, props]) =>
+			createElement(Component, props, children),
+		<Parent />,
+	);
+};
+```
+
+이 외에도 **고차 컴포넌트(HOC)**를 통해 개선할 수 있다고 한다.
+
 </details>
 <details>
   <summary>도은</summary>
+  ### useState와 useContext 탐구하기
+
+**`📌 너무 좋았던 자료 공유!`**
+
+- [다른 사람들이 안 알려주는 리액트에서 Context API 잘 쓰는 방법](https://velog.io/@velopert/react-context-tutorial)
+
+#### useCotext와 useState 사용하기
+
+```jsx
+const App = () => {
+  const [count, setCount] = useState(0);
+
+  return (
+    <CountStateContext.Provider value={{ count, setCount }}>
+      <Parent />
+    </CountStateContext.Provider>
+  );
+};
+```
+
+- 가까운 `Provider`로부터 컨텍스트 값을 가져온다.
+
+### 컨텍스트 이해하기
+
+```
+💡 Provider가 새로운 값을 갖게 되면, 이 값을 사용하고 있는 컴포넌트들은 모두 리렌더링된다.
+``
+```
+
+#### 컨텍스트 전파의 작동 방식
+
+내용 끌어올리기 또는 memo를 사용하면
+**Context의 값이 변경되지 않았는데도 리렌더링이 발생하는 것을 방지**할 수 있다.
+
+```jsx
+const ColorContext = createContext('black');
+
+const ColorComponent = () => {
+  const color = useContext(ColorContext);
+  const renderCount = useRef(1);
+
+  useEffect(() => {
+    renderCount.current += 1;
+  });
+
+  return (
+    <div style={{ color }}>
+      Hello {color} (renders: {renderCount.current})
+    </div>
+  );
+};
+```
+
+```
+💡 memo도 컨텍스트 값을 사용하고 있는 컴포넌트의 리렌더링을 막지는 못한다.
+```
+
+#### 컨텍스트에 객체를 사용할 때의 한계점
+
+```jsx
+const CountContext = createContext({ count1: 0, count2: 0 });
+```
+
+위와 같이 만들고, Component1에서는 count1만을 가져와 사용하고 Component2에서는 count2만을 가져와 사용한다고 해보자.
+
+👉 이럴 경우, count1이 변경 → context 값 변경 → 이를 사용하고 있는 모든 컴포넌트 리렌더링
+
+즉, 사용하고 있지 않던 Component2도 같은 context를 사용하고 있다는 이유만으로 리렌더링
+
+### 전역 상태를 위한 컨텍스트 만들기
+
+```
+📌 궁금한 점
+- 전역 상태를 위하지 않은 컨텍스트도 있는가?
+```
+
+- 원래, props drilling을 피하기 위해 사용되었는데
+- 이걸 useState와 useReducer와 조합하면서 전역 상태를 관리할 수 있게 된 것
+
+```
+🤔 컨텍스트를 전역 상태로 사용했을 때, 리렌더링 문제 존재 어떻게 해결해볼 수 있을까?
+```
+
+#### 1. 작은 상태 조각 만들기
+
+- 합쳐진 큰 객체 사용 X → 각 조각에 대한 컨텍스트
+
+👉 상태마다 컨텍스트를 따로 두어, 다같이 리렌더링이 되던 문제를 해결하고 싶은 것
+
+#### 2. useReducer로 하나의 상태를 만들고 여러 컨텍스트로 전파하기
+
+- 단일 상태를 만들고, 여러 컨텍스트를 사용해 상태 조각을 배포
+- 상태와 상태를 업데이트 하는 함수를 각각의 컨텍스트로
+
+👉 useReducer 하나를 통해 상태들(ex. count1, count2)를 관리하고 Provider는 따로 둔다
+
+**즉, 관리는 한 곳에서 하되, 전파를 따로 해주는 것으로 이해했다.**
+
+### 컨텍스트 사용을 위한 모범 사례
+
+전역 상태를 위한 컨텍스트를 다루는 세 가지 패턴
+
+- 커스텀 훅과 Provider 컴포넌트 만들기
+- 커스텀 훅이 있는 팩토리 패턴
+- reduceRight를 이용한 Provider 중첩 방지하기
+
+#### 1. 커스텀 훅과 Provider 컴포넌트 만들기
+
+- 상태를 생성하고 Provider에 전달하는 로직을 Provider 컴포넌트로 만들 수 있다.
+
+```jsx
+export const Count1Provider = ({ children }) => {
+  return <Count1Context.Provider value={useState(0)}>{children}</Count1Context.Provider>;
+};
+```
+
+- useContext로 값을 가져올 때, 상위에 Provider가 없으면 에러가 발생하게 되는데
+- 올바를 때는 값을, 올바르지 않을 때는 에러를 던지는 로직을 커스텀 훅으로
+
+```jsx
+export const useCount1 = () => {
+  const value = useContext(Count1Context);
+  if (value === null) throw new Error('Provider missing');
+  return value;
+};
+```
+
+#### 2. 커스텀 훅이 있는 팩토리 패턴
+
+- 커스텀 훅을 만들고 Provider 컴포넌트를 만드는 것은 반복적일 수 있다.
+  - 상태가 필요할 때마다 해야하는 것이므로
+
+```jsx
+const createStateContext = (useValue) => {
+  const StateContext = createContext(null);
+  const StateProvider = ({ initialValue, children }) => {
+    return <StateContext.Provider value={useValue(initialValue)}>{children}</StateContext.Provider>;
+  };
+
+  const useContextState = () => {
+    const value = useContext(StateContext);
+    if (value === null) throw new Error('Provider missing');
+    return value;
+  };
+
+  return [StateProvider, useContextState] as const
+};
+```
+
+```
+📌 toss/slash에서도 이런 느낌(?)의 유틸을 제공하고 있다.
+```
+
+- [buildContext](https://www.slash.page/ko/libraries/react/react/src/utils/buildContext.i18n)
+- [코드 뜯어보기](https://github.com/toss/slash/blob/main/packages/react/react/src/utils/buildContext.tsx)
+
+#### 3. reduceRight를 이용한 Provider 중첩 방지
+
+- reduceRight = reduce랑 똑같은데, 마지막 index부터 출발
+- reduceRight를 사용하여 Provider를 return 하는 로직을 리팩터링 가능
+
 </details>

@@ -1,0 +1,175 @@
+# 구독을 이용한 모듈 상태 공유
+
+> 모듈 상태
+
+현재 책에서는 모듈 상태를 같은 ES 모듈 스코프, 파일 스코프로 한정된 상태라고 말하고 있다.<br/>
+✅ 이는 특정 **스코프 내에서 전역적으로 사용**할 **객체** 형태의 상태를 의미하는 것 같다.
+
+```jsx
+let count = 0;
+
+const component1 = () => {
+  const [state, setState] = useState(count);
+  const inc = () => {
+    count += 1;
+    setState(count);
+  };
+
+  return (
+    <div>
+      {state}
+      <button onClick={inc}>+1</button>
+    </div>
+  );
+};
+
+const component2 = () => {
+  const [state, setState] = useState(count);
+  const inc2 = () => {
+    count += 2;
+    setState(count);
+  };
+
+  return (
+    <div>
+      {state}
+      <button onClick={inc2}>+2</button>
+    </div>
+  );
+};
+```
+
+위의 경우, `count`의 값은 최신 상태로 유지될 수 있지만, `component1`의 버튼을 클릭하여도 `component2`의 상태가 업데이트되는 것은 아니기 때문에 리렌더링이 일어나지 않아 최신 모듈 상태를 보여줄 수 없다.<br/>
+하지만 `component2`의 버튼을 클릭하면 리렌더링이 일어나 최신 모듈 상태를 보여준다.<br/>
+또한 각 버튼을 빠르게 누르거나 동시에 눌렀을때 원하는 값으로 업데이트가 이뤄지지 않을수도 있다.<br/>
+
+이를 `useEffect`를 이용하여 해결할 수 있다.
+
+```jsx
+let count = 0;
+const setStateFunctions = new Set<(count: number) => void>();
+
+const component1 = () => {
+	const [state, setState] = useState(count);
+
+	useEffect(() => {
+		setStateFunctions.add(setState);
+		return () => { setStateFunctions.delete(setState) };
+	}, []);
+
+	const inc = () => {
+		count += 1;
+		setStateFunction.forEach((fn) => {
+			fn(count);
+		});
+	}
+
+	return (
+		<div>{state}<button onClick={inc}>+1</button></div>
+	);
+};
+```
+
+count라는 값을 공유할 컴포넌트들이 렌더링되었을때, 상태를 업데이트하는 함수를 모두 setStateFunctions에 담아두고, count를 조작할때 담긴 모든 업데이트 함수를 호출하여 상태를 업데이트해주는 것이다.<br/>
+그럼 모든 상태에 변경이 생기며 해당 컴포넌트들이 리렌더링되어 최신 모듈 상태를 화면에 보여줄 수 있다.<br/>
+책에서는 위의 방법은 컴포넌트가 늘어날수록 **중복 코드가 발생하기 때문**에 좋은 방법이 아니라고 말한다.<br/>
+✅ 하지만, 이는 여러 요소들이 특정 값을 구독하고 변화가 생겼을때 해당 변화를 구독한 모든 요소에게 알려주는 `**옵저버 패턴**`과 매우 유사하기 때문에, 해당 **패턴이 등장하게 된 배경**이 아닐까 생각한다.
+
+## 기초적인 구독 추가하기
+
+구독을 통한 모듈 상태는 다음과 같은 기능을 포함하는 Store 객체 형태로 구성된다.
+
+- 말그대로 상태 값을 의미하는 `state`
+- 상태 값을 읽어오는 `getState`
+- 상태 값을 업데이트하는 `setState`
+- 모듈 상태 구독을 위한 `subscribe`
+
+책에서 모듈 상태는 생성 함수를 이용하여 초기 상태 값을 통해 Store를 생성한다.<br/>
+`useEffect`를 통해 개선한 직전 예시의 `setStateFunctions` 대신 `callbacks`라는 컬렉션에 해당 모듈 상태를 구독한 컴포넌트에서 실행할 콜백들을 등록해두고, `setState`가 실행되면 `callbacks`에 댐긴 콜백들을 모두 실행하여 상태 변화를 각 구독 컴포넌트들에 알린다.
+
+```tsx
+type Store<T> = {
+	getState: () => T;
+	setState: (action: T | ((prev: T) => T)) => void;
+	subscribe: (callback: () →> void) => () => void;
+};
+
+const createStore = <T extends unknown>(
+	initialState: T
+): Store<T> => {
+	let state = initialState;
+	const callbacks = new Set<() => void>();
+	const getState = () => state;
+	const setState = (nextState: T | ((prev: T) => T) => {
+		state =
+			typeof nextState === "function"
+				? (nextState as (prev: T) => T)(state)
+				: nextState;
+		callbacks.forEach((callback) => callback());
+	};
+	const subscribe = (callback: () => void) => {
+		callbacks.add(callback);
+		return () => {
+			callbacks.delete(callback);
+		};
+	};
+
+	return { getState, setState, subscribe };
+};
+```
+
+```tsx
+const useStore = (store) => {
+	const [state, setState] = useState(store.getState());
+
+	useEffect(() => {
+		const unsubscribe = store.subscribe(() => {
+			setState(store.getState());
+		});
+		setState(store.getState());
+		return unsubscribe;
+	}, [store]);
+
+	return [state, store.setState;
+};
+```
+
+위와 같은 형태로 Store를 정의하고, useStore 훅을 만들어 중복 코드를 줄이고 필요할 때 모듈 상태를 사용할 수 있다.
+
+## 선택자와 useSubscription 사용하기
+
+위의 예시에서는 상태 객체 전체를 반환한다.<br/>
+따라서 상태 객체의 일부분만 변경되더라도 전체를 반환하여 관련된 모든 컴포넌트에 리렌더링을 발생시킬 수 있다.<br/>
+이를 개선하기 위해 선택자(selector)와 `useSubscription`을 사용할 수 있다.
+
+```tsx
+const useStoreSelector = <T, S>(store: Store<T>, selector: (state: T) => S) => {
+  const [state, setState] = useState(() => selector(store.getState()));
+
+  useEffect(() => {
+    const unsubscribe = store.subscribe(() => {
+      setState(selector(store.getState()));
+    });
+    setState(selector(store.getState())); // 혹시나 useEffect가 늦게 실행될 때 대비
+    return unsubscribe;
+  }, [store, selector]);
+
+  return state; // return [state, store.setState]; // 해주면 되는거 아닌가?
+};
+```
+
+위와 같이 모듈 상태를 가져와 특정 상태만 `selector`를 이용하여 구독시켜줄 수 있도록 하는 것이다.<br/>
+대신 상태 업데이트를 위해서는 `store.setState`를 직접 호출해야한다.<br/>
+✅ 위 예시에서도 이전 예시와 똑같이 `[state, store.setState]` 를 반환해주면 좀더 편하게 사용할 수 있는게 아닌가..? 라는 생각이 든다.<br/>
+또한 selector 함수가 useEffect의 dependency 배열에 포함되어 있기 때문에 useCallback으로 넘겨주어야 리렌더링을 줄일 수 있다.
+추가로 만약 selector 함수가 useStoreSelector 외부에 정의되었다면 useCallback을 사용하지 않고도 구현할 수 있다.
+
+위와 같이 사용할 경우, useEffect가 조금 늦게 실행되기 때문에 재구독될 때까지는 업데이트 이전의 상태 값이 반환될 수 있다.<br/>
+`useEffect` 내에서 한번더 `setState`를 실행하여 문제를 최소화하려고 하지만, 어떠한 엣지 케이스에서는 문제가 발생할 수 있다.<br/>
+이를 방지하기 위해 React 팀은 use-subscription 이라는 훅 라이브러리를 제공한다.
+
+✅ use-subscription을 계승하는 **useSyncExternalStore**가 React 18에서 정식 React 기능에 포함되었다.<br/>
+**[공식문서](https://ko.react.dev/reference/react/useSyncExternalStore)**를 보니, 해당 값의 스냅샷을 저장과 구독 함수를 파라미터로 받아 외부의 값을 특정 상태로서 구독할 수 있도록 해주는 기능으로 보여진다.<br/>
+Chapter 4는 읽을수록 Observer Pattern에 대한 글의 성향이 강해보여 어떤 라이브러리가 해당 패턴을 사용할까 GPT 선생님께 여쭤봤다.<br/>
+MobX가 실제로 Observer Pattern으로 구현되어있었고 Observable이라는 개념을 통해 상태를 구독하고, Observer가 실제로 값이 변경되었을때 리렌더링을 일으켜 최신 모듈 상태로 업데이트해주는 것 같았다.<br/>
+(이 [블로그](https://joong-sunny.github.io/react/react6/)에서 코드 레벨로 까보면서 너무 잘 설명해주심 ㄷㄷ)

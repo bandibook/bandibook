@@ -22,7 +22,7 @@ export const store = create(() => ({count: 0}))
 store.setState((prev) => ({ count: prev.count + 1 }));
 ```
 
-다음과 같은 경우는, **내부적으로 `Object.assing()`으로 구현**되어, 이전 상태를 병합한다.
+다음과 같은 경우는, **내부적으로 `Object.assign()`으로 구현**되어, 이전 상태를 병합한다.
 
 ```jsx
 export const store = create(() => ({

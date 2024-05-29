@@ -1,0 +1,202 @@
+### 사용 사례 시나리오 2: Jotai
+
+Jotai는 전역 상태를 위한 작은 라이브러리이다.<br/>
+Jotai는 컴포넌트 상태를 사용하며 Zustand와 마찬가지로 불변 상태 모델이다.<br/>
+컨텍스트 및 구독 패턴을 기반으로 한다.<br/>
+아톰을 사용하면 라이브러리가 의존성을 추적하여 리렌더링을 감지한다.<br/>
+Jotai가 내부적으로 컨텍스트를 사용하기 때문에 모듈 상태와 달리 정의한 아톰을 재사용할 수 있다.
+
+### Jotai 이해하기
+
+Jotai의 장점은 다음과 같다.
+
+> 구문 단순성
+
+```jsx
+import { atom, useAtom } from 'jotai';
+
+const countAtom = atom(0); // atom 생성 및 초기화
+
+const Counter1 = () => {
+  const [count, setCount] = useAtom(countAtom);
+  const inc = () => setCount((c) => c + 1);
+  return (
+    <>
+      {count} <button onClick={inc}>+1</button>
+    </>
+  );
+};
+
+const Counter2 = () => {
+  const [count, setCount] = useAtom(countAtom);
+  const inc = () => setCount((c) => c + 1);
+  return (
+    <>
+      {count} <button onClick={inc}>+1</button>
+    </>
+  );
+};
+```
+
+atom 함수를 통해 아톰을 생성하고 초기화한다.<br/>
+그리고 useState 대신 useAtom을 통해 아톰을 상태로 사용한다.<br/>
+사용하고자 하는 곳에 useAtom을 통해 상태를 선언하면 여러 컴포넌트에서 동일한 아톰을 사용할 수 있다.<br/>
+만약 provider가 없다면 ‘기본 스토어’로 인해 기본 값을 사용하게 되고, 컴포넌트 트리의 서브 트리를 provider로 묶어 각각 다른 값을 제공할 수 있다.<br/>
+따라서 각각 따로 컨텍스트를 만들어야하는 Context API보다 더욱 간단하고 쉽게 아톰을 생성하고 사용할 수 있다.
+
+> 동적 아톰 생성
+
+아톰은 리액트 컴포넌트 생명 주기에서 생성되거나 소멸될 수 있다.<br/>
+
+다중 컨텍스트 접근 방식의 단점
+
+- 새로운 상태를 추가할 때마다 새로운 Provider 컴포넌트를 추가해야 하기 때문에 리액트 컴포넌트 생명 주기에서 생성되거나 소멸되는 것이 불가능하다.
+- 또한 새로운 컴포넌트를 추가하면 모든 하위 컴포넌트가 **다시 마운트되어 해당 상태들이 버려진다.**
+
+Jotai의 스토어는 기본적으로 atom 함수로 만들어지는 `아톰 구성 객체`와 useAtom 훅이 반환하는 값인 `아톰 값`으로 구성된 WeakMap이다.<br/>
+따라서 **useAtom** 훅을 통해 스토어의 **특정 아톰을 구독**하는 것이다.<br/>
+이를 통해 불필요한 리렌더링을 줄이는 기능을 제공한다.
+
+### 렌더링 최적화
+
+스토어에 선택자를 사용한 접근 방식을 **하향식(top-down) 접근법**이라고 한다.<br/>
+하지만, Jotai는 **상향식(bottom-up) 접근법**을 사용한다.<br/>
+아톰은 리렌더링을 감지하는 단위, 즉 리렌더링을 일으키는 최소 단위이다.<br/>
+하지만 객체도 될 수 있다..!<br/>
+
+너무 아톰을 작게 만들 경우, 너무나도 많은 아톰을 조작해야 할 수도 있다.<br/>
+따라서 파생 아톰을 활용하자!
+
+atom 함수의 첫번째 파라미터인 read 함수를 통해 **다른 아톰을 참조하고, 그 값을 가져와** 여러 아톰으로 새로운 **파생 아톰을 생성**한다.
+
+```jsx
+const firstNameAtom = atom('준영');
+const lastNameAtom = atom('허');
+const ageAtom = atom(29);
+
+const personAtom = atom((get) => ({
+  firstName: get(firstNameAtom),
+  lastName: get(lastNameAtom),
+  age: get(ageAtom),
+}));
+```
+
+이렇게 된다면 파생 아톰의 속성 중 하나가 변경될 때마다 갱신된다.<br/>
+이것을 **의존성 추적**이라고 하며 Jotai는 **자동**으로 해준다!<br/>
+하지만 속성 중 하나라도 변경되면 갱신되기 때문에 사용하지 않는 속성이 변경되어도 갱신이 일어나 불필요한 리렌더링이 발생할 수 있다.<br/>
+따라서 사용할 값만 포함하는 파생 아톰을 만들어 사용하자.<br/>
+이렇게 작은 아톰을 만들어 새로운 큰 파생 아톰을 만드는 형태이기 때문에 상향식 접근법이다.<br/>
+따라서 사용할 아톰만 따로 뽑아 파생 아톰을 만들어 사용하기 때문에 리렌더링 제어가 간단하다.
+
+```jsx
+const count1Atom = atom(0);
+const count2Atom = atom(1);
+
+const Counter = ({ countAtom }) => {
+  const [count, setCount] = useAtom(countAtom);
+  const inc = () => setCount((c) => c + 1);
+  return (
+    <>
+      {count} <button onClick={inc}>+1</button>
+    </>
+  );
+};
+```
+
+위와 같은 방식으로 유사한 모든 아톰에 대해 재사용할수도 있다.<br/>
+또한 아래와 같이 아톰을 조작하여 파생 아톰을 만들수도 있다.
+
+```jsx
+const totalAtom = atom((get) => get(count1Atom) + get(count2Atom));
+```
+
+### Jotai가 아톰 값을 저장하는 방식 이해하기
+
+기본적으로 원시 아톰은 useState처럼 동작하도록 설계됐다.<br/>
+하지만 **아톰이 직접 해당 값을 가지진 않는다.**<br/>
+아톰 값을 저장하는 store가 따로 존재한다.<br/>
+따라서 store에는 `key-value` 구조로 `아톰 구성 객체-아톰값` 형태의 WeakMap 객체가 존재한다.
+
+useAtom을 사용하면 모듈 수준에 정의된 기본 store를 사용하지만, Provider를 통해 컴포넌트 레벨에서 store를 생성하는 것이 가능하다.<br/>
+중요한 포인트는 atom 함수로 생성한 아톰 자체가 값을 갖고 있지 않아 여러 Provider 안에서 재사용할 수 있다는 것이다.<br/>
+즉, 값을 가지지 않는 정의일 뿐이므로 재사용할 수 있다.
+
+✅ atom으로 생성한 아톰은 단지 레퍼런스일뿐이고, 실제로는 해당 아톰을 통해 store의 WeakMap에 접근하여 실제 값을 가져오는 것!<br/>
+C언어 포인터같군 😎
+
+### 배열 구조 추가하기
+
+`Atoms-in-Atom` 패턴
+
+- 배열 아톰은 아톰이 요소인 배열을 보관한다.
+- 배열에 새로운 요소를 추가하려면 새로운 아톰을 생성해서 추가해야 한다.
+- 아톰 구성은 문자열로 평가할 수 있으며, UID를 반환한다.
+  - key로 문자열로 변환된 객체를 사용하여 unique한 값을 사용할 수 있다.
+- 요소를 렌더링하는 컴포넌트는 각 컴포넌트에서 아톰 요소를 사용한다. 이렇게 하면 요소의 값을 쉽게 변경할 수 있고, 전체적인 리렌더링을 피할 수 있다.
+
+✅ 만약, `Atoms-in-Atom` 패턴이 아닌, 특정 객체를 배열로 관리하는 아톰을 생성한다면, 각 객체들의 속성이 바뀌어도 전체 리렌더링이 일어난다는 의미로 해석하였다.<br/>
+따라서 `Atoms-in-Atom` 패턴을 활용하여 리렌더링을 줄일 수 있다!<br/>
+요긴하게 써먹을 것 같은 느낌이 풀풀~
+
+### Jotai의 다양한 기능 사용하기
+
+> 아톰의 write 함수 정의하기
+
+atom 함수의 첫번째 파라미터는 read 함수지만, 두번째 파라미터는 write 함수이며 선택적으로 받을 수 있다.<br/>
+write 함수는 다음 3개의 파라미터를 받는다.
+
+- get은 동일하게 아톰의 값을 받아오는 함수
+- set은 아톰의 값을 설정하는 함수
+- arg는 아톰 갱신시 받을 임의 값 (함수 형태로도 받을 수 있다.)
+
+> 액션 아톰 사용하기
+
+액션 아톰을 생성하기 위해선 atom 함수의 두번째 파라미터인 write 함수만 사용한다.<br/>
+첫번째 파라미터로는 다 상관없지만 보통 null을 쓴다고 한다.
+
+```jsx
+const countAtom = count(0);
+
+const incrementCountAtom = atom(null, (get, set, arg) => set(countAtom, (c) => c + 1));
+```
+
+write 함수에서도 set 만 사용한다.
+
+✅ 아톰의 변경사항이 일정하다면 그 행위를 미리 만들어두는 것 같다!
+
+> 아톰의 onMount 옵션 이해하기
+
+`onMount` 옵션을 통해 아톰이 사용되기 시작할 때 특정 로직을 실행할 수 있다.<br/>
+또한 내부에서 `onUnmount`를 통해 마운트가 해제될 때의 동작을 지정할 수 있다.
+
+```jsx
+const countAtom = atom(0);
+
+countAtom.onMount = (setCount) => {
+  console.log('시작');
+  const onUnmount = () => {
+    console.log('종료');
+  };
+  return onUnmount;
+};
+```
+
+> jotai/utils 번들 소개하기
+
+기본적으로 Jotai는 atom, useAtom, Provider 컴포넌트를 제공한다.<br/>
+추가적으로 `jotai/utils` 라는 별도의 번들을 제공하는데, 다양한 유틸리티 함수가 포함되어있다.
+
+> 라이브러리 사용법 이해하기
+
+두 개의 라이브러리가 내부적으로 jotai를 사용한다면 이중 공급자 문제가 발생할 것이다.<br/>
+Jotai는 특정 공급자에 연결하는 방법인 `스코프`라는 개념을 제공하여 개발자가 예상대로 동작하게 하기 위해선 Provider 컴포넌트와 useAtom 훅에 동일한 스코프 변수를 제공해야 한다.
+
+> 고급 기능 소개
+
+리액트 서스펜스와 관련하여 파생 아톰의 read 함수가 Promise를 반환하면 useAtom 훅이 일시 중단되고, 리액트는 fallback을 표시한다.<br/>
+등등…
+
+✅ 사실 Recoil과 차이가 있어봤자 얼마나 있겠어! 라고 생각했었다.<br/>
+하지만 생각해보니, Jotai는 Bottom-up 방식이지만, Recoil은 Selector를 활용하여 Bottom-up과 Top-down 방식이 모두 가능하다.<br/>
+둘다 atom을 사용하지만 이러한 철학이 다르다는 것이 신기하다.<br/>
+개인적으로는 Recoil은 Meta에서 더이상 큰 업데이트를 진행하고 있지도 않고, 번들이 무겁다는 단점이 있어 Jotai를 사용할 것 같다!

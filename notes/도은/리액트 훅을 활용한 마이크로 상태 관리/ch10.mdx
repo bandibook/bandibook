@@ -1,0 +1,16 @@
+- `React Tracked`는 **속성 감지를 기반**으로 자동으로 렌더링 최적화 수행
+- 불필요한 리렌더링 제거 기능을 제공
+
+### React Tracked 이해하기
+
+- 상태 관리 기능 제공 X, 렌더링 최적화 기능 제공 O
+- `useContext` 대신 `useTracked`를 사용해보자
+  - 상태를 Proxy로 감싸서 사용을 추적
+  - `Valtio`와 동일하게 사용 추적 기능
+
+### 향후 전망
+
+- `React Tracked`는 두 개의 내부 라이브러리에 의존
+  - `proxy-compare`
+  - `use-context-selector`
+- React 자체에서 유사항 형태로 구현체가 등장할 가능성이 있다.

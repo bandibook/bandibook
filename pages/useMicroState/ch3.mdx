@@ -1,8 +1,8 @@
-# 03. 리액트 컨텍스트를 이용한 컴포넌트 상태 공유
-
 <details>
   <summary>준영</summary>
-  리액트 16.3 버전부터 `Context`라는 기능을 제공하기 시작했다.<br/>
+  # 리액트 컨텍스트를 이용한 컴포넌트 상태 공유
+
+리액트 16.3 버전부터 `Context`라는 기능을 제공하기 시작했다.<br/>
 이를 통해 Props 대신 컴포넌트 간 데이터를 전달할 수 있다.<br/>
 따라서 이를 상태와 결합하여 전역 상태로 사용할 수 있다.
 
@@ -11,7 +11,7 @@
 하지만 `Context` 활용으로 불필요한 렌더링이 발생할 수 있으므로 전역 상태를 여러 조각으로 나누어 사용하는 것이 권장된다고 한다.<br/>
 ✅ `Context Provider`를 필요에 따라 범위를 잘 지정하여 사용하라는 말인 것 같다.
 
-### useState와 useContext 탐구하기
+## useState와 useContext 탐구하기
 
 useState와 useContext를 조합하여 만든 전역 상태를 통해 props drilling을 줄일 수 있다.<br/>
 drilling의 깊이가 깊어지면 중간에 거쳐가는 컴포넌트에서 사용하지 않는 prop 때문에 가독성을 해치고, 이는 프로젝트의 크기가 커질수록 악영향을 미치게 된다.
@@ -19,8 +19,8 @@ drilling의 깊이가 깊어지면 중간에 거쳐가는 컴포넌트에서 사
 ```jsx
 const App = () => {
   const [count, setCount] = useState(0);
-  return <Parent count={count} setCount={setCount} />;
-};
+	return <Parent count={count} setCount={setCount}/>
+}
 
 const Parent = ({ count, setCount }) => {
   return (
@@ -72,7 +72,7 @@ const Child2 = () => {
 }
 ```
 
-### 컨텍스트 이해하기
+## 컨텍스트 이해하기
 
 컨텍스트의 기본 동작은 다음과 같다.
 
@@ -81,7 +81,7 @@ const Child2 = () => {
 
 만약 컨텍스트 값이 변경되지 않았는데도 리렌더링이 발생한다면, `**memo` 혹은 내용 끌어올리기 기법**을 통해 방지할 수 있다.<br/>
 `memo`는 컴포넌트를 감싸 사용할 수 있고, 컴포넌트를 **메모이제이션**하여 **같은 props**에 대해서는 리렌더링되지 않도록 한다. 하지만 컨텍스트 값의 변화에 대한 리렌더링을 막을 순 없다.<br/>
-✅ 이는 같은 프로바이더 내부에 존재하지만, **전역 상태에 의존성이 없는 자식 컴포넌트들의 불필요한 리렌더링을 줄이기 위해\*\* 사용하는 것 같다.
+✅ 이는 같은 프로바이더 내부에 존재하지만, **전역 상태에 의존성이 없는 자식 컴포넌트들의 불필요한 리렌더링을 줄이기 위해** 사용하는 것 같다.
 
 컨텍스트에 **객체**를 사용할 때에는 주의가 필요하다.<br/>
 객체는 여러 값을 포함할 수 있지만, 컨텍스트 소비자 컴포넌트들은 이 값을 모두 사용하지 않을 수도 있다.<br/>
@@ -89,7 +89,7 @@ const Child2 = () => {
 
 하지만 이 또한 성능에 큰 영향이 없다면 오버엔지니어링일 수 있으니 조심하자!
 
-### 전역 상태를 위한 컨텍스트 만들기
+## 전역 상태를 위한 컨텍스트 만들기
 
 위에서 언급한 합쳐진 큰 객체 사용으로 인한 한계점은 단순히 `작은 상태 조각 만들기`를 통해 극복할 수 있다.
 
@@ -107,7 +107,7 @@ const Count2Context = createContext({ count2: 0, ... });
 
 하지만 이 경우, 공급자 컴포넌트의 중첩이 많이 쌓일 수 있다.
 
-### useReducer로 하나의 상태를 만들고 여러 개의 컨텍스트로 전파하기
+## useReducer로 하나의 상태를 만들고 여러 개의 컨텍스트로 전파하기
 
 두번째 해결 방법은 여러 컨텍스트를 사용하여 상태 조각을 배포하고, 배포하는 함수 또한 하나의 컨텍스트로 등록하여 사용하는 것이다.<br/>
 지금까지의 예시를 가지고 이야기를 하자면 count1, count2를 각각의 컨텍스트로 나누고 상태 갱신 함수 또한 컨텍스트로 나누어 두는 것이다.
@@ -118,39 +118,41 @@ const Count2Context = createContext(0);
 const DispatchContext = createContext<Dispatch<Action>>(() => {});
 
 const Count1 = () => {
-  const count1 = useContext(Count1Context);
-  const dispatch = useContext(DispatchContext);
+	const count1 = useContext(Count1Context);
+	const dispatch = useContext(DispatchContext);
 
-  return (
-    <button>
-      <button onClick={() => dispatch({ type: ACITON_NAME })}></button>
-      // ...
-    </>
-  );
+	return (
+		<>
+			<button onClick={() => dispatch({ type: ACITON_NAME })}>
+			</button>
+			// ...
+		</>
+	)
 };
 
 const Count2 = () => {
-  const count2 = useContext(Count2Context);
-  const dispatch = useContext(DispatchContext);
+	const count2 = useContext(Count2Context);
+	const dispatch = useContext(DispatchContext);
 
-  return (
-    <>
-      <button onClick={() => dispatch({ type: ACITON_NAME })}></button>
-      // ...
-    </>
-  );
-};
+	return (
+		<>
+			<button onClick={() => dispatch({ type: ACITON_NAME })}>
+			</button>
+			// ...
+		</>
+	)
+}
 
 // 상위 컴포넌트에서 useReducer를 통해 상태를 생성하고, 공급자를 통해 컨텍스트에 값을 넣어줌
 ```
 
-✅ 이때 그럼 합쳐진 큰 객체를 사용할 때는 리렌더링이 발생하지만, `useReducer`를 사용하였을때 리렌더링이 발생하지 않는 이유는 뭘까?<br/>
+✅ 이때 그럼 합쳐진 큰 객체를 사용할 때는 리렌더링이 발생하지만, `useReducer`를 사용하였을때 리렌더링이 발생하지 않는 이유는 뭘까?<br/>
 `useReducer`를 통해 객체의 상태로 선언되었지만, 각각 다른 컨텍스트에 등록이 되었다. 그리고 `dispatch` 함수를 통해 상태 값이 업데이트된다.<br/>
 리듀서에 전달된 `action`을 통해 객체 상태 내부의 하나의 값을 업데이트하여 객체 상태가 새롭게 만들어지긴 하지만, 컨텍스트가 나누어져 있기 때문에 해당 값을 구독하고 있는 소비자 컴포넌트만 리렌더링이 되는 것이 아닐까 조심스럽게 추측해본다.
 
-### 컨텍스트 사용을 위한 모범 사례
+## 컨텍스트 사용을 위한 모범 사례
 
-#### 사용자 정의 훅과 공급자 컴포넌트 만들기
+### 사용자 정의 훅과 공급자 컴포넌트 만들기
 
 ```tsx
 type CountContextType = [
@@ -182,7 +184,7 @@ export const useCount = () => {
 `<CounterContext.Provider value={useState(0)}>` 와 같은 코드로 상태를 선언하고, 다시 선언된 상태와 업데이트 함수를 할당해주는 코드를 한줄로 줄일 수 있다.<br/>
 또한 기본값으로 `null`을 넣어 공급자 컴포넌트를 통해 이를 초기화하지 않으면 사용할 수 없도록 지정하여 에러를 방지하고 항상 공급자가 필요함을 나타낼 수 있다.
 
-#### 사용자 정의 훅이 있는 팩토리 패턴
+### 사용자 정의 훅이 있는 팩토리 패턴
 
 ```tsx
 const createStateContext = (
@@ -211,7 +213,7 @@ const createStateContext = (
 매번 전역 상태를 새로 정의할 때마다 사용자 정의 훅과 공급자 컴포넌트를 만드는 일은 반복적이고 중복된 코드가 존재하는 작업일 수 있다.<br/>
 따라서 위와 같이 팩토리 패턴을 통해 이를 일반화하여 사용할 수 있다.
 
-#### reduceRight를 이용한 공급자 중첩 방지
+### reduceRight를 이용한 공급자 중첩 방지
 
 많은 컨텍스트로 인해 공급자 컴포넌트가 계속 중첩된다면 `Callback Hell`과 같이 가독성을 저하시킨다.<br/>
 이때 책에서는 `reduceRight`를 통해 리팩토링하는 방법을 소개한다.<br/>
@@ -230,9 +232,7 @@ const App = () => {
 ```
 
 이 외에도 **고차 컴포넌트(HOC)**를 통해 개선할 수 있다고 한다.
-
-</details>
-<details>
+</details><details>
   <summary>도은</summary>
   ### useState와 useContext 탐구하기
 
@@ -260,6 +260,7 @@ const App = () => {
 
 ```
 💡 Provider가 새로운 값을 갖게 되면, 이 값을 사용하고 있는 컴포넌트들은 모두 리렌더링된다.
+``
 ```
 
 #### 컨텍스트 전파의 작동 방식

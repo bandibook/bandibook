@@ -30,9 +30,13 @@ jobs:
     - name: Commit changes
       run: |
         git config --global user.name 'bandibook'
-        git config --global user.email 'bandibook@bandiboodi.com'
-        git add *
-        git commit -am "bandibook auto file combine"
+        git config --global user.email 'bandibook@bandibook.com'
+        git add -u
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "bandibook auto file combine"
+        fi
 
     - name: Push changes
       run: |

@@ -18,20 +18,19 @@ class LocalCache:
         if file_name not in self.cache_data[book_name]:
             self.cache_data[book_name][file_name] = {}
 
-        self.cache_data[book_name][file_name]["mod_time"] = mod_time
         self.cache_data[book_name][file_name]["reviewer_count"] = reviewer_count
         self.__save_cache()
 
     def need_update(self, book_name, file_name, mod_time, reviewer_count):
-        if self.get_study_reviewer_count(book_name, file_name) != reviewer_count or self.get_file_mod_time(book_name, file_name) != mod_time:
+        if self.__get_study_reviewer_count(book_name, file_name) != reviewer_count or self.__is_cache_miss(book_name, file_name):
                 return True
 
         return False
 
-    def get_file_mod_time(self, book_name, file_name):
-        return self.cache_data.get(book_name, {}).get(file_name, {}).get("mod_time")
+    def __is_cache_miss(self, book_name, file_name):
+        return file_name not in self.cache_data.get(book_name, {})
 
-    def get_study_reviewer_count(self, book_name, file_name):
+    def __get_study_reviewer_count(self, book_name, file_name):
         return self.cache_data.get(book_name, {}).get(file_name, {}).get("reviewer_count")
 
     def __load_cache(self):

@@ -1,0 +1,43 @@
+name: Bandibook Auto File Combine Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  build:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Combine files
+      run: |
+        python3 -m combiner --job CombineJob --source-directory notes --target-directory pages --cache-file combiner/cache.json
+
+    - name: Commit changes
+      run: |
+        git config --global user.name 'bandibook'
+        git config --global user.email 'bandibook@bandibook.com'
+        git add -u
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "bandibook auto file combine"
+        fi
+
+    - name: Push changes
+      run: |
+        git push origin main

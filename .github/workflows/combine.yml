@@ -29,8 +29,8 @@ jobs:
 
     - name: Commit changes
       run: |
-        git config --global user.name 'bandibook'
-        git config --global user.email 'bandibook@bandibook.com'
+        git config --global user.name 'bandibookk'
+        git config --global user.email 'bandibookmap@gmail.com'
         git add -u
         if git diff --cached --quiet; then
           echo "No changes to commit"
@@ -40,4 +40,5 @@ jobs:
 
     - name: Push changes
       run: |
+        git remote set-url origin https://bandibookk@github.com/bandibook/bandibook.git
         git push origin main

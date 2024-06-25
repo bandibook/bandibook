@@ -26,4 +26,5 @@
 
 ## 🗺️ 책 지도
 
-<img src="https://github.com/bandibook/bandibook/assets/112946860/946807d5-67d2-49c8-86e5-2e6b87b89162" width="600" />
+
+![Group 1000004320](https://github.com/bandibook/bandibook/assets/112946860/90dbd943-1d79-4d8d-9d63-00ed67fde4b3)

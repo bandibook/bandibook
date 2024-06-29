@@ -1,0 +1,188 @@
+## 액션에서 계산 빼내기
+
+
+### 테스트하기 쉽게 만들기
+
+테스트를 쉽게하려면 다음 조건이 필요하다.  
+
+1. DOM 업데이트와 비즈니스 규칙은 분리 되어야 한다.
+2. 전역변수가 없어야 한다.
+
+
+### 재사용하기 쉽게 만들기
+
+1. 전역변수에 의존하지 않아야 한다.
+2. DOM을 사용할 수 있는 곳에서 실행한다고 가정하면 ㅏㄴ된다.
+3. 함수가 결과값을 리턴해야 한다.
+
+
+
+### 액션과 계산, 데이터 구분하기
+
+액션은 코드 전체로 퍼지기 때문에 어떤 함수안에 액션이 하나만 있어도  
+그 함수 전체가 액션이 된다.  
+
+### 함수에는 입력과 출력이 있다
+
+입력은 함수가 계산을 하기 위한 외부 정보이며, 출력은 함수 밖으로 나오는 정보나 어떤 동작이다.  
+
+함수를 호출하는 이유는 결과가 필요하기 때문이다. 
+
+그리고 원하는 결과를 얻으려면 입력이 필요하다.  
+
+
+
+
+#### 입력과 출력은 명시적이거나 암묵적일 수 있다.
+
+```js
+let total = 0;
+function add_to_total(amount) { // 인자는 명시적 입력
+    console.log( // 콘솔에 찍는것은 암묵적 출력
+        `old total ${total}` // 전역변수를 읽는것은 암묵적 입력
+        ); 
+    total += total; // 전역변수를 바꾸는것은 암묵적 출력
+    return total; // 리턴값은 명시적 출력
+}
+```
+
+#### 함수에 암묵적 입력과 출력이 있으면 액션이 된다.
+
+함수에서 암묵적 입력과 출력을 없애면 계산이 된다.  
+암묵적 입력은 함수의 인자로 바꾸고, 암묵적 출력은 함수의 리턴값으로 변경하면 된다.
+
+
+### 테스트와 재사용성은 입출력과 관련있다.
+
+1. DOM 업데이트와 비즈니스 규칙은 분리되어야 한다.
+2. 전역변수가 없어야 한다.
+3. 전역변수에 의존하지 않아야 한다.
+4. DOM 을 사용할수 있는곳에서 실행된다고 가정하면 안된다.
+5. 함수가 결과값을 리턴해야 한다.
+
+
+
+### 액션에서 또 다른 계산 빼내기
+
+```js
+function add_item_to_cart(name, price) {
+    // 이 코드를 새 함수로 빼낸다
+    shopping_cart.push({
+        name,
+        price
+    })
+
+    calc_cart_total();
+}
+
+function add_item_to_cart(name, price) {
+    add_item(name, price); // 빼낸 부분은 새로 만든 함수를 호출하도록 변경
+    calc_cart_total();
+}
+
+function add_item(name, price) {
+    shopping_cart.push({
+        name,
+        price
+    })
+}
+```
+
+
+#### 암묵적 입력을 없앤 코드
+
+```js
+// 암묵적 입력을 없앤 코드
+function add_item_to_cart(name, price) {
+    add_item(shopping_cart, name, price);
+    calc_cart_total();
+}
+
+function add_item(cart, name, price) { // cart 인자를 추가하여 명시적 입력으로 수정
+    cart.push({name, price});
+}
+```
+
+
+#### 암묵적 출력을 없앤 코드
+
+```js
+
+// 암묵적 출력을 없앤 코드
+function add_item_to_cart(name, price) {
+    shopping_cart = add_item(shopping_cart, name, price); // 리턴값을 받아 전역변수에 할당
+    calc_cart_total();
+}
+
+function add_item(cart, name, price) {
+    const new_cart = cart.slice(); // 복사본을 만들어 지역변수에 할당
+    new_cart.push({name, price}); // 복사본을 변경
+    return new_cart; // 복사본을 리턴
+}
+```
+
+
+<details>
+ <summary>연습 문제</summary>
+
+
+### 함수에서 세금을 계산하는 부분을 추출해라
+
+```js
+
+// as-is
+function update_tax_dom() {
+    set_tax_dom(shopping_cart_total * 0.10);
+}
+
+
+// to-be
+function update_tax_dom() {
+    set_tax_dom(calc_tax(shopping_cart_total))
+}
+
+function calc_tax(total) {
+    const tax_ratio = 0.10;
+    return total * tax_ratio;
+}
+```
+
+### 함수에서 계산을 추출해 봐라
+
+```js
+
+// as-is
+function update_shipping_icons() {
+    const buy_buttons = get_buy_buttons_dom();
+    for (const i = 0 ; i < buy_buttons.length ; i++) {
+        const button = buy_buttons[i];
+        const item = button.item;
+        if (item.price + shopping_cart_total >= 20) { // 비즈니스 규칙
+            button.show_free_shipping_icon();
+        } else {
+            button.hide_shipping_icon();
+        }
+    }
+}
+
+// to-be
+function update_shipping_icons() {
+    const buy_buttons = get_buy_buttons_dom();
+    for (const i = 0 ; i < buy_buttons.length ; i++) {
+        const button = buy_buttons[i];
+        const item = button.item;
+        if (item.price + shopping_cart_total >= 20) { // 비즈니스 규칙
+            button.show_free_shipping_icon();
+        } else {
+            button.hide_shipping_icon();
+        }
+    }
+}
+
+function isFreeShipping(price, total) {
+    const free_shipping_count = 20;
+    return price + total >= free_shipping_count;
+}
+```
+</details>
+

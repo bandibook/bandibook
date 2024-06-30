@@ -1,0 +1,95 @@
+# 액션에서 계산 빼내기
+```javascript
+// 예시 1
+function calc_cart_total() {
+  shopping_cart_total = 0;
+  
+  for (var i = 0; i < shipping_cart.length; i++) {
+    var item = shipping_cart[i];
+    shopping_cart_total += item.price;
+  }
+  
+  set_cart_total_dom();
+  update_shipping_icons();
+  update_tax_dom();
+}
+
+// 예시 2
+function add_item_to_cart(name, price) {
+  shopping_cart.push({
+    name: name,
+    price: price
+  })
+}
+```
+위 2개의 메서드에서 액션을 빼내보자
+
+## 1. 함수 추출하기
+```javascript
+// 예시 1
+function calc_total() {
+  shopping_cart_total = 0;
+  
+  for (var i = 0; i < shipping_cart.length; i++) {
+    var item = shipping_cart[i];
+    shopping_cart_total += item.price;
+  }
+}
+
+// 예시 2
+function add_item(name, price) {
+  shopping_cart.push({
+    name: name,
+    price: price
+  })
+}
+```
+- 액션에서 계산으로 뺄 수 있는 단위로 메서드를 생성한다.
+- 이후 기존 로직에서 새로 생성한 메서드를 호출하도록 변경한다.
+
+## 2. 암묵적 입력 찾고 명시적으로 변경하기
+```javascript
+// 예시 1
+function calc_total(cart) {
+  var total = 0;
+  
+  for (var i = 0; i < cart.length; i++) {
+    var item = cart[i];
+    total += item.price;
+  }
+  
+  return total;
+}
+
+// 예시 2
+function add_item(cart, name, price) {
+  cart.push({
+    name: name,
+    price: price
+  })
+}
+```
+- 입력에는 암묵적 입력과 명시적 입력이 있다.
+- 명시적 입력은 매개변수로 받은 입력을 뜻하고 나머지는 모두 암묵적 입력이다.
+- 암묵적 입력은 메서드를 액션으로 만들기 때문에 암묵적 입력으로 변경한다.
+
+## 3. 암묵적 출력 찾고 명시적으로 변경하기
+```javascript
+// 예시 2
+function add_item(cart, name, price) {
+  var new_cart = cart.slice();
+  
+  new_cart.push({
+    name: name,
+    price: price
+  })
+  
+  return new_cart;
+}
+```
+- 리턴값을 제외한 모든 출력은 암묵적 출력이다.
+- 암묵적 출력을 찾아 명시적 출력으로 변경해야 계산이 된다.
+- 여기서 입력을 받은 cart를 복사해서 사용한 이유는 무엇일까?
+- 책에서는 질문만 하고 답을 알려주지는 않았지만 추측해보자면 인자로 받은 cart를 그대로 사용하면 외부의 변경에 의해 반환값이 달라질 수도 있다.
+- 즉, 메서드 호출 시점에 의존하기 때문에 계산이 아니라 액션이 된다.
+- 사실 위 방식도 slice()가 호출되기 이전 찰나에 외부 동작에 의해 결과가 바뀔 수도 있지만 그 시간을 미미하게 만든다는데 의미가 있는 것 같다.

@@ -1,2 +1,95 @@
-## 더 좋은 액션 만들기
+# 더 좋은 액션 만들기
 
+### 비즈니스 요구 사항과 설계를 맞추기
+
+#### 요구 사항에 맞춰 더 나은 추상화 단계 선택하기  
+
+기계적인 리팩토링이 항상 ㅊ최선의 구조를 만들어 주진 않는다.
+
+### 비즈니스 요구 사항과 함수를 맞추기
+
+#### 함수의 동작을 바꿨기 때문에 엄밀히 말하면 리팩터링이라고 할 수 없다.
+
+```js
+//as-is
+function gets_free_shipping(total, price) {
+    return total + price >= 20;
+}
+
+// to-be
+function gets_free_shipping(cart) {
+    return calc_total(cart) >= 20; // 별도의 계산 함수를 사용해 금액 합계를 구한다
+}
+```
+
+
+### 원칙 : 암묵적 입력과 출력은 적을수록 좋다.
+
+암묵적 입력과 출력이 있는 함수는 아무때나 실행할 수 없기 때문에 테스트하기 어렵다.  
+
+입력과 출력이 많을수록 테스트는 더 어려워 진다.  
+
+
+계산은 암묵적 입력과 출력이 없기 때문에 테스트하기 쉽다.  모든 암묵적 입력과 출력을 없애지 못해  
+액션을 계산으로 바꾸지 못해도 암묵적 입력과 출력을 줄이면 테스트하기 쉽고 재사용성이 좋다.  
+
+
+### 암묵적 입력과 출력 줄이기
+
+update_shipping_icons() 함수에 원칙을 적용해 암묵적 입력과 출력을 줄여본다.
+
+
+```js
+// as-is
+function update_shipping_icons() {
+    // do something
+    // in for loop
+    const new_cart = add_item(shopping_cart, item.name, item.price) // shopping_cart 는 전역변수
+    // do something
+}
+
+// to-be
+function update_shipping_icons(cart) { // 인자 추가
+    // do something
+    // in for loop
+    const new_cart = add_item(cart, item.name, item.price) // cart 인자 추가
+    // do something
+}
+
+```
+
+
+### 원칙 : 설계는 엉켜있는 코드를 푸는 것이다.
+
+#### 재사용하기 쉽다.
+함수는 작을수록 재사용하기 쉽다.
+
+#### 유지보수하기 쉽다.
+작은 함수는 쉽게 이해할 수 있고 유지보수하기 쉽다.
+
+#### 테스트하기 쉽다.
+작은 함수는 테스트하기 좋다. 한 가지 일만 하기 때문에 한 가지 테스트만 하면 된다.
+
+
+### 카피-온-라이트 패턴을 빼내기
+장바구니와 제품에만 쓸 수 있는 함수가 아닌 어떤 배열이나 항목에도 쓸 수 있는 이름으로 변경  
+
+이 함수는 재사용할 수 있는 유틸리티 함수이다.
+
+
+
+ ```js
+ // as-is
+ function add_item(cart, item) {
+    const new_cart = cart.slice();
+    new_cart.push(item);
+    return new_cart;
+ }
+
+ // to-be
+ function add_element_last(array, elem) {
+    const new_array = array.slice();
+    new_array.push(elem);
+    return new_array;
+ }
+ ```

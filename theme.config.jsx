@@ -17,4 +17,8 @@ export default {
       },
     };
   },
+  sidebar: {
+    defaultMenuCollapseLevel: 1,
+    toggleButton: true,
+  },
 };

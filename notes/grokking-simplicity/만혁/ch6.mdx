@@ -1,0 +1,223 @@
+# 변경 가능한 데이터 구조를 가진 언어에서 불변셩 유지하기
+
+
+## 동작을 읽기, 쓰기 또는 둘 다로 분류하기
+
+- 읽기 : 데이터에서 정보를 가져온다. 데이터를 변경하지 않는다.
+- 쓰기 : 데이터를 변경한다.
+
+
+
+## 카피-온-라이트 원칙 세 단계
+
+1. 복사본 만들기
+2. 복사본 변경하기
+3. 복사본 리턴하기
+
+
+```js
+function add_elelment_last(array, elem) {
+    const newArray = array.slice(); // 1. 복사본 만들기
+    newArray.push(elem); // 2. 복사본 변경하기
+    return newArray; // 3. 복사본 리턴하기
+}
+```
+
+`add_elelment_last` 함수는 데이터를 변경하지 않고 정보를 리턴했기 때문에 `읽기`다
+
+
+카피-온-라이트는 쓰기를 읽기로 바꾼다.
+
+
+
+
+
+## 쓰면서 읽기도 하는 함수를 분리하기
+
+```js
+function firstElement(array) {
+    return array[0];
+}
+function dropFirst(array) {
+    const copy = array.slice();
+    copy.shift();
+    return copy;
+}
+```
+
+
+##  값을 두 개 리턴하는 함수로 만들기
+```js
+function shift(array) {
+    const copy = array.slice();
+    const first = copy.shift();
+    return {
+        first: first,
+        array: copy
+    };
+}
+
+function shift(array) {
+    return {
+        first: firstElement(array),
+        array: dropFirst(array)
+    };
+}
+```
+
+<details>
+ <summary>연습 문제</summary>
+
+### 카피-온-라이트로 변경
+
+```js
+const mailingList = [];
+function addContact(list, email) {
+    const copy = list.slice();
+    copy.push(email);
+    return copy;
+}
+function submitFormHandler(event) {
+    const from = event.target;
+    const email = form.elements['email'].value;
+    const added = addContact(mailingList, email)
+    mailingList = added;
+}
+```
+
+
+### `.pop()` 메서드를 카피-온-라이트로 변경
+
+```js
+const a = [1,2,3,4];
+const b = a.pop();
+console.log(b); // 4출력
+console.log(a); // [1,2,3] 출력
+```
+
+
+```js
+function lastElement(array) {
+    return array[array.length - 1]
+}
+
+function dropLast(array) {
+    const copy = array.slice();
+    copy.pop();
+    return copy;
+}
+
+function pop(array) {
+    return {
+        last: lastElement(array),
+        array: dropLast(array)
+    };
+}
+```
+
+
+### `.push()` 메서드를 카피-온-라이트로 변경
+
+
+```js
+function push(array, elem) {
+    const copy = array.slice();
+    copy.push(elem);
+    return copy;
+}
+```
+
+### `addContact()` 리팩토링
+
+```js
+function addContact(mailingList, email) {
+    return push(mailingList, email);
+}
+```
+
+
+### `arraySet()` 함수 만들기
+ 
+```js
+a[15] = 2;
+
+function arraySet(array, idx, value) {
+    const copy = array.slice();
+    copy[idx] = value;
+    return copy;
+}
+```
+
+### `objectSet()` 함수 만들기
+ 
+```js
+o['price'] = 37;
+
+function objectSet(object, key, value) {
+    const copy = Object.assign({}, object);
+    copy[key] = value;
+    return copy;  
+}
+```
+
+### `setPrice()` 리팩토링
+
+```js
+function setPrice(item, newPrice) {
+    const edited = objectSet(item, 'price', newPrice);
+    return edited;
+}
+```
+
+
+### `setQuantity()` 함수 만들기
+ 
+```js
+function setQuantity(item, newQuantity) {
+    const edited = objectSet(item, 'quantity', newQuantity);
+    return edited;
+}
+```
+
+
+### `delete` 연산 만들기
+
+```js
+const a = {x : 1};
+deletea['x'];
+a // {} 출력
+
+function objectDelete(object, key) {
+    const copy = Object.assign({}, object);
+    delete copy[key]
+    return copy;
+}
+```
+
+### 다음 중첩된 동작을 카피-온-라이트로 변경
+
+```js
+
+// as-is
+function setQuantityByName(cart, name, quantity) {
+    for(const i = 0; i < cart.length; i++) {
+        if(cart[i].name === name) {
+            cart[i].quantity = quantity;
+        }
+    }
+}
+
+// to-be
+function setQuantityByName(cart, name, quantity) {
+    const copy = cart.slice();
+    for(const i = 0; i < copy.length; i++) {
+        if(copy[i].name === name) {
+            copy[i] = setQuantity(copy[i], quantity);
+        }
+    }    
+    return copy;
+}
+```
+
+
+</details>

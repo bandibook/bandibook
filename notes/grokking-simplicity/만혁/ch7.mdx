@@ -1,0 +1,54 @@
+# 신뢰할 수 없는 코드를 쓰면서 불변성 지키기
+
+
+## 우리가 만든 카피-온-라이트 코드는 신뢰할 수 없는 코드와 상호작용 해야한다.
+
+
+## 방어적 복사는 원본이 바뀌는 것을 막아 준다.
+
+## 방어적 복사 규칙
+
+1. 데이터가 안전한 코드에서 나갈 때 복사하기
+    - 불변성 데이터를 위해 깊은 복사본을 만든다.
+    - 신뢰할 수 없는 코드로 복사본을 전달한다.
+2. 안전한 코드로 데이터가 들어올 때 복사하기
+    - 변경될 수도 있는 데이터가 들어오면 바로 깊은 복사본을 만들어 안전한 코드로 전달
+    - 복사본을 안전한 코드에서 사용
+
+
+
+<details>
+ <summary>연습 문제</summary>
+
+### `payrollCacl()` 함수에 방어적 복사를 적용해라
+
+```js
+function payrollCacl(emplyoees) {
+    // ...
+    return payrollChecks;
+}
+
+
+function payrollCaclSafe(emplyoees) {
+    const copy = deepCopy(emplyoees);
+    const payrollChecks = payrollCacl(copy);
+    return deepCopy(payrollChecks);
+}
+```
+
+
+### 리팩토링
+
+```js
+userChanges.subscribe(function(user) {
+    const copy = deepCopy(user);
+    processUser(copy); // 안전 지대 함수
+})
+```
+
+</details>
+
+
+
+## 깊은 복사는 얕은 복사보다 비싸다
+

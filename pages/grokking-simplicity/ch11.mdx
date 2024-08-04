@@ -1,0 +1,344 @@
+<details>
+  <summary>만혁</summary>
+  #  일급 함수 2 
+
+
+## 배열에 대한 카피-온-라이트 리팩터링
+
+
+
+### 1. 본문과 앞부분, 뒷부분을 확인하기
+
+
+```js
+
+function arraySet(array, idx, value) {
+    const copy = array.slice(); // 앞부분
+    copy[idx] = value; // 본문
+    return copy; // 뒷부분
+}
+
+function dropLast(array, idx, value) {
+    const copy = array.slice(); // 앞부분
+    copy.pop(); // 본문
+    return copy; // 뒷부분
+}
+```
+
+
+### 2. 함수 빼내기
+
+```js
+// as-is
+function arraySet(array, idx, value) {
+    const copy = array.slice();
+    copy[idx] = value;
+    return copy; 
+}
+
+// to-be
+function arraySet(array, idx, value) {
+    return withArrayCopy(array);
+}
+
+function withArrayCopy(array) {
+    const copy = array.slice();
+    copy[idx] = value; // 아직 정의되지 않은 변수
+    return copy;
+}
+```
+
+
+### 3. 콜백 빼내기
+
+```js
+function arraySet(array, idx, value) {
+    return withArrayCopy(
+        array,
+        function(copy) { copy[idx] = value }
+        );
+}
+
+
+// 카피-온-라이트 원칙을 따르고 재사용할 수 있는 함수
+function withArrayCopy(array, modify) {
+    const copy = array.slice();
+    modify(copy);
+    return copy;
+}
+```
+
+
+
+
+<details>
+ <summary>연습 문제</summary>
+
+### `withArrayCopy()` 함수 적용해보기
+
+
+```js
+function push(array, elem) {
+    return withArrayCopy(
+        array,
+        function() { copy.push(elem) }
+        )
+}
+
+function dropLast(array) {
+    return withArrayCopy(
+        array,
+        function() { copy.pop() }
+        )
+}
+
+function dropFirst(array) {
+    return withArrayCopy(
+        array,
+        function() { copy.shift() }
+        )
+}
+```
+
+### object 에도 사용 가능한 카피-온-라이트 버전을 만들어라
+
+```js
+
+function withObjectCopy(object, modify) {
+    const copy = Object.assign({}, object);
+    modify(copy);
+    return copy;
+}
+
+
+function objectSet(object, key, value) {
+    return withObjectCopy(
+        object,
+        function(copy) { copy[key] = value }
+    )
+}
+
+function objectDelete(object, key) {
+    return withObjectCopy(
+        object,
+        function(copy) { delete copy[key] }
+    );
+}
+```
+
+
+### `tryCatch()`  만들어라
+
+`tryCatch(sendEmail, logToSnapErrors)` 이렇게 쓸 수 있게~~
+
+```js
+function tryCatch(f, e) {
+    try {
+        return f();
+    } catch (error) {
+        return e(error);
+    }
+}
+```
+
+### `when()` 함수를 만들어라
+
+```js
+when(hasItem(cart, "shoes"), function() {return setPriceByName(cart, "shoes", 0)})
+```
+
+
+```js
+function when(predicate, f) {
+    if (predicate) {
+        return f()
+    }
+}
+```
+
+### `when()` 함수를  `IF()` 로 이름 바꾸고 `else` 를 추가해라
+
+```js
+function IF(predicate, then, ELSE) {
+    if (predicate) {
+        return then();
+    } else {
+        return ELSE();
+    }
+}
+```
+</details>
+
+
+## 함수를 리턴하는 함수
+
+
+### 원래 코드
+```js
+try { 
+    saveUserData(user); 
+} catch (error) { 
+    logToSnapErrors(error);
+} 
+```
+
+### 이름을 명확하게 바꿈
+
+```js
+try { 
+    saveUserDataNoLogging(user); 
+} catch (error) { 
+    logToSnapErrors(error);
+} 
+```
+
+### 로그를 남기는 함수
+
+```js
+function saveUserDataWithLogging(user) { // 앞부분
+    try { 
+        saveUserDataNoLogging(user);  // 본문
+    } catch (error) {  // 뒷부분
+        logToSnapErrors(error); 
+    } 
+}
+
+function fetchProductWithLogging(user) { // 앞부분
+    try { 
+        fetchProductNoLogging(user); // 본문
+    } catch (error) {  // 뒷 부분
+        logToSnapErrors(error); 
+    } 
+}
+```
+
+### 중복 제거
+
+```js
+function (arg) {
+    try { 
+        saveUserDataNoLogging(arg); 
+    } catch (error) {  
+        logToSnapErrors(error); 
+    } 
+}
+
+function (arg) {
+    try { 
+        fetchProductNoLogging(arg); 
+    } catch (error) {  
+        logToSnapErrors(error); 
+    } 
+}
+```
+
+### 함수 본문을 콜백으로 바꾸기
+
+```js
+function wrapLogging(f) {
+    return function (arg) {
+        try { 
+            f(arg); 
+        } catch (error) {  
+            logToSnapErrors(error); 
+        } 
+    }
+}
+
+const saveUserDataWithLogging = wrapLogging(saveUserDataNoLogging)
+saveUserDataWithLogging(user) // 함수 호출
+```
+
+
+
+
+<details>
+ <summary>연습 문제</summary>
+
+### 예외가 발생했을 때 에러를 무시하는 함수, 최소 3개의 인자를 갖는 함수에서 쓸 수 있어야함
+
+
+```js
+function wrapIgnoreErrors(f) {
+    return function(f1, f2, f3) {
+        try {
+            return f(f1, f2, f3);
+        } catch (error) {
+            return null;
+        }
+    }
+}
+```
+
+
+### 다른 숫자에 어떤 숫자를 더하는 `makeAdder()` 함수 만들기
+
+
+
+```js
+// 사용 예시
+const increment = makeAdder(1); 
+increment(10) // > 11
+
+const plus10 = makeAdder(10);
+plus10(12) // > 22
+
+
+function makeAdder(x) {
+    return function(y) {
+        return x + y;
+    }
+}
+```
+
+
+
+
+</details>
+</details><details>
+  <summary>우석</summary>
+  # 일급함수 2
+## 콜백 빼내기 리팩터링의 장점
+```js
+function withArrayCopy(array, modify) {
+  var copy = array.slice();
+  modify(array);
+  return copy;
+}
+
+// 활용
+function arraySet(array, idx, value) {
+  return withArrayCopy(array, function(copy) {
+    copy[idx] = value;
+  })
+}
+```
+- withArrayCopy()는 배열과 콜백 메서드를 인자로 받고, 배열에 카피-온-라이트를 적용한 후 콜백 메서드를 수행하고 반환한다.
+- 즉, 카피-온-라이트를 적용해주는 메서드이다. 이렇게 구현하면 카피-온-라이트가 필요한 곳에 매번 구현할 필요 없이 withArrayCopy()를 사용하면 된다.
+- 또한 카피-온-라이트에 대한 코드를 한 곳에서 관리할 수 있고, 함수의 동작을 최적화하기 편리하다.
+<br></br>
+## 콜백 빼내기 리팩터링의 단점
+- 하지만 이러한 방식에도 2가지 문제점이 존재한다.
+  1. 어떤 부분에 카피-온-라이트를 적용하는 것을 깜빡할 수 있다.
+  2. 모든 코드에 수동으로 withArrayCopy()를 적용해야 한다.
+<br></br>
+
+
+## 해결책: 함수 팩토리를 활용하라
+```js
+function wrapWithArrayCopy(f) {
+  return function(array, arg1, arg2, arg3) {
+    var copy = array.slice();
+    f(array, arg1, arg2, arg3);
+    return copy;
+  }
+}
+
+var arraySetWithCopy = wrapWithArrayCopy(arraySet);
+```
+- 책에서는 함수를 리턴하는 함수 팩토리를 사용하는 방식을 제안한다.
+- 함수 팩토리는 함수에 콜백 인자를 추가하는 대신 해당 함수를 새로운 함수로 감싼다.
+- 이 경우 카피-온-라이트가 적용된 메서드인지 명확히 알 수 있다 (카피-온-라이트로 감싼 함수를 만들고, 카피-온-라이트 동작에 대한 내용을 메서드 명으로 식별한다.)
+- 단, 모든 코드에 적용이 필요한 점은 변하지 않는다.
+- 함수 팩토리는 적절하게 사용하면 유용하지만 코드를 복잡하게 만드는 요소이기도 하기 때문에 꼭 필요한 때인지를 고민하며 사용하자.
+</details>

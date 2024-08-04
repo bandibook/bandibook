@@ -1,0 +1,295 @@
+#  일급 함수 2 
+
+
+## 배열에 대한 카피-온-라이트 리팩터링
+
+
+
+### 1. 본문과 앞부분, 뒷부분을 확인하기
+
+
+```js
+
+function arraySet(array, idx, value) {
+    const copy = array.slice(); // 앞부분
+    copy[idx] = value; // 본문
+    return copy; // 뒷부분
+}
+
+function dropLast(array, idx, value) {
+    const copy = array.slice(); // 앞부분
+    copy.pop(); // 본문
+    return copy; // 뒷부분
+}
+```
+
+
+### 2. 함수 빼내기
+
+```js
+// as-is
+function arraySet(array, idx, value) {
+    const copy = array.slice();
+    copy[idx] = value;
+    return copy; 
+}
+
+// to-be
+function arraySet(array, idx, value) {
+    return withArrayCopy(array);
+}
+
+function withArrayCopy(array) {
+    const copy = array.slice();
+    copy[idx] = value; // 아직 정의되지 않은 변수
+    return copy;
+}
+```
+
+
+### 3. 콜백 빼내기
+
+```js
+function arraySet(array, idx, value) {
+    return withArrayCopy(
+        array,
+        function(copy) { copy[idx] = value }
+        );
+}
+
+
+// 카피-온-라이트 원칙을 따르고 재사용할 수 있는 함수
+function withArrayCopy(array, modify) {
+    const copy = array.slice();
+    modify(copy);
+    return copy;
+}
+```
+
+
+
+
+<details>
+ <summary>연습 문제</summary>
+
+### `withArrayCopy()` 함수 적용해보기
+
+
+```js
+function push(array, elem) {
+    return withArrayCopy(
+        array,
+        function() { copy.push(elem) }
+        )
+}
+
+function dropLast(array) {
+    return withArrayCopy(
+        array,
+        function() { copy.pop() }
+        )
+}
+
+function dropFirst(array) {
+    return withArrayCopy(
+        array,
+        function() { copy.shift() }
+        )
+}
+```
+
+### object 에도 사용 가능한 카피-온-라이트 버전을 만들어라
+
+```js
+
+function withObjectCopy(object, modify) {
+    const copy = Object.assign({}, object);
+    modify(copy);
+    return copy;
+}
+
+
+function objectSet(object, key, value) {
+    return withObjectCopy(
+        object,
+        function(copy) { copy[key] = value }
+    )
+}
+
+function objectDelete(object, key) {
+    return withObjectCopy(
+        object,
+        function(copy) { delete copy[key] }
+    );
+}
+```
+
+
+### `tryCatch()`  만들어라
+
+`tryCatch(sendEmail, logToSnapErrors)` 이렇게 쓸 수 있게~~
+
+```js
+function tryCatch(f, e) {
+    try {
+        return f();
+    } catch (error) {
+        return e(error);
+    }
+}
+```
+
+### `when()` 함수를 만들어라
+
+```js
+when(hasItem(cart, "shoes"), function() {return setPriceByName(cart, "shoes", 0)})
+```
+
+
+```js
+function when(predicate, f) {
+    if (predicate) {
+        return f()
+    }
+}
+```
+
+### `when()` 함수를  `IF()` 로 이름 바꾸고 `else` 를 추가해라
+
+```js
+function IF(predicate, then, ELSE) {
+    if (predicate) {
+        return then();
+    } else {
+        return ELSE();
+    }
+}
+```
+</details>
+
+
+## 함수를 리턴하는 함수
+
+
+### 원래 코드
+```js
+try { 
+    saveUserData(user); 
+} catch (error) { 
+    logToSnapErrors(error);
+} 
+```
+
+### 이름을 명확하게 바꿈
+
+```js
+try { 
+    saveUserDataNoLogging(user); 
+} catch (error) { 
+    logToSnapErrors(error);
+} 
+```
+
+### 로그를 남기는 함수
+
+```js
+function saveUserDataWithLogging(user) { // 앞부분
+    try { 
+        saveUserDataNoLogging(user);  // 본문
+    } catch (error) {  // 뒷부분
+        logToSnapErrors(error); 
+    } 
+}
+
+function fetchProductWithLogging(user) { // 앞부분
+    try { 
+        fetchProductNoLogging(user); // 본문
+    } catch (error) {  // 뒷 부분
+        logToSnapErrors(error); 
+    } 
+}
+```
+
+### 중복 제거
+
+```js
+function (arg) {
+    try { 
+        saveUserDataNoLogging(arg); 
+    } catch (error) {  
+        logToSnapErrors(error); 
+    } 
+}
+
+function (arg) {
+    try { 
+        fetchProductNoLogging(arg); 
+    } catch (error) {  
+        logToSnapErrors(error); 
+    } 
+}
+```
+
+### 함수 본문을 콜백으로 바꾸기
+
+```js
+function wrapLogging(f) {
+    return function (arg) {
+        try { 
+            f(arg); 
+        } catch (error) {  
+            logToSnapErrors(error); 
+        } 
+    }
+}
+
+const saveUserDataWithLogging = wrapLogging(saveUserDataNoLogging)
+saveUserDataWithLogging(user) // 함수 호출
+```
+
+
+
+
+<details>
+ <summary>연습 문제</summary>
+
+### 예외가 발생했을 때 에러를 무시하는 함수, 최소 3개의 인자를 갖는 함수에서 쓸 수 있어야함
+
+
+```js
+function wrapIgnoreErrors(f) {
+    return function(f1, f2, f3) {
+        try {
+            return f(f1, f2, f3);
+        } catch (error) {
+            return null;
+        }
+    }
+}
+```
+
+
+### 다른 숫자에 어떤 숫자를 더하는 `makeAdder()` 함수 만들기
+
+
+
+```js
+// 사용 예시
+const increment = makeAdder(1); 
+increment(10) // > 11
+
+const plus10 = makeAdder(10);
+plus10(12) // > 22
+
+
+function makeAdder(x) {
+    return function(y) {
+        return x + y;
+    }
+}
+```
+
+
+
+
+</details>

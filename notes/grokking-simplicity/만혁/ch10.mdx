@@ -1,0 +1,200 @@
+# 일급 함수 1
+
+
+
+## 코드의 냄새: 함수 이름에 있는 암묵적 인자
+
+- 특징
+  - 거의 똑같이 구현된 함수가 있다.
+  - 함수 이름이 구현에 있는 다른 부분을 가리킨다.
+
+
+## 리팩터링: 암묵적 인자를 드러내기
+
+- 단계
+  1. 함수 이름에 있는 암묵적 인자를 확인한다.
+  2. 명시적인 인자를 추가한다.
+  3. 함수 본문에 하드 코딩된 값을 새로운 인자로 바꾼다.
+  4. 함수를 호출하는 곳을 고친다.
+
+
+
+## 리팩터링: 함수 본문을 콜백으로 바꾸기
+
+- 단계
+  1. 함수 본문에서 바꿀 부분의 앞부분과 뒷부분을 확인한다.
+  2. 리팩터링 할 코드를 함수로 빼낸다.
+  3. 빼낸 함수의 인자로 넘길 부분을 또 다른 함수로 빼낸다.
+
+
+
+
+
+### 암묵적 인자 드러내기 
+
+```js
+// as-is
+function setPriceByName(cart, name, price) {
+    const item = cart[name];
+    const newItem = objectSet(item, 'price', price);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+
+function setQuantityByName(cart, name, quantity) {
+    const item = cart[name];
+    const newItem = objectSet(item, 'quantity', quantity);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+
+cart = setPriceByName(cart, "shoe", 13);
+cart = setQuantityByName(cart, "shoe", 3);
+cart = setShippingByName(cart, "shoe", 0);
+cart = setTaxByName(cart, "shoe", 2.34);
+
+
+// to-be
+function setFieldByName(cart, name, field, value) {
+    const item = cart[name];
+    const newItem = objectSet(item, field, value);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+
+
+cart = setFieldByName(cart, "shoe", "price", 13);
+cart = setFieldByName(cart, "shoe", "quantity", 3);
+cart = setFieldByName(cart, "shoe", "shipping", 0);
+cart = setFieldByName(cart, "shoe", "tax", 2.34);
+```
+
+
+
+<details>
+ <summary>연습 문제</summary>
+
+### 함수 이름에 있는 암묵적 인자 드러내기
+
+```js
+// as-is
+function multiplyByFour(emplyoees) {
+    return x * 4;
+}
+
+function multiplyByPir(emplyoees) {
+    return x * 4;
+}
+
+// to-be
+function multiply(x, y) {
+    return x * y;
+}
+
+```
+
+```js
+// as-is
+function incrementQuantityByName(cart, name) {
+    const item = cart[name];
+    const quantty = item['quantity'];
+    const newQuantity = quantity + 1;
+    const newItem = objectSet(item, 'quantity', newQuantity);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+
+function incrementSizeByName(cart, name) {
+    const item = cart[name];
+    const quantty = item['size'];
+    const newSize = size + 1;
+    const newItem = objectSet(item, 'size', newSize);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+
+// to-be
+function incrementFieldByName(cart, name, field) {
+    const item = cart[name];
+    const value = item[field];
+    const newValue = value + 1;
+    const newItem = objectSet(item, field, newValue);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+```
+
+
+```js
+// as-is
+function incrementFieldByName(cart, name, field) {
+    const item = cart[name];
+    const value = item[field];
+    const newValue = value + 1;
+    const newItem = objectSet(item, field, newValue);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+
+// to-be
+function incrementFieldByName(cart, name, field) {
+    const supports = ['size', 'quantity'];
+    if (!supports.includes(field)) {
+        throw "not supported field"
+    }
+    const item = cart[name];
+    const value = item[field];
+    const newValue = value + 1;
+    const newItem = objectSet(item, field, newValue);
+    const newCart = objectSet(cart, name, newItem);
+    return newCart;
+}
+```
+
+
+</details>
+
+
+
+### 함수 본문을 콜백으로 바꾸기
+
+
+```js
+
+// as-is
+try { // 앞부분
+    saveUserData(user); // 본문
+} catch (error) { // 뒷부분
+    logToSnapErrors(error); // 뒷부분
+} // 뒷부분
+
+try { // 앞부분
+    fetchProduct(id); // 본문
+} catch (error) { // 뒷부분
+    logToSnapErrors(error); // 뒷부분
+} // 뒷부분
+
+
+// to-be
+// 1. 함수로 빼내기
+function withLogging() {
+    try { 
+        saveUserData(user); 
+    } catch (error) { 
+        logToSnapErrors(error);
+    } 
+}
+
+// 2. 콜백으로 빼내기
+function withLogging(f) {
+    try {
+        f();
+    } catch (error) {
+        logToSnapErrors(error);
+    }
+}
+
+withLogging(function() { saveUserData(user) }) // 인라인으로 함수 선언
+withLogging(() => saveUserData(user)) // 이것도 되겠지~
+```
+

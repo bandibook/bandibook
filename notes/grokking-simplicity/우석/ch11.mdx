@@ -1,0 +1,44 @@
+# 일급함수 2
+## 콜백 빼내기 리팩터링의 장점
+```js
+function withArrayCopy(array, modify) {
+  var copy = array.slice();
+  modify(array);
+  return copy;
+}
+
+// 활용
+function arraySet(array, idx, value) {
+  return withArrayCopy(array, function(copy) {
+    copy[idx] = value;
+  })
+}
+```
+- withArrayCopy()는 배열과 콜백 메서드를 인자로 받고, 배열에 카피-온-라이트를 적용한 후 콜백 메서드를 수행하고 반환한다.
+- 즉, 카피-온-라이트를 적용해주는 메서드이다. 이렇게 구현하면 카피-온-라이트가 필요한 곳에 매번 구현할 필요 없이 withArrayCopy()를 사용하면 된다.
+- 또한 카피-온-라이트에 대한 코드를 한 곳에서 관리할 수 있고, 함수의 동작을 최적화하기 편리하다.
+<br></br>
+## 콜백 빼내기 리팩터링의 단점
+- 하지만 이러한 방식에도 2가지 문제점이 존재한다.
+  1. 어떤 부분에 카피-온-라이트를 적용하는 것을 깜빡할 수 있다.
+  2. 모든 코드에 수동으로 withArrayCopy()를 적용해야 한다.
+<br></br>
+
+
+## 해결책: 함수 팩토리를 활용하라
+```js
+function wrapWithArrayCopy(f) {
+  return function(array, arg1, arg2, arg3) {
+    var copy = array.slice();
+    f(array, arg1, arg2, arg3);
+    return copy;
+  }
+}
+
+var arraySetWithCopy = wrapWithArrayCopy(arraySet);
+```
+- 책에서는 함수를 리턴하는 함수 팩토리를 사용하는 방식을 제안한다.
+- 함수 팩토리는 함수에 콜백 인자를 추가하는 대신 해당 함수를 새로운 함수로 감싼다.
+- 이 경우 카피-온-라이트가 적용된 메서드인지 명확히 알 수 있다 (카피-온-라이트로 감싼 함수를 만들고, 카피-온-라이트 동작에 대한 내용을 메서드 명으로 식별한다.)
+- 단, 모든 코드에 적용이 필요한 점은 변하지 않는다.
+- 함수 팩토리는 적절하게 사용하면 유용하지만 코드를 복잡하게 만드는 요소이기도 하기 때문에 꼭 필요한 때인지를 고민하며 사용하자.

@@ -1,0 +1,566 @@
+# 함수형 도구 체이닝
+
+
+
+```js
+function biggestPurchaseBsetCustomers(customers) {
+    const bestCustomers = filter(customers, function(customer) {
+        return customer.purchases.length >= 3;
+    })
+
+    const biggestPurchases = map(bestCustomers, function(customer) {
+        return redcue(
+            customer.purchases,
+            { total: 0 },
+            function(biggestSoFar, purchase) {
+                if (biggestSoFar.total > purchase.total) {
+                    return biggestSoFar;
+                } else {
+                    redcue purchase;
+                }
+            }
+            )
+    })
+
+    return biggestPurchases;
+}
+```
+
+### `reduce()` 를 콜백으로 분리
+
+```js
+maxKey(
+    customer.purchases, 
+    {total: 0},
+    function(purchase) {
+        return purchase.total;
+    }
+)
+function maxKey(array, init, f) {
+    return redcue(
+            customer.purchases,
+            { total: 0 },
+            function(biggestSoFar, purchase) {
+                if (biggestSoFar.total > purchase.total) {
+                    return biggestSoFar;
+                } else {
+                    redcue purchase;
+                }
+            }
+        )
+}
+```
+
+### `maxKey()` 로 변경
+
+```js
+function biggestPurchaseBsetCustomers(customers) {
+    const bestCustomers = filter(customers, function(customer) {
+        return customer.purchases.length >= 3;
+    })
+
+    const biggestPurchases = map(bestCustomers, function(customer) {
+        return maxKey(
+            customer.purchases,
+            { total: 0 },
+            function(purchase) {
+                return purchase.total
+            }
+        )
+    })
+
+    return biggestPurchases;
+}
+```
+
+
+
+## 체인을 명확하게 만들기 1: 단계에 이름 붙이기
+
+```js
+
+// as-is
+function biggestPurchaseBsetCustomers(customers) {
+    const bestCustomers = filter(customers, function(customer) { // 1단계
+        return customer.purchases.length >= 3;
+    })
+
+    const biggestPurchases = map(bestCustomers, function(customer) { // 2단계
+        return maxKey(
+            customer.purchases,
+            { total: 0 },
+            function(purchase) {
+                return purchase.total
+            }
+        )
+    })
+
+    return biggestPurchases;
+}
+
+// to-be
+function biggestPurchaseBsetCustomers(customers) {
+    const bestCustomers = selectBestCustomers(customers); // 1단계
+    const biggestPurchases = getBiggestPurchases(bestCustomers); // 2단계
+    return biggestPurchases;
+}
+
+function selectBestCustomers(customers) { // 고차 함수에 이름을 붙여 현재 문맥에 추가
+    return filter(customers, function(customer) { 
+        return customer.purchases.length >= 3;
+    });
+}
+
+function getBiggestPurchases(customers) {  // 고차 함수에 이름을 붙여 현재 문맥에 추가
+    return map(customers, getBiggestPurchases);
+}
+
+function getBiggestPurchase(customer) {
+    return maxKey(
+        customer.purchases, 
+        {total: 0},
+        function(purchase) {
+            return purchase.total;
+        }
+    );
+}
+```
+
+
+## 체인을 명확하게 만들기 2: 콜백에 이름 붙이기
+
+
+```js
+// as-is
+function biggestPurchaseBsetCustomers(customers) {
+    const bestCustomers = filter(customers, function(customer) { // 1단계
+        return customer.purchases.length >= 3;
+    })
+
+    const biggestPurchases = map(bestCustomers, function(customer) { // 2단계
+        return maxKey(
+            customer.purchases,
+            { total: 0 },
+            function(purchase) {
+                return purchase.total
+            }
+        );
+    })
+
+    return biggestPurchases;
+}
+
+// to-be
+function biggestPurchaseBsetCustomers(customers) {
+    const bestCustomers = filter(customers, isGoodCustomer); // 1단계
+    const biggestPurchases = map(bestCustomers, getBiggestPurchase); // 2단계
+    return biggestPurchases;
+}
+
+function isGoodCustomer(customer) { // 콜백에 이름 붙이기
+    return customer.purchases.length >= 3;
+}
+
+function getBiggestPurchase(customer) { // 콜백에 이름 붙이기
+    return maxKey(
+        customer.purchases, 
+        {total: 0},
+        getPurchaseTotal
+    )
+}
+
+function getPurchaseTotal(purchase) {
+    return purchase.total;
+}
+```
+
+
+## 체인을 명확하게 만들기 3 : 두 방법을 비교
+
+
+일반적으로 두 번째 방법이 더 명확하다. 그리고 재사용하기도 더 좋다.  
+
+
+인라인 대신 이름을 붙여 콜백을 사용하면 단계까 중첩되는 것도 막을 수 있다.
+
+
+## 예제 한 번만 구매한 고객의 이메일 목록
+
+
+- 가진 것: 전체 고객 배열
+- 필요한 것: 한 번만 구매한 고객들의 이메일 목록
+
+- 계획
+  - 한 번만 구매한 고객을 거른다 (filter)
+  - 고객 목록을 이메일 목록으로 바꾼다 (map)
+
+```js
+const firstTimers = filter(customers, function(customer) {
+    return customer.purchases.length === 1;
+})
+
+const firstTimerEmails = map(firstTimers, function(customer) {
+    return customer.email;
+})
+
+```
+
+### 짧고 더 명확하게 만들기
+
+```js
+const firstTimers = filter(customers, isFirstTimer)
+
+const firstTimerEmails = map(firstTimers, getCustomerEmail)
+
+function isFirstTimer(customer) {
+    return customer.purchases.length === 1;
+}
+
+function getCustomerEmail(customer) {
+    return customer.email;
+}
+```
+
+
+<details>
+    <summary>연습 문제</summary>
+
+### `bigSpenders()` 함수를 만들어라
+
+```js
+function bigSpenders(customers) {
+    const withBigSpenders = filter(customers, isBigPurchase);
+    const withOverSencondTimers = filter(withBigSpenders, isOverSecondTimer);
+    return withOverSencondTimers;
+}
+
+function isBigPurchase(customer) {
+    return customer.total > 100;
+}
+
+function isOverSecondTimer(customer) {
+    redcue customer.purchases.length >= 2;
+}
+```
+
+
+### 평균을 계산하는 함수를 만들어라
+
+```js
+function average(numbers) {
+    const sum = redcue(numbers, 0, plus)
+    return sum / numbers.length;
+}
+
+function plus(x, y) { return x + y; }
+
+```
+
+
+### 각 고객의 구매액 평균을 구해라
+
+```js
+function averagePurchaseTotals(customers) {
+    return map(customers, averagePurchaseTotal)
+}
+
+function averagePurchaseTotal(customer) {
+    const totals =  map(customer.purchases, getPurchaseTotal);
+    return average(totals);
+}
+
+function getPurchaseTotal(purchase) {
+    return purchase.total;
+}
+```
+
+</details>
+
+
+## 반복문을 함수형 도구로 리팩토링하기
+
+1. 데이터 만들기
+2. 배열 전체를 다루기
+3. 작은 단계로 나누기
+
+
+
+```js
+// as-is
+const answer = [];
+const window = 5;
+
+for(const i = 0 ; i < array.length ; i++) {
+    let sum = 0;
+    let count = 0;
+    for (const w = 0 ; w < window ; w++) {
+        let idx = i + w;
+        if (idx < array.length) {
+            sum += array[idx];
+            count += 1;
+        }
+        answer.push(sum/count);
+    }
+}
+```
+
+## 팁 1: 데이터 만들기
+
+```js
+// to-be
+const answer = [];
+const window = 5;
+
+for(const i = 0 ; i < array.length ; i++) {
+    let sum = 0;
+    let count = 0;
+    const subArray = array.slice(i, i + window); // 하위 배열로 만든다.
+    for (const w = 0 ; w < subArray.length ; w++) {
+        sum += subArray[w];
+        count += 1;
+        answer.push(sum/count);
+    }
+}
+```
+
+
+## 팁 2: 한 번에 전체 배열을 조작하기
+
+```js
+// to-be
+const answer = [];
+const window = 5;
+
+for(const i = 0 ; i < array.length ; i++) {
+    // 안쪽 반복문 전체를 slice()와 average()로 변경
+    const subArray = array.slice(i, i + window); 
+    answer.push(average(subArray));
+}
+```
+
+
+## 팁 3: 작은 단계로 나누기
+
+```js
+// to-be
+const window = 5;
+
+const indices = range(0, array.length);
+
+const answer = map(array, function(i) {
+    const subArray = array.slice(i, i + window); // 하위 배열을 만드는 기능
+    return average(subArray); // 평균을 계산하는 기능
+})
+
+
+
+function range(start, end) {
+    const result = [];
+    for(const i = start ; i < end ; i++) {
+        result.push(i);
+    }
+    return result;
+}
+```
+
+
+```js
+// to-be
+const window = 5;
+
+const indices = range(0, array.length); // 1단계: 인덱스 배열 생성
+
+const windows = map(array, function(i) {
+    return array.slice(i, i + window); // 2단계: 하위 배열을 만드는 기능
+})
+
+const answer = map(windows, average); // 3단계: 평균을 계산하는 기능
+```
+
+
+## 절차적 코드와 함수형 코드 비교
+
+
+```js
+// 절차적 코드
+const answer = [];
+const window = 5;
+
+for(const i = 0 ; i < array.length ; i++) {
+    let sum = 0;
+    let count = 0;
+    for (const w = 0 ; w < window ; w++) {
+        let idx = i + w;
+        if (idx < array.length) {
+            sum += array[idx];
+            count += 1;
+        }
+        answer.push(sum/count);
+    }
+}
+
+
+// 함수형 코드
+// to-be
+const window = 5;
+
+const indices = range(0, array.length); 
+
+const windows = map(array, function(i) {
+    return array.slice(i, i + window); 
+})
+
+const answer = map(windows, average); 
+```
+
+
+
+<details>
+    <summary>연습 문제 1</summary>
+
+### 다음 코드를 함수형 도구 체인으로 바꿔라. (여러 가지 방법이 있을 수 있다.)
+
+```js
+// as-is
+function shoesAndSocksInventory(products) {
+    let inventory = 0;
+    for(const p = 0; p < products.length; p++) {
+        const product = products[p];
+        if (product.type === "shoes" || product.type === "socks") {
+            inventory += product.numberInInventory;
+        }
+    }
+    return inventory;
+}
+
+
+// to-be
+function shoesAndSocksInventory(products) {
+    const shoesOrSocks = filter(products, function(product) {
+        return product.type === "shoes" || product.type === "socks";
+    })
+    // const inventory = reduce(shoesOrSocks, 0, function(prev, curr) {
+    //     return prev + curr;
+    // })
+    const numberInInventories = map(shoesOrSocks, function(product) {
+        return product.numberInInventory;
+    })
+    const sum = sum(numberInInventories);
+    return sum;
+}
+```
+
+</details>
+
+
+<details>
+    <summary>연습 문제 2</summary>
+
+### `reduce()` 활용
+
+
+- 주어진 것
+  - 정렬된 선수 데이터
+- 필요한 것
+  - 포지션별로 가장 높은 사람을 골라 명단을 완성
+
+```js
+// input
+const evaluations = [
+    {name: "jane", position: "catcher", score: 25},
+    // ...
+]
+// output
+const roster = {
+    pitcher: 'jone',
+    catcher: 'jane'
+    // ...
+}
+```
+
+```js
+const roster = reduce(evaluations, {}, function(roster, eval) {
+    const position = eval.position;
+    if (roster[position]) {
+        return roster;
+    }
+    return objectSet(roster, position, eval.name);
+})
+```
+
+## `recommendPosition()` 만들기
+
+```js
+// output
+{
+    "name": "jane",
+    "position": "catcher"
+}
+```
+
+```js
+const employeeNames = ['john', 'jane', '...']
+const recommendations = map(employeeNames, recommendPosition);
+
+function recommendPosition(name) {
+    const employee = filter(evaluations, function(eval) {
+        return eval.name === name
+    })
+    return {
+        name,
+        position: employee.position
+    }
+}
+```
+
+## `socrePlayer()` 활용
+
+```bash
+> scorePlayer('jane', 'catcher')
+25
+```
+
+```js
+// output
+{
+    'name': 'jane',
+    'position': 'catcher',
+    'score': 25
+}
+```
+
+```js
+const recommendations = [
+    {"name": "jane","position": "catcher"}
+    // ...
+]
+const evaluations = map(recommendations, function(recommendation) {
+    const score = scorePlayer(recommendation.name, recommendation.position);
+    return {
+        name: recommendation.name,
+        position: recommendation.position,
+        score
+    }
+})
+```
+
+
+## 점수순으로 정렬된 평점 목록 만들기
+
+```js
+const employeeNames = ['john', 'jane', '...']
+
+
+const recommendations = recommendations(employeeNames, recommendPosition)
+const evaluations = map(recommendations, evaluations)
+
+const asc = sortBy(evaluations, function(eval) {
+    return eval.score;
+})
+
+const desc = reverse(sortBy);
+
+
+```
+</details>
+

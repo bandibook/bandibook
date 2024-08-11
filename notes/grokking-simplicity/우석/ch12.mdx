@@ -1,0 +1,113 @@
+# 함수형 반복
+
+## map()
+```js
+function emailsForCustomers(customers, goods, bests) {
+  var emails = [];
+
+  forEach(customers, function(customer) {
+    var email = emailForCustomer(customer, goods, bests);
+    emails.push(email);
+  });
+
+  return emails;
+}
+```
+- emailsForCustomers()는 고객 데이터를 배열로 받아 고객에게 보낼 emil 리스트를 배열로 반환하는 메서드이다.
+- 이러한 상황에서 사용할 수 있는 함수형 도구가 map()이다.
+- map()은 X값을 가진 배열을 인자로 받아 배열을 개별 값들을 Y로 변환하고 이를 리스트로 반환한다.
+<br></br>
+
+```js
+function map(array, f) {
+  var newArray = [];
+  forEach(array, function(element) {
+    newArray.push(f(element));
+  });
+  return newArray;
+}
+
+function emailsForCustomers(customers, goods, bests) {
+  return map(customers, function(customer) {
+    return emailForCustomer(customer, goods, bests)
+  })
+}
+```
+- map()메서드를 활용하면 emailsForCustomers()를 보다 간단하게 구현할 수 있다.
+
+<br></br>
+
+### 함수를 전달하는 3가지 방법
+- map() 메서드를 활용할 때 2번째 인자인 함수를 전달하는 방식에는 3가지가 존재한다.
+
+#### 1. 전역으로 정의하기
+```js
+function greet(name) {
+  return "Hello, " + name;
+}
+
+var friendGreetings = map(friendsNames, greet)
+```
+- 프로그램 어디서나 쓸 수 있다는 점이 장점이다.
+
+#### 2. 지역적으로 정의하기
+```js
+function greetEverybody(friends) {
+  var greeting;
+
+  if (language === "English")
+    greeting = "Hello, ";
+  else
+    greeting = "Salut, ";
+
+  var greet = function(name) {
+    return greeting + name;
+  }
+
+  return map(freinds, greet);
+}
+```
+- 지역적으로 쓰고 싶지만 이름이 필요할 때 사용하면 유용하다.
+
+#### 3. 인라인으로 정의하기
+```js
+var freindGreetings = map(friendsNames, function(name) {
+  return "Hello, " + name;
+});
+```
+- 문맥에서 한 번만 쓰는 짧은 함수에 적합하다.
+<br></br>
+
+
+## filter()
+```js
+function filter(array, f) {
+  var newArray = [];
+
+  forEach(array, function(element) {
+    if (f(element)) {
+      newArray.push(element);
+    }
+  });
+
+  return newArray;
+}
+```
+- 특정 조건을 만족하는 요소들만 추리고 싶을 때 사용할 수 있다.
+    - 필요 없는 것을 거를 때도 사용 가능 (null값을 거르고 싶을 때)
+<br></br>
+
+## reduce()
+```js
+function reduce(array, init, f) {
+  var accum = init;
+
+  forEach(array, function(element) {
+    accum = f(accum, element);
+  });
+
+  return accum;
+}
+```
+- 배열을 순회하면 누적된 데이터를 만들 때 사용하는 도구가 reduce()이다.
+- 배열을 모든 값을 더하거나, 모든 값을 누적하여 데이터를 만들 때 유용하다.

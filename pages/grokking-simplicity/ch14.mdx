@@ -1,0 +1,317 @@
+<details>
+  <summary>우석</summary>
+  # 중첩된 데이터에 함수형 도구 사용하기
+
+## update() 도출하기: 객체의 필드 변경하는 함수
+```js
+function incrementQuantity(item) {
+  const quantity = item['quantity'];
+  const newQuantity = quantity + 1;
+  const newItem = objectSet(item, 'quantity', newQuantity);
+  return newItem;
+}
+```
+- 예시와 같은 메서드는 다양하게 존재할 수 있다.
+- 예를 들면 decreseQuantity, doubleQuantity 등등..
+- 하지만 모두 객체의 필드 조회하고, 수정하고, 설정하는 코드이다.
+<br></br>
+
+```js
+function update(object, key, modify) {
+  const value = object[key];
+  const newValue = modify(value);
+  const newObject = objectSet(item, key, newValue);
+  return newObject;
+}
+```
+- 이전 메서드를 일반화하면 update() 메서드를 뽑아낼 수 있다.
+- 이전에 배웠던 순서를 따라 리팩토링하면 어렵지 않다.
+    1. 함수 이름에 있는 암묵적 인자 드러내기
+    2. 함수 본문을 콜백으로 바꾸기
+<br></br>
+
+## 중첩된 데이터에 update() 사용하기
+```js
+const shirt = {
+  name: "shirt",
+  price: 13,
+  options: {
+    color: "blue",
+    size: 3
+  }
+}
+```
+- 위 객체의 color처럼 중첩된 객체 내부 값을 수정해야 한다면 어떻게 해야할까?
+<br></br>
+
+```js
+function incrementSize(item) {
+  return update(item, 'options', function(options) {
+    return update(options, 'size', increment)
+  })
+}
+```
+- update()를 2번 사용하는 방식으로 중첩된 데이터를 수정할 수 있다.
+- 하지만 이 방식을 사용할 경우 중첩된 횟수만큼 update를 명시해야 한다.
+<br></br>
+
+### 재귀와 배열을 활용한 중첩된 데이터 update
+```js
+function nestedUpdate(object, keys, modify) {
+  if (keys.length === 0) return modify(object);
+
+  const key1 = keys[0];
+  const restOfKeys = drop_first(keys);
+  return update(object, key1, function(value1) {
+    return nestedUpdate(value1, restOfKeys, modify)
+  })
+}
+```
+- 재귀 함수를 사용하면 중첩된 객체의 데이터를 수정할 수 있는 nestedUpdate()를 보다 수월하고 깔끔하게 구현할 수 있다.
+<br></br>
+
+## 재귀를 활용한 nestedUpdate의 문제점과 해결책
+```js
+nestedUpdate(object, ['key1', 'key2', 'key3', 'key4', 'key5', 'key6', 'key7', 'key8'], modify)
+```
+- 재귀를 활용해 nestedUpdate를 깔끔하게 구현했지만 실제 이용 시에는 문제가 있다.
+- 깊게 중첩된 경우 긴 key 경로를(필드명들) 외워야 한다는 점이다.
+- 기억해야 할 것이 많을 때 떠올릴 수 있는 해결책은 `추상화 벽`이다.
+<br></br>
+
+### 추상화 벽 활용하기
+```js
+function updatePostById(category, id, modify) {
+  return nestedUpdate(category, ['posts', id], modifyPost)
+}
+
+function updateAuthor(post, modifyUser) {
+  return update(post, 'author', modifyUser)
+}
+
+function capitalizeUserName(user) {
+  return update(user, 'name', capitalize);
+}
+
+
+// 사용부
+updatePostById(blogCategory, '12', function(post) {
+  return updateAuthor(post, capitalizeUserName)
+});
+```
+- 추상화 벽에 의미 있는 이름을 가진 메서드를 만든다.
+- 이렇게 될 경우 로직을 여러 단계로 분리하고, 각 단계의 역할을 분명히 할 수 있고 기억하기 쉬워진다.
+- 또한 기억해야 하는 것이 key이름이 아닌 동작에 필요한 메서드가 되고, 기억해야 하는 것의 수도 줄어든다 (key 대신 메서드명을 기억하면 된다는 게 강점이지 기억해야 하는 것의 수가 줄어든다는 점은 큰 의미가 없어 보인다.)
+
+</details><details>
+  <summary>만혁</summary>
+  # 중첩된 데이터에 함수형 도구 사용하기
+
+
+## 필드를 명시적으로 만들기
+
+
+```js
+// as-is
+function incrementField(item, field) {
+    const value = item[field];
+    const newValue = value + 1;
+    const newItem = objectSet(item, field, newValue);
+    return newCart;
+}
+
+// to-be
+function incrementField(item, field) {
+    return updateField(item, field, function(value) {
+        return value + 1;
+    })
+}
+
+function updateField(item, field, modify) {
+    const value = item[field];
+    const newValue = value + 1;
+    const newItem = objectSet(item, field, newValue);
+    return newCart;    
+}
+```
+
+## 리팩터링: 조회하고 변경하고 설정하는 것을 `update()`로 교체하기
+
+```js
+// 리팩토링 전
+function incrementField(item, field) {
+    const value = item[field]; // 조회
+    const newValue = value + 1; // 바꾸기
+    const newItem = objectSet(item, field, newValue); // 설정
+    return newCart;
+}
+```
+
+위 코드를 보면 전체 동작은 세 단계이다.
+
+1. 객체에서 값을 조회
+2. 값을 바꾸기
+3. 객체에 값을 설정(카피-온-라이트 사용)
+
+
+### 조회하고 변경하고 설정하는 것을 `update()`로 교체하기 단계
+
+#### 단계 1: 조회하고 바꾸고 설정하는 것을 찾는다.
+
+```js
+function halveField(item, field) {
+    const value = item[field]; // 조회
+    const newValue = value / 2; // 바꾸기
+    const newItem = objectSet(item, field, newValue); // 설정
+    return newCart;
+}
+```
+#### 단계 2:  `update()`로 교체한다
+```js
+function halveField(item, field) {
+    return update(item, field, function(value) {
+        recommendation value / 2;
+    })
+}
+```
+
+
+
+<details>
+    <summary>연습 문제</summary>
+
+### `lowercase()` 적용
+
+```js
+const user = {
+    firstName: "Joe",
+    lastName: "Nash",
+    email: "aaa@aaa.com"
+}
+
+update(user, 'email', lowercase);
+```
+
+
+### `tenXQuantity()` 만들기
+
+```js
+const item = {
+    name: "shoes",
+    price: 7,
+    quantity: 2
+}
+
+function tenXQuantity(item) {
+    return update(item, 'quantity', function(value) {
+        return value * 10;
+    })
+}
+
+```
+
+## `update2()` 도출하기
+
+중첩된 Object 의  key 를 수정하고싶다
+
+```js
+function update2(object, key1, key2, modify) {
+    return update(object, key1, function(value1) {
+        return update(object, key2, modify)
+    })
+}
+```
+
+</details>
+
+## `incrementSizeByName()`을 만드는 네 가지 방법
+
+
+### 옵션 1: `upate()` 와 `incrementSize()` 로 만들기
+```js
+function incrementSizeByName(cart, name) {
+    return update(cart, name, incrementSize);
+}
+```
+
+### 옵션 2: `upate()` 와 `update2()` 로 만들기
+```js
+function incrementSizeByName(cart, name) {
+    return update(cart, name, function(item) {
+        return update2(item, 'options', 'size', function(size) {
+            return size + 1;
+        })
+    })
+}
+```
+
+
+
+### 옵션 3: `upate()` 로 만들기
+```js
+function incrementSizeByName(cart, name) {
+    return update(cart, name, function(item) {
+        return update(item, 'options', function(options) {
+            return update(options, 'size', function(size) {
+                return size + 1;
+            })
+        })
+    })   
+}
+```
+### 옵션 4: 조회하고 바꾸고 설정하는 것을 직접 만들기
+
+위 함수형 도구를 사용하지 않는 방법
+
+
+
+## `update3()` 도출하기
+
+```js
+function update3(object, key1, key2, key3, modify) {
+    return update(object, key1, function(object2) {
+        return update2(object2, key2, key3, modify)
+    })
+}
+```
+
+
+<details>
+    <summary>연습 문제</summary>
+
+### `update4()`, `update5()` 만들기
+
+```js
+function update4(object, key1, key2, key3, key4, modify) {
+    return update(object, key1, function(object2) {
+        return update3(object2, key2, key3, key4, modify)
+    })
+}
+
+
+function update5(object, key1, key2, key3, key4, key5, modify) {
+    return update(object, key1, function(object2) {
+        return update4(object2, key2, key3, key4, key5, modify)
+    })
+}
+```
+
+</details>
+
+
+## `nestedUpdate()` 도출하기
+
+`update4()` 와 `update5()` 를 만드는동안 어떠한 패턴이 있다는걸 알게 되었다.
+
+```js
+function nestedUpdate(object, keys, modifiy) {
+    if (keys.length === 0) return modifiy(object);
+
+    const key1 = keys[0];
+    const restOfKeys = dropFirst(keys);
+    return upate(object, key1, function(value1) {
+        return updateX(value1, restOfKeys, modifiy)
+    })
+}
+```
+</details>

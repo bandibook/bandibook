@@ -1,0 +1,98 @@
+<details>
+  <summary>우석</summary>
+  # 타임라인 격리하기
+
+## 타임라인 다이어그램 그리기
+- 특정 동작에서 오류가 발생했을 때 디버깅을 위해 현재 동작을 파악하는 방식 중 한 가지
+- 로직에서 발생하는 액션을 추리고, 발생 가능한 동작 순서를 살펴보며 오류를 찾아내는 방식이다.
+<br></br>
+
+### 1. 액션 확인하기
+- 로직에서 액션을 찾아낸다,
+- 계산은 타임라인에 추가될 필요가 없다.
+<br></br>
+
+### 2. 액션을 그리기
+- 순차적으로 실행되는 액션은 동일한 타임라인에 표시한다.
+- 동시에 실행되거나 순서가 섞일 수 있는 경우 분리된 타임라인에 표시한다.
+    - 예시로는 비동기 콜백, 멀티 스레드 등이 있다.
+<br></br>
+
+### 3. 타임라인을 단순화하기
+- 2에서 그린 타임라인을 좀 더 단순화하는 작업으로 아래 3 단계를 거쳐 단순화가 가능하다.
+    1. 순서가 섞이지 않는 여러 액션은 하나의 박스로 합친다.
+    2. 타임라인 끝에 새로운 타임라인이 하나만 생긴다면 여러 타임라인을 한 타임라인으로 합친다.
+    3. 순서에 제약에 있는 경우 점선을 추가한다.
+<br></br>
+
+### 정리
+- 1, 2, 3 과정을 거쳐 작성한 타임라인은 해당 로직이 어떤 순서로 동작하는지, 순서가 바뀔 가능성이 존재하는지를 보여준다.
+- 대개 실행 순서가 바뀔 수 있는 경우 오류가 발생한다.
+<br></br>
+
+## 타임 라인에서 발생 가능한 문제와 해결책
+### 여러 타임라인에서 자원을 공유하는 경우
+- 여러 타임라인에서 하나의 자원을 공유하는 경우 오류가 발생할 수 있다.
+- 동시성 문제를 떠올리면 된다.
+- 이를 해결하는 방법으로 전역변수를 지역변수로 바꾸는 것을 제안한다.
+- 즉, 타임라인에서 자원을 공유하지 않도록 바꿔주는 것. (근본적인 해결책으로 보인다.)
+<br></br>
+</details><details>
+  <summary>만혁</summary>
+  # 타임라인 격리하기
+
+
+1. 액션은 순서대로 실행되거나 동시에 실행된다.
+2. 순서대로 실행되는 액션은 같은 타임라인에서 하나가 끝나면 다른 하나가 실행된다.
+3. 동시에 실행되는 액션은 여러 타임라인에서 나란히 실행된다.
+
+
+
+
+
+<details>
+    <summary>연습 문제</summary>
+
+
+```js
+const plates = '...'
+const forks = '...'
+const cups = '...'
+const total = '...'
+
+
+// as-is
+function doDishes() {
+    total = 0;
+    washAjax(plates, function() {
+        total += plates.length;
+        washAjax(forks, function() {
+            total += forks.length;
+            washAjax(cups, function() {
+                total += cups.length;
+                updateDishesDom(total);
+            })
+        })
+    })
+}
+
+// to-be
+function doDishes(plates, forks, cups, cb) {
+    let total = 0;
+    washAjax(plates, function() {
+        total += plates.length
+        washAjax(forks, function() {
+            total += forks.length;
+            washAjax(cups, function() {
+                total += cups.length;
+                cb(total)
+            })
+        })
+    })
+}
+
+doDishes(plates, forks, cups, updateDishesDom)
+```
+
+</details>
+</details>

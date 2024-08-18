@@ -1,0 +1,56 @@
+# 타임라인 격리하기
+
+
+1. 액션은 순서대로 실행되거나 동시에 실행된다.
+2. 순서대로 실행되는 액션은 같은 타임라인에서 하나가 끝나면 다른 하나가 실행된다.
+3. 동시에 실행되는 액션은 여러 타임라인에서 나란히 실행된다.
+
+
+
+
+
+<details>
+    <summary>연습 문제</summary>
+
+
+```js
+const plates = '...'
+const forks = '...'
+const cups = '...'
+const total = '...'
+
+
+// as-is
+function doDishes() {
+    total = 0;
+    washAjax(plates, function() {
+        total += plates.length;
+        washAjax(forks, function() {
+            total += forks.length;
+            washAjax(cups, function() {
+                total += cups.length;
+                updateDishesDom(total);
+            })
+        })
+    })
+}
+
+// to-be
+function doDishes(plates, forks, cups, cb) {
+    let total = 0;
+    washAjax(plates, function() {
+        total += plates.length
+        washAjax(forks, function() {
+            total += forks.length;
+            washAjax(cups, function() {
+                total += cups.length;
+                cb(total)
+            })
+        })
+    })
+}
+
+doDishes(plates, forks, cups, updateDishesDom)
+```
+
+</details>

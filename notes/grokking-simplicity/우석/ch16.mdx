@@ -1,0 +1,339 @@
+# 타임라인 사이에 자원 공유하기
+
+## 좋은 타임라인 원칙
+```
+1. 타임라인은 적을수록 이해하기 쉽다.
+2. 타임라인은 짧을수록 이해하기 쉽다.
+3. 공유하는 자원이 적을수록 이해하기 쉽다.
+4. 자원을 공유한다면 서로 조율해야 합니다.
+5. 시간을 일급으로 다룹니다.
+```
+- 이전 장에서 1, 2, 3을 다뤘고 4번을 통해 현재 남아있는 버그를 해결하려 한다.
+- 현재 문제점
+    - DOM이라는 공유 자원을 UPDATE하는 순서에 따라 잘못된 결과가 나올 수 있다.
+    - 비동기로 처리되기 때문에 순서가 달라질 수 있고 클릭한 순서와 DOM 업데이트 순서가 다를 수 있다.
+<br></br>
+
+
+## Queue를 활용해 순서 보장하기
+- 이런 문제 상황에서 가장 먼저 떠올릴 수 있는 방법이 Queue를 활용한 작업 줄세우기이다.
+- 큐에서 처리할 일과 클릭 핸들러에서 처리할 일을 나누고, 순서 보장이 필요한 일들을 큐에서 순차적으로 처리되도록 보장한다.
+<br></br>
+
+
+### Queue에 Task 추가
+```js
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  calc_cart_total(cart, update_total_dom);
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    shipping_ajax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+```
+- 기존 코드가 연달아 2번 실행됐을 때 update_total_dom이 순차적으로 실행된다는 보장이 없다.
+<br></br>
+
+```js
+var queue_items = [];
+
+function runNext() {
+  var cart = queue_items.shift();
+  calc_cart_total(cart, update_total_queue)
+}
+
+function update_total_queue(cart) {
+  queue_items.push(cart);
+  setTimeout(runNext, 0);
+}
+
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    shipping_ajax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+```
+- Queue를 활용해 Task를 넣고 Queue에 있는 Task를 실행하는 로직을 추가했다.
+- 하지만 문제가 있다면 Queue의 2가지 Task가 동시에 실행될 수 있다.
+<br></br>
+
+### 변수 활용해 Task 동시 실행 막기
+```js
+let queue_items = [];
+let working = false;
+
+function runNext() {
+  if (working) return;
+
+  working = true;
+
+  var cart = queue_items.shift();
+  calc_cart_total(cart, function(total) {
+    update_total_queue(total);
+    working = false;
+    runNext();
+  });
+}
+
+function update_total_queue(cart) {
+  queue_items.push(cart);
+  setTimeout(runNext, 0);
+}
+
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    shipping_ajax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+```
+- working 변수를 활용해 Queue의 Task가 실행 중일 때 다른 Task가 수행되지 않도록 막을 수 있다.
+<br></br>
+
+### 항목이 없을 때 멈추게 하기
+```js
+let queue_items = [];
+let working = false;
+
+function runNext() {
+  if (working) return;
+  if (queue_items.length === 0) return;
+
+  working = true;
+
+  var cart = queue_items.shift();
+  calc_cart_total(cart, function(total) {
+    update_total_queue(total);
+    working = false;
+    runNext();
+  });
+}
+
+function update_total_queue(cart) {
+  queue_items.push(cart);
+  setTimeout(runNext, 0);
+}
+
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    shipping_ajax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+```
+- 조건문 추가하여 queue에 item이 없을 때는 로직 실행을 멈추도록 수정
+- 하지만 여전히 아쉬운 점은 working, queue_items가 전역적으로 사용될 수 있다는 점이다.
+<br></br>
+
+### 공유 변수 범위 좁히기
+```js
+function Queue() {
+  let queue_items = [];
+  let working = false;
+
+  function runNext() {
+    if (working) return;
+    if (queue_items.length === 0) return;
+
+    working = true;
+
+    var cart = queue_items.shift();
+    calc_cart_total(cart, function(total) {
+      update_total_queue(total);
+      working = false;
+      runNext();
+    });
+  }
+
+  return function(cart) {
+    queue_items.push(cart);
+    setTimeout(runNext, 0);
+  }
+}
+
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    shipping_ajax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+
+
+const update_total_queue = Queue();
+```
+- 공유 자원을 함수의 지역 변수로 수정하였다.
+- 해당 변수를 다른 곳에서 접근하여 문제가 발생할 수 있는 상황을 제거
+<br></br>
+
+### 재사용성 고려하기
+```js
+function Queue(worker) {
+  let queue_items = [];
+  let working = false;
+
+  function runNext() {
+    if (working) return;
+    if (queue_items.length === 0) return;
+
+    working = true;
+
+    var item = queue_items.shift();
+
+    worker(item.data, function(val) {
+      working = false;
+      setTimeout(item.callback, 0, val)
+      runNext();
+    })
+  };
+
+  return function(data, callback) {
+    queue_items.push({
+      data: data,
+      callback : callback || function() {}
+    });
+    setTimeout(runNext, 0);
+  }
+}
+
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_worker(cart, done) {
+  calc_cart_total(cart, function(total) {
+    update_total_dom(total);
+    done(total);
+  })
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    shipping_ajax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+
+
+const update_total_queue = Queue(calc_cart_worker);
+```
+- worker 로직을 인자로 주입받을 수 있도록 변경하여 Queue를 여러 용도로 사용이 가능해졌다.
+- 또한 작업 후 callback 메서드를 추가로 수행할 수 있도록 적용하였다.
+<br></br>
+
+### DroppingQueue를 활용해 효율성 개선하기
+```js
+function DroppingQueue(max, worker) {
+  let queue_items = [];
+  let working = false;
+
+  function runNext() {
+    if (working) return;
+    if (queue_items.length === 0) return;
+
+    working = true;
+
+    var item = queue_items.shift();
+
+    worker(item.data, function(val) {
+      working = false;
+      setTimeout(item.callback, 0, val)
+      runNext();
+    })
+  };
+
+  return function(data, callback) {
+    queue_items.push({
+      data: data,
+      callback : callback || function() {}
+    });
+
+    while(queue_items.length > max) {
+      queue_items.shift();
+    }
+
+    setTimeout(runNext, 0);
+  }
+}
+
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_worker(cart, done) {
+  calc_cart_total(cart, function(total) {
+    update_total_dom(total);
+    done(total);
+  })
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    shipping_ajax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+
+
+const update_total_queue = DroppingQueue(1, calc_cart_worker); // 1개 이상의 작업은 모두 버리도록
+```
+- 마지막 작업만 수행하면 되는 상황에서는 모든 Task에 대해 로직을 수행할 필요가 없다.
+- 때문에 마지막 Task만 저장하고 Task를 지우는 로직 추가하여 효율성 개선
+
+## 결론
+- Queue를 활용해 클릭 순서대로 DOM UPDATE가 가능하도록 하여 기존 버그를 수정하였다.
+- Queue처럼 자원을 안전하게 공유할 수 있는 재사용 가능한 코드를 `동시성 기본형`이라 부른다

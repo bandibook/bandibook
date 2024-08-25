@@ -1,0 +1,82 @@
+# 타임라인 조율하기
+
+```js
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_worker(cart, done) {
+  calc_cart_total(cart, function(total) {
+    update_total_dom(total);
+    done(total);
+  })
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  cost_ajax(cart, function(cost) {
+    total += cost;
+  });
+
+  shipping_ajax(cart, function(shipping) {
+    total += shipping;
+    callback(total);
+  });
+}
+
+
+const update_total_queue = DroppingQueue(1, calc_cart_worker); // 1개 이상의 작업은 모두 버리도록
+```
+- 최적화가 진행되며 위와 같이 코드가 변했다.
+- 최적화 과정에서 생겨난 버그가 있는데, cost_ajax와 shipping_ajax의 처리 순서가 보장되지 않아졌다는 점이 원인이다.
+- 즉, shipping_ajax가 먼저 처리되면 cost_ajax 결과가 반영되지 않은 체 dom을 update한다.
+<br></br>
+
+## 새로운 동시성 기본형: Cut()
+```js
+function Cut(num, callback) {
+  var num_finished = 0;
+  return function() {
+    num_finished += 1;
+    if (num_finished === num) {
+      callback();
+    }
+  }
+}
+
+function add_item_to_cart(item) {
+  const cart = add_item(cart, item);
+  update_total_queue(cart);
+}
+
+function calc_cart_worker(cart, done) {
+  calc_cart_total(cart, function(total) {
+    update_total_dom(total);
+    done(total);
+  })
+}
+
+function calc_cart_total(cart, callback) {
+  let total = 0;
+  var done = Cut(2, function() {
+    callback(total);
+  })
+
+  cost_ajax(cart, function(cost) {
+    total += cost;
+    done();
+  });
+
+  shipping_ajax(cart, function(shipping) {
+    total += shipping;
+    done();
+  });
+}
+
+
+const update_total_queue = DroppingQueue(1, calc_cart_worker); // 1개 이상의 작업은 모두 버리도록
+```
+- Cut() 메서드를 활용하여 DOM UPDATE 콜백 메서드의 실행 시점을 고정했다. (2개의 ajax 호출이 모두 발생한 이후 시점으로)
+- Cut()이라는 동시성 기본형을 적용하여 버그를 해결했다.
+- Cut() 이외에도 상황에 맞게 동시성 기본형을 활용하여 Callback 메서드 호출 시점을 보장하면 다양한 동시성 문제를 해결할 수 있다.

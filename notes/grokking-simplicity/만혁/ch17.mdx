@@ -1,0 +1,188 @@
+# 타임라인 조율하기
+
+## 좋은 타임라인의 원칙
+
+1. 타임라인은 적을수록 이해하기 쉽다.
+2. 타임라인은 짧을수록 이해하기 쉽다.
+3. 공유하는 자원이 적을수록 이해하기 쉽다.
+4. 자원을 공유한다면 서로 조율해야 한다.
+5. 시간을 일급으로 다룬다.
+
+
+
+## 타이밍 버그 수정 및 최적화
+
+```js
+// as-is
+function addItemToCart(item) {
+  const cart = addItem(cart, item);
+  calcCartTotal(cart, updateTotalDom);
+}
+
+function calcCartTotal(cart, callback) {
+  let total = 0;
+  costAjax(cart, function(cost) {
+    total += cost;
+    shippingAjax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+
+
+// to-be
+function addItemToCart(item) {
+  const cart = addItem(cart, item);
+  calcCartTotal(cart, updateTotalDom);
+}
+
+function calcCartTotal(cart, callback) {
+  let total = 0;
+  costAjax(cart, function(cost) {
+    total += cost;
+  }) // 닫는 괄호 위치 변경
+  shippingAjax(cart, function(shipping) {
+    total += shipping;
+    callback(total);
+  });
+}
+
+```
+
+
+
+
+## 모든 병렬 콜백 기다리기
+## 타임라인을 나누기 위한 동시성 기본형
+
+멀티스레드를 지원하는 언어에서는 스레드가 변경 가능한 상태를 공유하기 위해 
+
+원자적(atomic) 업데이트 같은 기능을 사용해야 한다.
+
+
+하지만 자바스크립트는 단일 스레드라는 장점을 활용할 수 있다. 
+
+
+가능한 동기적으로 접근하는 간단한 변수로 동시성 기본형을 구현할 수 있다.
+
+
+```js
+// num -> 기다릴 타임라인의 수
+// callback -> 모든 것이 끝날때 실행할 콜백
+function Cut(num, callback) {
+    let numFinished = 0;
+    // 리턴되는 함수는 타임라인이 끝났을 때 호출
+    return function() {
+        // 함수를 호출할때마다 카운터 증가
+        numFinished += 1;
+        // 마지막 타임라인이 끝났을때 콜백 호출
+        if (numFinished === num) callback();
+    }
+}
+```
+
+### 간단 예제
+```js
+const done = Cut(3, function() {
+    console.log("3 timelines are finished") // numFinished = 0
+})
+
+done(); 
+        // numFinished = 1
+done();
+        // numFinished = 2
+done();
+        // numFinished =3
+
+
+// console => "3 timelines are finished" 
+// 세번째 done() 이 호출되고 나서 메세지 출력
+```
+
+
+
+## 코드에 `Cut()` 적용하기
+
+1. `Cut()` 을 보관할 범위
+2. `Cut()` 에 어떤 콜백을 넣을지
+
+```js
+// as-is
+function calcCartTotal(cart, callback) {
+  let total = 0;
+  costAjax(cart, function(cost) {
+    total += cost;
+  }) 
+  shippingAjax(cart, function(shipping) {
+    total += shipping;
+    callback(total);
+  });
+}
+
+//to-be
+// Cut() 적용
+function addItemToCart(item) {
+  const cart = addItem(cart, item);
+  calcCartTotal(cart, updateTotalDom);
+}
+
+function calcCartTotal(cart, callback) {
+  let total = 0;
+  const done = Cut(2, function() {
+    callback(total)
+  })
+  costAjax(cart, function(cost) {
+    total += cost;
+    done();
+  })
+  shippingAjax(cart, function(shipping) {
+    total += shipping;
+    done();
+  });
+}
+```
+
+
+<details>
+    <summary>연습 문제</summary>
+
+### 버그를 고쳐라
+
+```js
+// as-is
+let sum = 0;
+function countRegister(registerId) {
+    const temp = sum;
+    registerTotalAjax(registerId, function(money) {
+        sum = temp + money;
+    })
+}
+
+countRegister(1);
+countRegister(2);
+
+// to-be
+let sum = 0;
+function countRegister(registerId) {
+    registerTotalAjax(registerId, function(money) {
+        sum += money;
+    })
+}
+
+```
+
+</details>
+
+## 딱 한 번만 호출하는 기본형
+
+```js
+function JustOnce(action) {
+    let alreadyCalled = false;
+    return function(a, b, c) {
+        if (alreadyCalled) return;
+        alreadyCalled = true;
+        return action(a, b, c);
+    };
+}
+```

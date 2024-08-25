@@ -1,0 +1,680 @@
+# 타임라인 사이에 자원 공유하기
+
+
+
+
+## 좋은 타임라인의 원칙
+
+1. 타임라인은 적을수록 이해하기 쉽다.
+2. 타임라인은 짧을수록 이해하기 쉽다.
+3. 공유하는 자원이 적을수록 이해하기 쉽다.
+4. 자원을 공유한다면 서로 조율해야 한다.
+5. 시간을 일급으로 다룬다.
+
+
+
+#### o = (ta)!/(a!)^t
+
+- 가능한 실행 순서 = (타임라인 개수 * 타임라인당 액션 수)! / (타임라인당 액션 수!)^타임라인 개수
+
+
+
+## 자바스크립트에서 큐 만들기
+
+### 자바스크립트에서는 큐 자료 구조가 없기 때문에 만들어야 한다.
+### 큐에서 처리할 작업을 큐에 넣기
+
+```js
+// as-is
+function addItemToCart(item) {
+  const cart = addItem(cart, item);
+  calcCartTotal(cart, updateTotalDom);
+}
+
+function calcCartTotal(cart, callback) {
+  let total = 0;
+  costAjax(cart, function(cost) {
+    total += cost;
+    shippingAjax(cart, function(shipping) {
+      total += shipping;
+      callback(total);
+    });
+  });
+}
+
+// to-be
+function addItemToCart(item) {
+    cart = addItem(cart, item);
+    updateTotalQueue(cart);
+}
+
+function calcCartTotal(cart, callback) {
+    let total = 0;
+    costAjax(cart, function(cost) {
+        total += cost;
+        shippingAjax(cart, function(shipping) {
+            total += shipping;
+            callback(total);
+        })
+    })
+}
+
+const queueItems = [];
+function updateTotalQueue(cart) {
+    queueItems.push(cart)
+}
+
+```
+
+### 큐에 있는 첫 번째 항목을 실행
+
+```js
+function addItemToCart(item) {
+    cart = addItem(cart, item);
+    updateTotalQueue(cart);
+}
+
+function calcCartTotal(cart, callback) {
+    let total = 0;
+    costAjax(cart, function(cost) {
+        total += cost;
+        shippingAjax(cart, function(shipping) {
+            total += shipping;
+            callback(total);
+        })
+    })
+}
+
+const queueItems = [];
+
+function runNext() {
+    const cart = queueItems.shift();
+    calcCartTotal(cart, updateTotalDom);
+}
+
+function updateTotalQueue(cart) {
+    queueItems.push(cart);
+    // js 이벤트 루프에 작업을 추가 -> 큐에 항목을 추가하고 워커를 시작
+    setTimeout(runNext, 0);
+}
+```
+
+### 두 번째 타임라인이 첫 번째 타임라인과 동시에 실행되는 것 막기
+- 한번에 하나만 실행되도록 만들어야 한다.
+
+```js
+function addItemToCart(item) {
+    cart = addItem(cart, item);
+    updateTotalQueue(cart);
+}
+
+function calcCartTotal(cart, callback) {
+    let total = 0;
+    costAjax(cart, function(cost) {
+        total += cost;
+        shippingAjax(cart, function(shipping) {
+            total += shipping;
+            callback(total);
+        })
+    })
+}
+
+const queueItems = [];
+let working = false;
+
+function runNext() {
+    // 동시에 두 개가 동작하는 것을 막을 수 있다.
+    if (working) return;
+    working = true;
+    const cart = queueItems.shift();
+    calcCartTotal(cart, updateTotalDom);
+}
+
+function updateTotalQueue(cart) {
+    queueItems.push(cart);
+    setTimeout(runNext, 0);
+}
+```
+
+### 다음 작업을 시작할 수 있도록 `calcCartTotal()` 콜백 함수를 고친다
+
+```js
+function addItemToCart(item) {
+    cart = addItem(cart, item);
+    updateTotalQueue(cart);
+}
+
+function calcCartTotal(cart, callback) {
+    let total = 0;
+    costAjax(cart, function(cost) {
+        total += cost;
+        shippingAjax(cart, function(shipping) {
+            total += shipping;
+            callback(total);
+        })
+    })
+}
+
+const queueItems = [];
+let working = false;
+
+function runNext() {
+    if (working) return;
+    working = true;
+    const cart = queueItems.shift();
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        // 1. 작업 완료를 표시하고
+        working = false;
+        // 2. 다음 작업을 시작
+        runNext();
+    });
+}
+
+function updateTotalQueue(cart) {
+    queueItems.push(cart);
+    setTimeout(runNext, 0);
+}
+```
+
+### 항목이 없을 때 멈추게 하기
+
+```js
+function addItemToCart(item) {
+    cart = addItem(cart, item);
+    updateTotalQueue(cart);
+}
+
+function calcCartTotal(cart, callback) {
+    let total = 0;
+    costAjax(cart, function(cost) {
+        total += cost;
+        shippingAjax(cart, function(shipping) {
+            total += shipping;
+            callback(total);
+        })
+    })
+}
+
+const queueItems = [];
+let working = false;
+
+function runNext() {
+    if (working) return;
+    // 큐가 비어있으면 멈춤
+    if (queueItems.length === 0) return;
+    working = true;
+    const cart = queueItems.shift();
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        working = false;
+        runNext();
+    });
+}
+
+function updateTotalQueue(cart) {
+    queueItems.push(cart);
+    setTimeout(runNext, 0);
+}
+```
+
+
+### 변수와 함수를 함수 범위로 넣기
+
+
+```js
+function addItemToCart(item) {
+    cart = addItem(cart, item);
+    updateTotalQueue(cart);
+}
+
+function calcCartTotal(cart, callback) {
+    let total = 0;
+    costAjax(cart, function(cost) {
+        total += cost;
+        shippingAjax(cart, function(shipping) {
+            total += shipping;
+            callback(total);
+        })
+    })
+}
+
+// const queueItems = [];
+// let working = false;
+
+// function runNext() {
+//     if (working) return;
+//     if (queueItems.length === 0) return;
+//     working = true;
+//     const cart = queueItems.shift();
+//     calcCartTotal(cart, function(total) {
+//         updateTotalDom(total);
+//         working = false;
+//         runNext();
+//     });
+// }
+
+function updateTotalQueue(cart) {
+    queueItems.push(cart);
+    setTimeout(runNext, 0);
+}
+
+// 모든 코드를 Queue() 에 넣는다
+function Queue() {
+    // 전역변수가  Queue()의 지역변수로 바뀐다
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const cart = queueItems.shift();
+        calcCartTotal(cart, function(total) {
+            updateTotalDom(total);
+            working = false;
+            runNext();
+        });
+    }
+
+    return function(cart) {
+        queueItems.push(cart);
+        setTimeout(runNext, 0);
+    }
+}
+
+const updateTotalQueue = Queue();
+```
+
+
+## 큐를 재사용할 수 있도록 만들기
+
+### `done()` 함수 빼내기
+
+```js
+// as-is
+function Queue() {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const cart = queueItems.shift();
+        calcCartTotal(cart, function(total) {
+            updateTotalDom(total);
+            working = false;
+            runNext();
+        });
+    }
+
+    return function(cart) {
+        queueItems.push(cart);
+        setTimeout(runNext, 0);
+    }
+}
+
+const updateTotalQueue = Queue();
+
+
+// to-be
+function Queue() {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const cart = queueItems.shift();
+        // cart 를 인자로 받아 지역적으로 사용
+        function worker(cart, done) {
+            calcCartTotal(cart, function(total) {
+                updateTotalDom(total);
+                done(total);
+            });
+        }
+        worker(cart, function() {
+            // 두 줄을 새로운 함수로 분리
+            working = false;
+            runNext();
+        })
+    }
+
+    return function(cart) {
+        queueItems.push(cart);
+        setTimeout(runNext, 0);
+    }
+}
+
+const updateTotalQueue = Queue();
+
+```
+
+
+### 워커 행동을 바꿀 수 있도록 분리
+```js
+// as-is
+function Queue() {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const cart = queueItems.shift();
+        function worker(cart, done) {
+            calcCartTotal(cart, function(total) {
+                updateTotalDom(total);
+                done(total);
+            });
+        }
+        worker(cart, function() {
+            working = false;
+            runNext();
+        })
+    }
+
+    return function(cart) {
+        queueItems.push(cart);
+        setTimeout(runNext, 0);
+    }
+}
+
+const updateTotalQueue = Queue();
+
+
+// to-be
+function Queue(worker) {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const cart = queueItems.shift();
+        worker(cart, function() {
+            working = false;
+            runNext();
+        })
+    }
+
+    return function(cart) {
+        queueItems.push(cart);
+        setTimeout(runNext, 0);
+    }
+}
+
+function calcCartWorker(cart, done) {
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        done(total);
+    });
+}
+
+const updateTotalQueue = Queue(calcCartWorker);
+
+```
+
+
+### 작업이 끝났을 때 실행하는 콜백을 받기
+
+```js
+// as-is
+function Queue(worker) {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const cart = queueItems.shift();
+        worker(cart, function() {
+            working = false;
+            runNext();
+        })
+    }
+
+    return function(cart) {
+        queueItems.push(cart);
+        setTimeout(runNext, 0);
+    }
+}
+
+function calcCartWorker(cart, done) {
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        done(total);
+    });
+}
+
+const updateTotalQueue = Queue(calcCartWorker);
+
+
+// to-be
+function Queue(worker) {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const item = queueItems.shift();
+        // worker 에 data 전달
+        worker(item.data, function() {
+            working = false;
+            runNext();
+        })
+    }
+
+    return function(data, callback) {
+        queueItems.push({
+            data: data,
+            // 만약 콜백이 없다면 아무것도 하지 않는 함수 사용
+            callback: callback || function() {} 
+        });
+        setTimeout(runNext, 0);
+    }
+}
+
+function calcCartWorker(cart, done) {
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        done(total);
+    });
+}
+
+const updateTotalQueue = Queue(calcCartWorker);
+```
+
+### 작업이 완료되었을 때 콜백 부르기
+
+```js
+//as-is
+function Queue(worker) {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const item = queueItems.shift();
+        worker(item.data, function() {
+            working = false;
+            runNext();
+        })
+    }
+
+    return function(data, callback) {
+        queueItems.push({
+            data: data,
+            callback: callback || function() {} 
+        });
+        setTimeout(runNext, 0);
+    }
+}
+
+function calcCartWorker(cart, done) {
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        done(total);
+    });
+}
+
+const updateTotalQueue = Queue(calcCartWorker);
+
+// to-be
+function Queue(worker) {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const item = queueItems.shift();
+        // done() 이 인자를 받도록 만듬
+        worker(item.data, function(value) {
+            working = false;
+            // 1. item.callback 을 비동기로 호출
+            // 2. callback 에 인자 전달
+            setTimeout(item.callback, 0, value);
+            runNext();
+        })
+    }
+
+    return function(data, callback) {
+        queueItems.push({
+            data: data,
+            callback: callback || function() {} 
+        });
+        setTimeout(runNext, 0);
+    }
+}
+
+function calcCartWorker(cart, done) {
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        done(total);
+    });
+}
+
+const updateTotalQueue = Queue(calcCartWorker);
+
+```
+
+### `Queue()` 는 액션에 새로운 능력을 줄 수 있는 고차함수이다.
+
+```js
+const updateTotalQueue = Queue(calcCartWorker);
+// 함수 = 함수(함수)
+```
+
+
+## 큐를 건너뛰도록 만들기
+
+```js
+// as-is
+function Queue(worker) {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const item = queueItems.shift();
+        worker(item.data, function(value) {
+            working = false;
+            setTimeout(item.callback, 0, value);
+            runNext();
+        })
+    }
+
+    return function(data, callback) {
+        queueItems.push({
+            data: data,
+            callback: callback || function() {} 
+        });
+        setTimeout(runNext, 0);
+    }
+}
+
+function calcCartWorker(cart, done) {
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        done(total);
+    });
+}
+
+const updateTotalQueue = Queue(calcCartWorker);
+
+// to-be
+// 이름 변경, 보관 할 수 있는 최대 큐 크기를 전달
+function DroppingQueue(max, worker) {
+    const queueItems = [];
+    let working = false;
+
+    function runNext() {
+        if (working) return;
+        if (queueItems.length === 0) return;
+        working = true;
+        const item = queueItems.shift();
+        worker(item.data, function(value) {
+            working = false;
+            setTimeout(item.callback, 0, value);
+            runNext();
+        })
+    }
+
+    return function(data, callback) {
+        queueItems.push({
+            data: data,
+            callback: callback || function() {} 
+        });
+        // 큐에 추가한 후에 항목이 max 를 넘긴다면 보두 버림
+        while(queueItems.length > max) queueItems.shift();
+        setTimeout(runNext, 0);
+    }
+}
+
+function calcCartWorker(cart, done) {
+    calcCartTotal(cart, function(total) {
+        updateTotalDom(total);
+        done(total);
+    });
+}
+
+const updateTotalQueue = DroppingQueue(1, calcCartWorker);
+```
+
+
+<details>
+    <summary>연습 문제</summary>
+
+### 드로핑 큐를 사용해 문제를 해결해라
+
+```js
+const document = {};
+function saveAjax(document, callback) {}
+
+
+// as-is
+saveButton.addEventListener('click', function() {
+    saveAjax(document)
+})
+
+// to-be
+const saveAjaxQueued = DroppingQueue(1, saveAjax);
+saveButton.addEventListener('click', function() {
+    saveAjaxQueued(document)
+})
+```
+
+</details>

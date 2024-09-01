@@ -1,0 +1,208 @@
+# 반응형 아키텍처와 어니언 아키텍처
+
+## 반응형 아키텍처
+- 코드에 나타난 순차적 액션의 순서를 뒤집어 `효과의 원인`과 `효과`를 분리환다.
+- 이벤트 발행 - 이벤트 구독을 생각하면 보다 이해가 쉽다.
+- 장점
+    - 원인과 효과가 결합한 것을 분리한다.
+    - 여러 단계를 파이프라인으로 처리한다.
+    - 타임라인이 유연해진다.
+<br></br>
+
+### 반응형 아키텍처 도입해보기
+```js
+var shopping_cart = {};
+
+function add_item_to_cart(name, price) {
+  var item = make_cart_item(name, price);
+  shipping_cart = add_item(shopping_cart, item);
+
+  var total = calc_total(shipping_cart);
+  set_cart_total_dom(total);
+  update_shipping_icons(shipping_cart);
+  update_tax_dom(total);
+}
+```
+- 기존 코드이다
+- add_item_to_cart 메서드에서는 전역 변수 shipping_cart를 사용한다.
+- 또한 shopping_cart에 item을 추가(원인)하면 발생해야 하는 여러 효과들이 코드에 들어있다.
+<br></br>
+
+```js
+function ValueCell(initialValue) {
+  var currentValue = initialValue;
+
+  return {
+    val: function() {
+      return currentValue;
+    },
+    update: function(f) {
+      var oldValue = currentValue;
+      var newValue = f(oldValue);
+      currentValue = newValue;
+    }
+  }
+}
+
+
+var shopping_cart = ValueCell({});
+
+function add_item_to_cart(name, price) {
+  var item = make_cart_item(name, price);
+  shipping_cart.update(function(cart) {
+    return add_item(cart, item);
+  })
+
+  var total = calc_total(shipping_cart.val());
+  set_cart_total_dom(total);
+  update_shipping_icons(shipping_cart.val());
+  update_tax_dom(total);
+}
+```
+- ValueCell()을 활용해 shopping_cart를 읽고 쓰는 코드를 명확한 메서드 호출로 바꿨다.
+<br></br>
+
+### 감시자 적용
+```js
+function ValueCell(initialValue) {
+  var currentValue = initialValue;
+  var watchers = [];
+
+  return {
+    val: function() {
+      return currentValue;
+    },
+    update: function(f) {
+      var oldValue = currentValue;
+      var newValue = f(oldValue);
+      if (oldValue !== newValue) {
+        currentValue = newValue;
+        forEach(watcher, function(watcher) {
+          watcher(newValue);
+        });
+      }
+      currentValue = newValue;
+    },
+    addWatcher: function(f) {
+      watchers.push(f);
+    }
+  }
+}
+
+
+var shopping_cart = ValueCell({});
+
+function add_item_to_cart(name, price) {
+  var item = make_cart_item(name, price);
+  shipping_cart.update(function(cart) {
+    return add_item(cart, item);
+  })
+
+  var total = calc_total(shipping_cart.val());
+  set_cart_total_dom(total);
+  update_tax_dom(total);
+}
+
+shopping_cart.addWatcher(update_shipping_icons);
+```
+- 감시자(watchers)를 추가해 ValueCell의 currentValue가 변경될 때 순차적으로 실행될 메서드들을 따로 저장하게 된다.
+- 이는 장바구니에 상품을 추가하는 작업(원인)과 그 이후 배송 아이콘을 수정하는 작업(효과)를 분리하는 효과를 가져온다.
+- 이를 분리했을 때 얻을 수 있는 장점은 만약 다른 곳에서 cart에 상품을 추가하는 로직이 추가된다고 하더라도 update_shipping_icons 작업을 추가적으로 해줄 필요가 없다는 것이다.
+<br></br>
+
+### 파생 데이터를 위한 작업 적용하기
+```js
+function ValueCell(initialValue) {
+  var currentValue = initialValue;
+  var watchers = [];
+
+  return {
+    val: function() {
+      return currentValue;
+    },
+    update: function(f) {
+      var oldValue = currentValue;
+      var newValue = f(oldValue);
+      if (oldValue !== newValue) {
+        currentValue = newValue;
+        forEach(watcher, function(watcher) {
+          watcher(newValue);
+        });
+      }
+      currentValue = newValue;
+    },
+    addWatcher: function(f) {
+      watchers.push(f);
+    }
+  }
+}
+
+function FormulaCell(upstreamCell, f) {
+  var myCell = ValueCell(f(upstreamCell.val()));
+  upstreamCell.addWatcher(function(newUpstreamValue) {
+    myCell.update(function(currentValue) {
+      return f(newUpstreamValue);
+    })
+  });
+
+  return {
+    val: myCell.val,
+    addWatcher: myCell.addWatcher
+  }
+}
+
+
+var shopping_cart = ValueCell({});
+var cart_total = FormulaCell(shopping_cart, calc_total)
+
+function add_item_to_cart(name, price) {
+  var item = make_cart_item(name, price);
+  shipping_cart.update(function(cart) {
+    return add_item(cart, item);
+  })
+}
+
+shopping_cart.addWatcher(update_shipping_icons);
+cart_total.addWatcher(set_cart_total_dom);
+cart_total.addWatcher(update_tax_dom);
+```
+- shopping_cart의 변경에 의해 파생되는 값인 cart_total을 FormulaCell로 빼냈다.
+- 이를 통해 add_item_to_cart는 명확히 cart에 상품을 추가하는 역할만 하게 되었다
+- 원인에 대한 효과는 watcher에 의해 처리되게 된다.
+- 결과적으로 아래와 같이 변경되었다.
+    - 원인과 효과가 분리되어 유지 보수가 더욱 편리해졌다.
+    - 여러 단계를 파이프라인으로 처리한다.
+    - 타임 라인이 유연해졌다 (짧아졌다)
+<br></br>
+
+### 반응형 아키텍처의 장점 (RE)
+- 원인과 효과가 분리된다.
+    - 관리 포인트가 줄어든다. 원인이 늘어나더라도 효과를 따로 적용하지 않아도 자동 적용된다.
+    - 반대로 효과가 늘어도 원인이 되는 로직에 수정이 필요가 없다.
+- 여러 단계를 파이프라인으로 처리한다.
+    - 각 파이프라인은 액션과 계산의 조합들이다.
+    - 조금 더 큰 규모로는 이벤트 스트림을 활용할 수 있다.
+    - ReactiveX 라이브러리를 사용할 수도 있고 외부 스트림 서비스로는 Kafka나 RabbitMQ를 고려할 수도 있다.
+    - Kafka나 RabbitMQ는 서비스 관점에서 분리가 가능하다.
+- 타임라인이 유연해진다.
+    - 타임라인이 짧지만 많아진다.
+    - 이때 중요한 점은 각 타임라인이 공유하는 자원이 없기 때문에 안전하다는 점이다.
+
+
+## 어니언 아키텍처
+- 웹 서비스와 같이 현실 세계와 상호작용하기 위한 서비스 구조이다.
+- 인터랙션 계층 / 도메인 계층 / 언어 계층으로 분리하고 호출 방향은 왼쪽에서 오른쪽으로만 가능하다
+- 어니언 아키텍처는 함수형 아키텍처와 잘 어울린다.
+- 그 이유는 호출 순서에서 하나의 동작이 액션이면 모든 동작이 액션으로 바뀐다는 점에 있다.
+- 전통적인 계층형 아키텍처는 가장 아래에 DB가 존재한다. 때문에 모든 로직이 액션이 된다.
+- 하지만 어니언 아키텍처는 DB와 같이 외부와의 소통은 인터랙션에서 사용하고 대부분의 로직은 도메인 계층에 계산으로 둔다.
+- 즉, 계산과 액션을 분리하여 단순한 계산을 최대한 활용할 수 있는 것이다.
+
+### 만능 아키텍처는 없다
+- 어니언, 반응형, 함수형 아키텍처의 장점을 나열했지만 어쩌면 불필요하게 복잡한 아키텍처가 될 수도 있다.
+- 가독성, 개발 속도, 성능 등을 고려하여 적절한 시스템을 사용하는 게 중요
+
+### 내 생각
+- 도메인 로직이 복잡한 경우에 이런 로직을 사용하는 게 좋을 것 같다.
+- 복잡한 로직을 계산으로 다루고 부수 효과를 줄일 수 있고 또 테스트가 용이해지기 때문에 장점이 있을듯
+- 반면 도메인 로직이 그리 복잡하지 않다면 아키텍처의 복잡성이 단점으로만 다가올 것 같다.

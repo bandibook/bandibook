@@ -1,0 +1,214 @@
+# 반응형 아키텍처와 어니언 아키텍처
+
+
+## 반응형 아키텍처란?
+
+애플리케이션을 구조화 하는 방법.
+
+
+핵심 원칙은 이벤트에 대한 반응으로 일어날 일을 지정하는 것
+
+
+## 반응형 아키텍처의 절충점
+
+X를 하고 Y를 하는 대신, X가 일어나면 Y를 한다.
+
+하지만 언제, 어떻게 사용할지는 잘 판단해야함
+
+
+### 원인과 효과가 결한한 것을 분리한다.
+
+### 여러 단계를 파이프라인으로 처리한다.
+
+### 타임라인이 유연해진다.
+
+## 셀은 일급 상태이다.
+
+
+```js
+function ValueCell(initialValue) {
+    let currentValue = initialValue;
+    return {
+        val: function() {
+            return currentValue;
+        },
+        update: function(f) {
+            const oldValue = currentValue;
+            const newValue = f(oldValue);
+            currentValue = newValue;
+        }
+    }
+}
+```
+
+
+
+```js
+// as-is
+let shoppingCart = {};
+
+function addItemToCart(name, price) {
+    const item = makeCartItem(name, price);
+    shoppingCart = addItem(shoppingCart, item);
+    // ...
+
+}
+
+// to-be
+const shoppingCart = ValueCell();
+function addItemToCart(name, prcie) {
+    const item = makeCartItem(name, price);
+    shoppingCart.update(function(update) {
+        return addItem(cart, item);
+    })
+    // ...
+}
+```
+
+
+
+##  ValueCell 을 반응형으로 만들 수 있다
+
+```js
+// as-is
+function ValueCell(initialValue) {
+    let currentValue = initialValue;
+    return {
+        val: function() {
+            return currentValue;
+        },
+        update: function(f) {
+            const oldValue = currentValue;
+            const newValue = f(oldValue);
+            currentValue = newValue;
+        }
+    }
+}
+
+// to-be
+function ValueCell(initialValue) {
+    let currentValue = initialValue;
+    const watchers = []; // 감시자 목록 저장
+    return {
+        val: function() {
+            return currentValue;
+        },
+        update: function(f) {
+            const oldValue = currentValue;
+            const newValue = f(oldValue);
+            if (oldValue !== newValue) {
+                currentValue = newValue;
+                forEach(watchers, function(watcher) {
+                    wathcer(newValue);
+                })
+            }
+        },
+        addWatcher: function(f) {
+                watchers.push(f);
+        }
+    }
+}
+```
+
+
+## 셀이 바뀔 때 배송 아이콘을 갱신할 수 있다.
+
+```js
+// as-is
+let shoppingCart = {};
+
+function addItemToCart(name, price) {
+    const item = makeCartItem(name, price);
+    shoppingCart = addItem(shoppingCart, item);
+    
+    const total = calcTotal(shoppingCart.val());
+    setCartTotalDom(total);
+    updateShippingIcons(shoppingCart.val());
+    updateTaxDom(total);
+}
+
+
+// to-be
+const shoppingCart = ValueCell({});
+
+function addItemToCart(name, price) {
+    const item = makeCartItem(name, price);
+    shoppingCart = addItem(shoppingCart, item);
+    
+    const total = calcTotal(shoppingCart.val());
+    setCartTotalDom(total);
+    
+    updateTaxDom(total);
+}
+
+// 코드를 추가하면 장바구니가 바뀔때마다 실행됨
+shoppingCart.addWatcher(updateShippingIcons);
+```
+
+
+## FormulaCell 은 파생된 값을 계산한다.
+
+
+```js
+function FormulaCell(upstreamCell, f) {
+    const myCell = ValueCell(f(upstreamCell.val()));
+    upstreamCell.addWatcher(function(newUpstreamValue) {
+        myCell.update(function(currentValue) {
+            return f(newUpstreamValue);
+        })
+    })
+    return {
+        // val()과  addWatcher() 를 myCell 에 위임
+        val: myCell.val, 
+        addWatcher: myCell.addWatcher
+        // update가 없는 이유는 FormlaCell은 값을 직접 바꿀 수 없다
+    }
+}
+```
+
+
+`FormlaCell`은 값을 직접 바꿀 수 없다. 
+
+감시하던 `상위(upstream)` 셀 값이 바뀌면 `FormlaCell` 값이 바뀐다.
+
+
+값을 변경할 수 없지만 `FormlaCell`을 감시할 수 있다. 
+
+따라서 `FormlaCell` 이 `total` 값 이라면  `total` 값이 바뀔 때 실행할 액션을 추가할 수 있다.
+
+
+
+```js
+// as-is
+const shoppingCart = ValueCell({});
+
+function addItemToCart(name, price) {
+    const item = makeCartItem(name, price);
+    shoppingCart = addItem(shoppingCart, item);
+    
+    // const total = calcTotal(shoppingCart.val());
+    // setCartTotalDom(total);
+
+    // updateTaxDom(total);
+}
+
+shoppingCart.addWatcher(updateShippingIcons);
+
+// to-be
+const shoppingCart = ValueCell({});
+const cartTotal = FormlaCell(shoppingCart, calcTotal);
+
+function addItemToCart(name, price) {
+    const item = makeCartItem(name, price);
+    shoppingCart = addItem(shoppingCart, item);
+}
+
+shoppingCart.addWatcher(updateShippingIcons);
+
+// cartTotal 이 바뀌면  DOM이 업데이트됨
+calcTotal.addWatcher(setCartTotalDom);
+calcTotal.addWatcher(updateTaxDom);
+
+```
+
+

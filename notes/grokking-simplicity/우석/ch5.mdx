@@ -7,6 +7,7 @@
   - 암묵적 입출력이 존재하는 함수는 시점에 의존하는 코드이기 때문에 아무때나 실행할 수 없고 테스트가 까다롭다.
   - 암묵적 입출력을 제거하면 시점에 의존하지 않게 만들 수 있고 테스트에 용이한 구조를 가져갈 수 있다.
 <br></br>
+
 ## 계산 분류하기
 - 함수를 사용하면 자연스럽게 관심사를 분리할 수 있다.
 - 관심사가 분리되면서 자연스럽게 코드의 크기가 줄며 계층이 생겨나고 아래와 같은 장점을 얻을 수 있다.
@@ -15,7 +16,7 @@
   - 테스트하기 쉽다.
 <br></br>
 
-```java
+```js
 // Cart, Item
 function add_item(cart, name, price) {
     var new_cart = cart.slice();
@@ -53,7 +54,7 @@ function calc_tax(amount) {
 - 여기서 add_item()은 Cart와 Item을 알아야 하는 메서드인데 관심사를 불리해보자.
 <br></br>
 
-```java
+```js
 // Util
 function add_element_last(arry, elem) {
     var new_array = array.slice();

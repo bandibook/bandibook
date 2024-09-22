@@ -120,7 +120,7 @@
 
 특정 등급의 쿠폰 목록을 선택하는 것은 계산이다.
 
- ```js
+```js
  function selectCouponsByRank(coupons, rank) { // 입력
     const result = []; // 빈 배열 초기화
     for (const c = 0; c < coupons.length; c++) { // 모든 쿠폰에 반복
@@ -131,7 +131,7 @@
     // 출력
     return result;
  }
- ```
+```
 
 
 ### 이미 있는 코드에 함수형 사고 적용하기
@@ -184,3 +184,8 @@ function main() {
     - 속성 삭제 `delete user.name` -> 속성을 지워 다른 코드에 영향을 주기 때문에 액션이다.
 
     
+
+### 1회독 후기
+- 드물지만 타이밍이 어긋나는 경우는 실제로 일어난다.
+- 타임라인을 나누어 생각해보면 도움 될거 같다.
+- 액션을 잘게 나누는게 좋아보인다.

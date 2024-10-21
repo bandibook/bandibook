@@ -1,0 +1,54 @@
+<details>
+  <summary>도은</summary>
+  매일 사용하게 될 React 개념 80%를 소개한다.
+
+## 컴포넌트 생성 및 중첩하기
+
+- React 앱은 `컴포넌트`로 구성된다.
+- 컴포넌트는 UI의 일부
+- 컴포넌트는 버튼처럼 작을 수도 있고, 전체 페이지만큼 클 수도 있다.
+- React 컴포넌트는 **`마크업을 반환하는 자바스크립트 함수`**이다.
+
+```jsx
+function MyButton() {
+  return <button>I'm a button</button>;
+}
+```
+
+- React 컴포넌트는 항상 대문자로 시작해야 한다.
+
+## JSX로 마크업 작성하기
+
+- React 프로젝트는 편의성을 위해 JSX를 사용
+- JSX(JavaScript Syntax eXtension)은 자바스크립트를 확장한 문법
+- 브라우저에서 실행하기 전에 트랜스파일러에 의해 자바스립트 형태로 트랜스파일링
+  - 트랜스파일러는 JSX를 `React.createElement()` 호출로 컴파일
+    ```jsx
+    // as-is
+    const element = <h1 className="greeting">Hello, world!</h1>;
+    // to-be
+    const element = React.createElement('h1', { className: 'greeting' }, 'Hello, world!');
+    ```
+- 이러한 객체를 `React 엘리먼트`라고 하는데
+- **JSX는 React 엘리먼트(element)를 생성**
+- ⭐️ React는 이 객체를 읽어서, **DOM을 구성**하고 최신 상태로 유지하는 데 사용
+
+## 🤔 궁금한 점
+
+**`🤔 js, jsx는 차이가 없는데, ts, tsx는 왜 차이가 있을까?`**
+
+- TypeScript는 기본적으로 JSX를 지원하지는 않음
+- JSX를 사용하는 파일은 명시적으로 `tsx` 확장자를 사용해야 한다.
+- 그래야 TS 컴파일러가 JSX 구문을 적절히 파싱이 가능하다
+- TypeScript에서는 타입 검사와 JSX 파싱 방식이 다르기 때문에 `ts`와 `tsx`를 구분해야 한다.
+- JSX는 트랜스파일러에 의해 JS로 변환되기 때문에, 최종 실행 파일에는 차이가 없다.
+  - JavaScript 엔진은 `*.js`와 `*.jsx` 파일을 동일하게 처리
+  - `*.jsx` 확장자는 단지 프로젝트에서 파일을 쉽게 식별하기 위해 도입된 것
+
+**`🤔 js, jsx 확장자 차이로 인한 성능 차이가 있을까? 명시적으로 적어주었을 때 이점이 없을까?`**
+
+- 없다고 한다.
+- 트랜스파일러에 의해 모두 일반 JavaScript로 변환되기 때문에
+- 트랜스파일링은 **확장자와 무관하게 모든 파일이 처리** (물론 설정으로 exclude 가능)
+
+</details>

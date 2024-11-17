@@ -1,53 +1,47 @@
-name: Auto Label PR
+name: Auto-label PRs
 
 on:
   pull_request:
     types: [opened, edited]
 
 jobs:
-  label:
+  label-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.9'
 
       - name: Install dependencies
         run: |
-          pip install fuzzywuzzy
+          pip install requests
 
-      - name: Determine label
-        id: label
+      - name: Get PR title and add label
         run: |
-          import os
-          from fuzzywuzzy import process
+          PR_TITLE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
+            | jq -r .title)
+          LABEL=""
 
-          # PR 제목 가져오기
-          pr_title = os.getenv('GITHUB_REF')
-          pr_title = pr_title.split('/')[-1]  # PR 번호를 가져옴
+          # Add your label matching logic here
+          if [[ "$PR_TITLE" == *"bug"* ]]; then
+            LABEL="bug"
+          elif [[ "$PR_TITLE" == *"feature"* ]]; then
+            LABEL="enhancement"
+          elif [[ "$PR_TITLE" == *"docs"* ]]; then
+            LABEL="documentation"
+          else
+            LABEL="general"
+          fi
 
-          # 사용할 label 목록
-          labels = ["bug", "enhancement", "documentation", "question"]
+          echo "PR title: $PR_TITLE"
+          echo "Label to add: $LABEL"
 
-          # 가장 유사한 label 찾기
-          best_match = process.extractOne(pr_title, labels)
-          print(f"Best match label: {best_match[0]}")
-
-          # 출력
-          print(f"::set-output name=label::{best_match[0]}")
-
-      - name: Add label to PR
-        uses: actions/github-script@v4
-        with:
-          script: |
-            const label = '${{ steps.label.outputs.label }}';
-            const { context } = require('@actions/github');
-            await github.issues.addLabels({
-              ...context.repo,
-              issue_number: context.payload.pull_request.number,
-              labels: [label]
-            });
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"labels\":[\"$LABEL\"]}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels"

@@ -24,11 +24,12 @@ jobs:
         id: label
         run: |
           import os
-          import sys
           from fuzzywuzzy import process
 
           # PR 제목 가져오기
-          pr_title = os.getenv('GITHUB_EVENT_PULL_REQUEST_TITLE')
+          pr_title = os.getenv('GITHUB_REF')
+          pr_title = pr_title.split('/')[-1]  # PR 번호를 가져옴
+
           # 사용할 label 목록
           labels = ["bug", "enhancement", "documentation", "question"]
 

@@ -1,0 +1,23 @@
+name: Auto Assign PR
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up GitHub CLI
+        run: |
+          sudo apt-get install gh
+
+      - name: Assign PR author
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        run: |
+          pr_author=$(jq -r '.pull_request.user.login' "$GITHUB_EVENT_PATH")
+          gh pr edit "$GITHUB_REF" --add-assignee "$pr_author"

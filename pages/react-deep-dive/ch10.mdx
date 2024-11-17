@@ -1,0 +1,775 @@
+<details>
+  <summary>준영</summary>
+  
+</details><details>
+  <summary>도은</summary>
+  ## 10.1 리액트 17 버전 살펴보기
+
+- 리액트 17 버전은 16 버전과 다르게 새롭게 추가된 기능 X
+- 호환성이 깨지는 변경 사항을 최소화
+
+### 10.1.1 리액트의 점진적인 업그레이드
+
+- 리액트 17 버전부터는 점진적인 업그레이드 가능
+- 리액트 17을 설치하고, 이후에 리액트 18로 업데이트하는 상황을 가정해보자
+  - 리액트 18에서 제공하는 대부분의 기능을 사용할 수 있지만
+  - 일부 기능에 대해서는 리액트 17에 머물러 있는 것이 가능
+- 당연히, 버전이 서로 다른 리액트가 2개가 존재해야 하는 것이므로
+  - 한 개가 있을 때보다는 당연히 관리 지점이나 번들 사이즈 🔼
+- 리액트 팀에서는 이를 어디까지나 업그레이드가 불가능한 상태에서만 차선책이라고 언급
+
+### 10.1.2 이벤트 위임 방식의 변경
+
+**`🤔 리액트의 이벤트 추가 방식`**
+
+- `리액트 버튼`: DOM에 이벤트를 추가하는 방식으로 onClick 이벤트를 추가
+  - `<button>`의 onclick 이벤트에 `noop`이라는 핸들러가 추가되어 있다.
+  - 리액트는 이벤트 핸들러를 해당 이벤트 핸들러에 추가한 각각의 DOM 요소에 부탁하는 것이 아니라
+  - 이벤트 타입(click, change)당 하나의 핸들러를 **루트에 부착**한다.
+  - 이를 이벤트 위임이라고 한다.
+  - 리액트는 이벤트 핸들러를 각 요소가 아닌 `document`에 연결
+- `그냥 버튼`: 직접 DOM을 참조해서 가져온 다음, DOM의 onclick에 직접 함수를 추가하는 고전적인 이벤트 핸들러 추가 방식을 사용
+
+아래처럼 여러 리액트 버전이 한 서비스에서 공존한다고 가정해보자
+
+```tsx
+import React from 'react'; // 16.14
+import ReactDOM from 'react-dom'; // 16.14
+
+function React1614() {
+  function App() {
+    function 안녕하세요() {
+      alert('안녕하세요! 16.14');
+    }
+    return <button onClick={안녕하세요}>리액트 버튼</button>;
+  }
+  return ReactDOM.render(<App />, document.getElementBy('React-16-14'));
+}
+```
+
+```tsx
+import React from 'react'; // 16.8
+import ReactDOM from 'react-dom'; // 16.8
+
+function React168() {
+  function App() {
+    function 안녕하세요() {
+      alert('안녕하세요! 16.8');
+    }
+    return <button onClick={안녕하세요}>리액트 버튼</button>;
+  }
+  return ReactDOM.render(<App />, document.getElementById('React-16-8'));
+}
+```
+
+이 코드는 다음과 같이 렌더링 될 것이다.
+
+```tsx
+<html>
+  <body>
+    <div id="React-16-14">
+      <div id="React-16-8"></div>
+    </div>
+  </body>
+</html>
+```
+
+- 리액트 16에서는 모든 이벤트가 `document`에 부착
+- 이런 상황에서, React168 컴포넌트가 이벤트 전파를 막는 `e.stopPropagation`을 실행하면
+  - 모든 이벤트는 document로 올라가 있는 상태이기 때문에 document의 이벤트 전파는 막을 수 없게 된다.
+  - 따라서, React1614에도 이 이벤트를 전달받게 될 것
+  - 이벤트의 흐름: document에서 시작 → React1614 → React168
+-
+
+<p align="center">
+  <img src="https://blog.saeloun.com/images/react_event_delegation/react_16_vs_17_delegation.png" />
+</p>
+
+```
+💡 document → root 요소로 이벤트 위임을 변경한 이유
+   점진적인 업그레이드 지원, 그리고 다른 바닐라 자바스크립트 코드 등 혼재되어 있는 경우 혼란을 방지하기 위함
+```
+
+### 10.1.3. import React from 'react'가 더 이상 필요 없다: 새로운 JSX transform
+
+- `JSX 변환`을 사용하기 위해 코드 내 React를 사용하는 구문이 없더라도
+- `import React from 'react'`가 필요, 없으면 에러 발생
+
+```
+💡 리액트 17부터는 바벨과 협력해 이러한 import 구문 없이도 JSX를 변환 가능해진 것
+```
+
+**`🤔 JSX 변환이란?`**
+
+- JSX(JavaScript XML, JavaScript 안에서 HTML 요소를 사용)를 JavaScript 코드로 변환하는 작업
+
+```jsx
+// as-is
+const element = <h1>Hello, world!</h1>;
+// to-be
+const element = React.createElement('h1', null, 'Hello, world!');
+```
+
+**`🤔 그 전에는 어떤 방식으로 JSX 변환을 했던 걸까?`**
+
+- 결국에는 `React.createElement`가 필요해서
+- 상단에 `React` 임포트가 필요했던 것
+- 17 버전이 되면서 직접적으로 사용하는 것이 아니라
+- `jsx`라는 함수를 통해 변환하도록 변경된 것
+- 따라서, 명시적으로 작성할 필요가 없어진 것!
+
+```js
+const Component = (
+  <div>
+    <span>hello world</span>
+  </div>
+);
+
+// 리액트 16에서는 이렇게 변환된다.
+var Component = React.createElement('div', null, React.createElement('span', null, 'hello world'));
+```
+
+```js
+// 리액트 17에서는 이렇게 변환된다.
+'use strict';
+
+var _jsxRuntime = require('react/jsx-runtime');
+
+var Component = (0, _jsxRuntime.jsx)('div', {
+  children: (0, _jsxRuntime.jsx)('span', {
+    children: 'hello world',
+  }),
+});
+```
+
+- JSX를 변환할 때 필요한 모듈인 `react/jsx-runtime`을 불러오는 require 구문도 같이 추가
+
+### 10.1.4 그 밖의 주요 변경 사항
+
+#### 이벤트 풀링 제거
+
+- 리액트 16에서는 이벤트 풀링이라는 기능 존재
+- 리액트는 이벤트를 처리하기 위한 `SyntheticEvent`라는 이벤트 존재
+  - 이 이벤트는, 브라우저의 기본 이벤트를 한 번 더 감싼 이벤트 객체
+  - 이벤트가 발생할 때마다 이 이벤트를 새로 만들어야 했고,
+  - 그 과정에서 항상 새로 이벤트를 만들 때마다 메모리 할당 작업
+  - 메모리 누수 방지를 위해서는 주기적으로 해제도 필요
+
+```
+💡 이벤트 풀링
+   SyntheticEvent 풀을 만들어서 이벤트가 발생할 때마다 가져오는 것
+```
+
+이벤트 풀링 시스템에서는 다음과 같이 이벤트가 발생한다.
+
+1. 이벤트 핸들러가 이벤트를 발생시킨다.
+2. 합성 이벤트 풀에서 합성 이벤트 객체에 대한 참조를 가져온다.
+3. 이 이벤트 정보를 합성 이벤트 객체에 넣어준다.
+4. 유저가 지정한 이벤트 리스너가 실행된다.
+5. 이벤트 객체가 초기화되고 다시 이벤트 풀로 돌아간다.
+
+```jsx
+export default function App() {
+  const [value, setValue] = useState('');
+  function handlechange(e) {
+    setValue(() => {
+      return e.target.value;
+    });
+  }
+  return <inpu onChange={handleChange} value={value} />;
+}
+```
+
+위 코드는 에러를 발생시킨다.
+
+- 리액트 16 이하 버전에서는 이벤트 풀링 방식을 통해 서로 다른 이벤트 간에 이벤트 객체를 재사용하고
+- 재사용하는 사이에 모든 이벤트 필드를 null로 변경하기 때문이다.
+- 이벤트 핸들러를 호출한 SynthemticEvent는 이후 재사용을 하기 위해 null로 초기화
+
+```
+💡 따라서, 비동기 코드 내부에서 SyntheticEvent인 e에 접근하면 이미 사용되고 초기화된 이후이기 때문에 null을 얻는 것
+```
+
+- 그래서, 비동기 코드 내부에서 이 합성 이벤트 e에 접근하기 위해선느 추가적인 작업 필요
+
+```jsx
+export default function App() {
+  const [value, setValue] = useState('');
+  function handleChange(e) {
+    e.persist();
+    setValue(() => {
+      return e.target.value;
+    });
+  }
+  return <input onChange={handleChange} value={value} />;
+}
+```
+
+- 비동기 코드로 이벤트 핸들러에 접근하기 위해서는
+  - 위와 같이, **별도 메모리 공간에 합성 이벤트 객체를 할당**해야 하는 것
+- 이와 같은 방식이 성능 향상에 크게 도움이 안 된다는 점 때문에 이러한 이벤트 풀링 개념이 삭제
+
+**`🤔 음.. 구체적으로 어떻게 활용되고 .. 잘 이해가 안 되었다`**
+
+- 브라우저는 기본적으로 다양한 DOM 이벤트(click, keyboard, ...)를 제공
+- 이 이벤트는 네이티브 이벤트 객체(MouseEvent, KeyboardEvent, ..)를 포함
+  - 우리가 `event.target.value`, `event.type` 같은 프로퍼티를 사용하는 것을 생각하면 됨
+- React는 네이티브 이벤트 객체를 사용하지 않고, `SyntheticEvent`라는 자체 이벤트 시스템을 제공
+  - 브라우저의 이벤트를 **추상화**한 것
+  - DOM 노드마다 등록 X, 버블링 단계에서 root에 한번만 등록
+  - 브라우저와 상관없이 동일한 API를 제공
+- React는 브라우저의 네이티브 이벤트를 감지하면 이를 캐치
+  - 감지한 이벤트를 기반으로 `SyntheticEvent` 객체를 생성
+  - 네이티브 이벤트 객체의 주요 속성과 메서드를 복사하여 포함
+  - React는 생성된 `SyntheticEvent` 객체를 이벤트 핸들러에게 전달
+
+**`🤔 그럼 이벤트 풀링은 왜 생겼던걸까?`**
+
+- 이벤트마다 새로운 SyntheticEvent 객체를 생성하지 않고
+- 이미 생성된 객체를 재사용(정리하고, 다시 쓰기 반복)하려고 했다.
+- 이벤트 핸들러가 종료된 후 SyntheticEvent를 초기화하고, 풀(pool)이라는 메모리 공간에 반환해
+- 필요할 때 다시 사용하는 방식을 도입
+- 풀링을 통해 SyntheticEvent 객체를 재사용하면 메모리 할당과 해제 작업이 줄어들어 성능이 향상
+
+**`🤔 초기화 및 재사용 과정`**
+
+1. 버튼을 클릭하면 SyntheticEvent 객체가 생성되고 `handleClick`에 전달
+2. `handleClick`에서 `event.type`을 참조하면 정상적으로 출력
+3. 이벤트 핸들러 실행이 끝나면 React는 SyntheticEvent를 초기화하고 풀에 반환
+4. 이후 비동기 코드에서 event.type을 참조하려 하면 초기화된 상태이기 때문에 null이 출력
+
+**`🤔 풀링 제거 이유`**
+
+- V8 같은 JS 엔진에서는 객체 생성과 GC의 성능이 과거에 비해 크게 개선
+- 개발자 경험 개선
+  - 이벤트 객체가 비동기 코드에서 갑자기 초기화되어 null이 되는 상황은 혼란
+
+#### useEffect 클린업 함수의 비동기 실행
+
+- useEffect에 있는 클린업 함수는 리액트 16 버전까지는 동기적으로 처리
+- 리액트 17 버전부터는 화면이 완전히 업데이트된 이후에 클린업 함수가 비동기적으로 실행된다.
+
+```
+💡 정확히는, 클린업 함수는 컴포넌트의 커밋 단계가 완료될 때까지 지연된다.
+```
+
+- commitTime이 조금이나마 빨라진 것을 볼 수 있다.
+
+#### 컴포넌트의 undefined 반환에 대한 일관적인 처리
+
+- 리액트 16과 17 버전은 컴포넌트 내부에서 undefined를 반환하면 오류 발생
+- 그러나, 리액트 16에서 `forwardRef`나 `memo`에서 undefined를 반환하는 경우에는 별다른 에러 X
+- 리액트 17에서는 에러가 정상적으로 발생
+- 참고로, 리액트 18부터는 undefined를 반환해도 에러 발생 x
+
+**`🤔 왜 undefined를 반환하면 에러가 발생했던 걸까? 무슨 에러일까?`**
+
+- 의도치 않게 잘못된 반환으로 인한 실수를 방지하기 위함
+
+```
+// App(...): Nothing was returned from render.
+   This usually means a return statement is missing. Or, th render nothing, return null
+```
+
+## 10.2 리액트 18 버전 살펴보기
+
+- 리액트 17에서는 점진적인 업그레이드를 위한 준비를 했다면
+- 리액트 18에서는 리액트 17에서 하지 못했던 다양한 기능들이 추가되었다.
+
+### 10.2.1 새로 추가된 훅 살펴보기
+
+- 리액트 18에서는 새로운 훅이 대거 추가되었다.
+- 이는 앞으로도 함수 컴포넌트 사용이 주를 이룰 것이라는 리액트 팀의 방향성으로도 볼 수 있다.
+
+#### useId
+
+- 컴포넌트별로 유니크한 값을 생성하는 새로운 훅
+- 하나의 컴포넌트가 여러 군데에서 재사용되는 경우도 고려해야 하며
+- 리액트 컴포넌트 트리에서 컴포넌트가 가지는 모든 값이 겹치지 않고 다 달라야 한다는 제약도 존재
+- 또한, 서버 사이드 렌더링 환경에서 hydration 에러가 발생하지 않도록 하는 고려도 필요
+
+```
+💡 useId를 사용하면 클라이언트와 서버에서 불일치를 피하면서, 컴포넌트 내부의 고유한 값을 생성
+```
+
+- 현재 트리에서의 자신의 위치를 나타내는 32글자의 이전 문자열로 구성
+
+#### useTransition
+
+- UI 변경을 가로막지 않고 상태를 업데이트할 수 있는 리액트 훅
+- 이를 활용하면, **상태 업데이트를 긴급하지 않은 것으로 간주**해 무거운 **렌더링 작업을 조금 미룰 수 있으며**
+- 사용자에게 조금 더 나은 사용자 경험 제공 가능
+- 무거운 작업이 있다면
+  - 렌더링 작업이 상당한 시간이 소요되어 UI 렌더링을 가로막는다
+  - 이전까지는 리액트의 렌더링은 한번 시작하면 멈출 수 없는 작업이였다.
+- **렌더링이 가로막힐 여지가 있는 경우**
+  - `useTransition`을 사용하면 이러한 문제를 해결할 수 있다.
+
+```jsx
+import { useState, useTransition } from 'react';
+
+export default function TabContainer() {
+  const [isPending, startTransition] = useTransition();
+  const [tab, setTab] = useState('about');
+
+  function selectTab(nextTab) {
+    startTrnasition(() => {
+      setTab(nextTab);
+    });
+  }
+
+  return (
+    <div>
+      {isPending ? '로딩중' : ...}
+    </div>
+  )
+}
+```
+
+- `useTransition`을 아무것도 인수로 받지 않는다.
+- `startTransition`에는 긴급하지 않은 상태 업데이트로 간주할 set 함수를 넣어둘 수 있는 함수를 인수로 받는다.
+
+**`🤔 useTransition을 사용할 때 주의할 점`**
+
+- `startTransition` 내부에는 반드시 `setState`와 같은 상태를 업데이트하는 함수와 관련된 작업만 전달 가능
+- `startTransition`으로 넘겨주는 상태 업데이트는 모든 동기 상태 업데이트로 인해 실행이 지연될 수 있다.
+  - 예를 들어, 타이핑으로 인해 setState가 일어나는 경우
+  - 타이핑이 끝날 떄까지 useTransition으로 지연시킨 상태 업데이트는 일어나지 않는다.
+- `startTransition`으로 넘겨주는 함수는 반드시 동기 함수여야 한다.
+  - 만약 이 안에 `setTimeout`과 같은 비동기 함수를 넣으면
+  - 제대로 작동 X
+  - `startTransition`이 작업을 지연시키는 작업과 비동기로 함수가 실행되는 작업 사이에 불일치가 일어나기 때문
+
+**`🤔 흠.. 그럼 지연을 시켰다는 것은 뒤늦게 된다는건가? 갑자기..?`**
+
+useTransition을 사용하면 무거운 렌더링 작업을 해야 하는 상태 업데이트를 지연시켜줄 수 있다.
+무거운 렌더링을 하다가 `중단`하고 넘어가는 것이 가능하다는 점에서 이점을 받아들였지만,
+상태를 분리하거나 분기처리가 필요할 것 같다. 같이 물려있는 상태까지 지연이 되어 예상과 다르게 동작했다.
+
+지연이 예상되는 특정 상태를 업데이트해야 할 때만 startTransition을 사용하여 의도한 바를 구현할 수 있었다.
+
+- useTransition 쓰기 전
+
+<video controls width="800" src="">
+  <source src="https://github.com/user-attachments/assets/c1d11ff7-b36a-4428-8c8c-d29835ba5f38" />
+</video>
+
+- useTransition 사용 (처리 전)
+
+<video controls width="800">
+  <source src="https://github.com/user-attachments/assets/ac325470-02ee-4351-a9bc-ed4fba3435f3" />
+</video>
+
+- useTransition 사용 (처리 후)
+
+<video controls width="800">
+  <source src="https://github.com/user-attachments/assets/005f2ddd-a31f-4bac-9181-43a3f5a9fd90" />
+</video>
+
+#### useDeferredValue
+
+- 리액트 컴포넌트 트리에서 **리렌더링이 급하지 않은 부분을 지연**할 수 있게 도와주는 훅
+- 디바운스랑 비슷하지만, 디바운스 대비 `useDeferredValue`만이 가진 장점 몇 가지가 있다.
+  - 디바운스는 고정 지연 시간이 필요하지만, `useDeferredValue`는 고정된 지연 시간 없이 첫 번째 렌더링이 완료된 이후에 지연된 렌더링을 수행
+  - 그러므로, 지연된 렌더링은 중단할 수도 있으며, 사용자 인터랙션을 차단하지도 않는다.
+
+```tsx
+export default function Input() {
+  const [text, setText] = useState('');
+  const deferredText = useDeferredVAlue(text);
+
+  const list = useMemo(() => {
+    const arr = Array.from({ length: deferredText.length }).map(() => deferredText);
+    return (
+      <ul>
+        {arr.map((str, index) => (
+          <li key={index}>{str}</li>
+        ))}
+      </ul>
+    );
+  }, [deferredText]);
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setText(e.target.value);
+  };
+
+  return (
+    <>
+      <input value={text} onChage={handleChange} />
+      {list}
+    </>
+  );
+}
+```
+
+- list를 생성하는 기준을 text가 아닌 deferredText로 설정 → 잦은 변경이 있는 text를 먼저 업데이트해 렌더링
+- 이후 여유가 있을 때 지연된 deferredText를 할용해 새로 생성하게 된다.
+- list에 있는 작업이 더 무겁고 오래 걸릴수록 `useDeferredValue`를 사용하는 이점을 누릴 수 있을 것
+
+**`🤔 useDeferredValue와 useTransition은 어떤 차이점?`**
+
+- `useTransition`은 state 값을 업데이트하는 함수를 감싸서 사용
+- `useDeferredValue`는 state 값 자체만을 감싸서 사용
+- 방식의 차이지, 둘 다 지연된 렌더링을 한다는 점에서 모두 동일한 역할
+
+#### useSyncExternalStore
+
+- 일반적인 애플리케이션 코드를 작성할 때는 사용할 일이 별로 없는 훅
+- 이 훅의 기원을 알려면 리액트 17까지 존재했던 `useSubscription`에 대해 알아야 한다.
+  - `useSubscription`의 구현이 리액트 18에 이르러서 `useSyncExternalStore`로 대체된 것
+
+**`테어링(tearing)현상`**
+
+- 하나의 state 값이 있음에도 서로 다른 값(보통 state나 props의 이전과 이후)을 기준으로 렌더링되는 현상
+- 리액트 17에서는 사실 이러한 현상이 일어날 여지 X
+- 리액트 18에서는 앞서 `useTransition`, `useDeferredValue`의 훅처럼 렌더링을 일시중지하거나 미루는 등의 최적화가 가능 → 동시성 이슈 발생 가능
+
+<img src="https://velog.velcdn.com/images/sxin2949/post/7cf7bd38-2572-4e1e-af99-d724cad907b1/image.png" />
+
+1. 첫 번째 컴포넌트에서는 외부 데이터 스토어의 값이 파란색이었으므로 파란색을 렌더링
+2. 그리고 나머지 컴포넌트들도 파란색으로 렌더링을 준비하고 있었다.
+3. 그러다 갑자기 외부 데이터 스토어 값이 빨간색으로 변경됐다.
+4. 나머지 컴포넌트들은 렌더링 도중에 바뀐 색을 확인해 빨간색으로 렌더링했다.
+5. 결과적으로 같은 데이터 소스를 바라보고 있음에도 컴포넌트의 색상이 달라지는 테어링 현상이 발생했다.
+
+**`리액트 18부터는 양보하는 것이 가능해져서 이러한 문제가 발생할 가능성이 생긴 것`**
+
+- 리액트가 관리할 수 없는 외부 데이터 소스란, 리액트 클로저 밖에 있는, 관리 범위 밖에 있는 값들
+- 글로벌 변수, document.body, window.innerWidth, DOM
+- 이 외부 데이터 소스를 리액트에서 추구하는 동시성 처리가 추가되어 있지 않다면, 테어링 현상이 발생할 수 있다.
+- 이 문제를 해결하기 위한 훅이 바로 `useSyncExternalStore`
+
+```js
+import { useSyncExternalStore } from 'react';
+
+// useSyncExternalStore(
+//   subscribe: (callback) => Unsubscribe
+//   getSnapshot: () => State
+// ) => State
+```
+
+- 첫 번째 인수는 subscribe
+  - 콜백 함수를 받아 **스토어에 등록**하는 용도로 사용
+  - **스토어에 값이 변경되면 이 콜백이 호출**되어야 한다.
+  - useSyncExternalStore는 이 훅을 사용하는 컴포넌트를 리렌더링
+- 두 번째 인수는 컴포넌트에 필요한 현재 스토어의 데이터를 반환하는 함수
+  - 이 함수는 스토어가 변경되지 않았다면 매번 함수를 호출할 때마다 동일한 값을 반환해야 한다.
+  - **스토어에서 값이 변경**되었다면 이 값을 이전 값과 Object.is로 비교해 **정말로 값이 변경되었다면 컴포넌트를 리렌더링**한다.
+- 마지막 인수는 옵셔널 값으로, 서버 사이드 렌더링 시에 내부 리액트를 하이드레이션하는 도중에만 사용
+  - 서버 사이드에서 렌더링되는 훅이라면 반드시 이 값을 넘겨줘야 하며, 클라이언트의 값과 불일치가 발생할 경우 오류가 발생
+
+**`🤔 리렌더링을 발생시키기 위해 useState나 useReducer를 어색하게 호출하는 동작 또한 없다`**
+
+- `useSycnExternalStore` 어딘가에 콜백을 등록하고
+- 이 **콜백이 호출될 때마다 렌더링을 트리거하는 장치**가 마련되어 있다는 사실을 알 수 있다.
+- 훅의 **외부 스토어 데이터 변경 또한 리렌더링을 발생**시킬 수 있다는 것을 알 수 있다.
+
+```tsx
+import { useSyncExternalStore } from 'react';
+
+const subscribe = (callback: (this: Window, ev: UIEvent) => void) => {
+  window.addEventListener('resize', callback);
+  return () => {
+    window.removeEventListener('resize', callback);
+  };
+};
+
+export const App = () => {
+  const windowSize = useSyncExternalStore(
+    subscribe,
+    () => window.innerWidth,
+    () => 0, // 서버 사이드 렌더링 시 제공되는 기본값
+  );
+
+  return <>{windowSize}</>;
+};
+```
+
+- `useSyncExternalStore`를 통해 현재 윈도우의 innerWidth를 확인하는 코드
+- innerWidth는 리액트 외부에 있는 데이터 값이므로
+  - 이 값의 변경 여부를 확인해 리렌더링까지 이어지게 하려면 `useSyncExternalStore`를 사용
+- 첫 번째 인수로, innerWidth가 변경될 때 일어나는 콜백을 등록
+  - resize 이벤트가 발생할 때마다 해당 콜백이 실행되게끔 할 것
+- 두 번째 인수로, 현재 스토어의 값인 window.innerWidth
+- 마지막 인수로, 서버 사이드에서는 해당 값을 추적할 수 없으므로 0을 제공
+
+이를 하나의 훅으로 만들어서 다음과 같이 사용할 수 있다.
+
+```tsx
+const subscribe = (callback: (this: Window, ev: UIEvent) => void) => {
+  window.addEventListener('resize', callback);
+  return () => {
+    window.removeEventListener('resize', callback);
+  };
+};
+
+const useWindowWidth = () => {
+  return useSyncExternalStore(
+    subscribe,
+    () => window.innerWidth,
+    () => 0,
+  );
+};
+
+export const App = () => {
+  const windowSize = useWindowSize();
+  return <>{windowSize}</>;
+};
+```
+
+사실 이전에도 useSyncExternalStore가 없어도 이와 비슷한 훅을 만들 수 있었다.
+
+```tsx
+const useWindowWidth = () => {
+  const [windowWidth, setWindowWidth] = useState(0);
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return windowWidth;
+};
+```
+
+그렇다면 `useSyncExternalStore`와 앞 두 예제 사이에 어떤 차이가 있을까?
+
+```tsx
+// posts..
+const PostsTab = memo(function PostsTab() {
+  const width1 = useWindowWidthWithSyncExternalStore();
+  const width2 = useWindowWidth();
+  const items = Array.from({ length: 1500 }).map((_, i) => <SlowPost key={i} index={i} />);
+
+  return (
+    <>
+      <div>useSyncExternalStore {width1}px</div>
+      <div>useEffect + useState {width2}px</div>
+      <ul>{items}</ul>
+    </>
+  );
+});
+```
+
+- 렌더링을 지연시키는 `startTransition`이 실행된 이후 PostTab이 노출
+- `useSyncExternalStore`를 사용한 훅은 컴포넌트 렌더링 이후에 정확하게 바로 현재 width를 가져온 반환
+- 사용하지 않은 쪽은 아예 값을 가져오지 못하고 초기값인 0이 나타나는 것을 확인할 수 있었다.
+
+#### useInsertionEffect
+
+- `useSyncExternalStore`가 상태 관리 라이브러리를 위한 훅이라면, `useInsertionEffect`는 **CSS-in-js 라이브러리를 위한 훅**
+- Next.js에 `styled-components`를 적용하는 예제를 만들어봤다면,
+  - `_document.tsx`에 `styled-components`가 사용하는 스타일을 모두 모아서 서버 사이드 렌더링 이전에 `<style>`에 삽입하는 작업
+  - CSS의 추가 및 수정은 브라우저에서 렌더링하는 작업 대부분을 다시 계산해 작업해야 하는데
+  - 이는 리액트 관점에서 본다면 모든 리액트 컴포넌트에 영향을 미칠 수도 있는 매우 무거운 작업
+- 따라서 리액트 17과 `styled-components`에서는 클라이언트 렌더링 시에 이러한 작업이 발생하지 않도록 서버 사이드에서 스타일 코드를 삽입
+- `useInsertionEffect`의 기본적인 훅 구조는 `useEffect`와 동일
+  - 실행 시점의 차이가 있는데
+  - `useInsertionEffect`는 DOM이 실제도 변경되기 전에 동기적으로 실행
+- **내부에 스타일을 삽입하는 코드를 집어넣음**으로써 **브라우저가 레이아웃을 계산하기 전에 실행될 수 있게끔 해서 좀 더 자연스러운 스타일 삽입**이 가능
+
+```tsx
+function Index() {
+  useEffect(() => {
+    console.log('useEffect!'); // 3
+  });
+
+  useLayoutEffect(() => {
+    console.log('useLayoutEffect!'); // 2
+  });
+
+  useInsertionEffect(() => {
+    console.log('useInsertionEffect!'); // 1
+  });
+}
+```
+
+- `useLayoutEffect`와 `useInsertionEffect` 모두 브라우저 DOM이 렌더링되기 전에 실행된다는 공통점이 있지만
+- `useLayoutEffect`는 모든 DOM의 변경 작업이 다 끝난 이후에 실행된다.
+- `useInsertionEffect`는 이러한 DOM 변경 작업 이전에 실행된다.
+
+### 10.2.2 react-dom/client
+
+- 클라이언트에서 **리액트 트리를 만들 때 사용되는 API**가 변경
+- 리액트 18 이하 버전에서 만든 `create-react-app`으로 프로젝트를 유지보수 중이라면
+  - 리액트 18로 업그레이드할 때 반드시 index에 있는 내용을 변경해야 한다.
+
+#### createRoot
+
+- 기존의 `react-dom`에 있던 `render` 메서드를 대체할 새로운 메서드
+
+```tsx
+// before
+import ReactDOM from 'react-dom';
+import App from 'App';
+
+const container = document.getElementById('root');
+
+ReactDOM.render(<App />, container);
+
+// after
+import ReactDOM from 'react-dom';
+import App from 'App';
+
+const container = document.getElementById('root');
+
+const root = ReactDOM.createRoot(container);
+root.render(<App />);
+```
+
+**`🤔 왜 도입되었을까?`**
+
+- React 앱을 병렬 렌더링 방식으로 동작시키기 위한 시작점을 만들어주기 위한 것
+
+```
+기존의 ReactDOM.render는 단일 작업자가 모든 일을 한꺼번에 처리하던 방식이고,
+ReactDOM.createRoot는 작업을 여러 작업자에게 나눠줘서,
+급한 일(사용자 요청)은 먼저 하고, 덜 중요한 일은 나중에 처리하게 만드는 것
+```
+
+#### hydrateRoot
+
+- 서버 사이드 렌더링에서 hydration을 하기 위한 새로운 메서드
+
+```tsx
+// before
+import ReactDOM from 'react-dom';
+import App from 'App';
+
+const container = document.getElementById('root');
+
+ReactDOM.hydrate(<App />, container);
+
+// after
+import ReactDOM from 'react-dom';
+import App from 'App';
+
+const container = document.getElementById('root');
+
+const root = ReactDOM.hydrateRoot(container, <App />);
+```
+
+- 대부분의 서버 사이드 렌더링은 프레임워크에 의존하고 있을 것이므로 사용하는 쪽에서 거의 없는 코드
+- 자체적으로 서버 사이드 렌더링을 구현해서 사용하고 있다면 이 부분 역시 수정해야 한다.
+
+### 10.2.3 react-dom/server
+
+- 서버에서도 컴포넌트를 생성하는 API에 변경이 있었다.
+
+#### renderToPipeableStream
+
+- 리액트 컴포넌트를 HTML로 렌더링하는 메서드
+- 스트림을 지원하는 메서드로, HTML을 점진적으로 렌더링하고 클라이언트에서는 중간에 script를 삽입하는 등의 작업을 수행할 수 있다.
+- 이를 통해 서버에서는 `Suspense`를 사용해 빠르게 렌더링이 필요한 부분을 먼저 렌더링
+- 값비싼 연산으로 구성된 부분은 이후에 렌더링되게끔 할 수 있다.
+
+```tsx
+import * as React from 'react';
+
+// res는 HTTP 응답이다.
+function render(url, res) {
+  let didError = false;
+  // 서버에서 필요한 데이터를 불러온다.
+  // 그리고 여기에서 데이터를 불러오는 데 오랜 시간이 걸린다고 가정해 보자.
+  const data = createServerData();
+  const stream = renderToPipeableStream(
+    // 데이터를 context API로 넘긴다.
+    <DataProvider data={data}>
+      <App assets={assets} />
+    </DataProvider>,
+    {
+      // 렌더링 시에 포함시켜야 할 자바스크립트 번들
+      bootstrapScripts: [assets[main.js]],
+      onShellReady() {
+        // 에러 발생 시 처리 추가
+        res.statusCode = didError ? 500 : 200;
+        res.setHeader('Content-type', 'text/html');
+        stream.pipe(res);
+      },
+      onError(x) {
+        didError = true;
+        console.error(x);
+      },
+    },
+  );
+
+  // 렌더링 시작 이후 일정 시간이 흐르면 렌더링에 실패한 것으로 간주하고 취소한다.
+  setTimeout(() => stream.abort(), ABORT_DELAY);
+}
+export default function App({ assets }) {
+  return (
+    <Html assets={assets} title="Hello">
+      <Suspense fallback={<Spinner />}>
+        <ErrorBoundary FallbackComponent={Error}>
+          <Content />
+        </ErrorBoundary>
+      </Suspense>
+    </Html>
+  );
+}
+```
+
+- `renderToPipeableStream`을 사용하면 최초에 브라우저는 아직 불러오지 못한 데이터 부분을 Suspense의 fallback으로 받는다.
+- `renderToNodeStream`의 문제는 무조건 렌더링을 순서대로 해야 하고
+  - 그 순서에 의존적 → 이전 렌더링이 완료되지 않는다면 이후 렌더링도 끝나지 않는다는 것
+- 즉, 중간에 오래 걸리는 작업이 있다면 그 작업 때문에 나머지 렌더링도 덩달아 지연된다는 문제
+- `renderToPipeableStream`을 사용하면 순서나 오래 걸리는 렌더링에 영향받을 필요없이 빠르게 렌더링 수행 가능
+
+### 10.2.4 자동 배치(Automatic Batching)
+
+- 여러 상태 업데이트를 하나의 리렌더링으로 묶어서 성능을 향상시키는 방법을 의미
+- 루트 컴포넌트를 `createRoot`를 사용해서 만들면 모든 업데이트가 배치 작업으로 최적화 가능
+
+```
+💡 이러한 자동 배치를 하고 싶지 않다면 flushSync를 사용하면 된다
+```
+
+```tsx
+import { flushSync } from 'react-dom';
+
+function handleClick() {
+  flushSync(() => {
+    setCount((c) => c + 1);
+  });
+  flushSync(() => {
+    setFlug((f) => !f);
+  });
+}
+```
+
+### 10.2.6 Suspense 기능 강화
+
+- `Suspense`는 리액트 16.6 버전에서 실험 버전으로 도입된 기능으로
+- 컴포넌트를 동적으로 가져올 수 있게 도와주는 기능
+
+```tsx
+export default function SampleComponent() {
+  return <>동적으로 가져오는 컴포넌트</>;
+}
+
+import { Suspense, lazy } from 'react';
+
+const DynamicSampleComponent = lazy(() => import('./SampleComponent'));
+
+export default function App() {
+  return (
+    <Suspense fallback={<>로딩중</>}>
+      <DynamicSampleCompoent />
+    </Suspense>
+  );
+}
+```
+
+- 리액트 18 이전의 Suspense에는 몇 가지 문제점이 존재
+  - 기존의 Suspense는 컴포넌트가 아직 보이기도 전에 useEffect가 실행되는 문제 존재
+  - Suspense는 서버에서 사용할 수 없었다.
+
+```
+💡 리액트 18에서 Suspense는 이렇게 개선되었다.
+```
+
+- 컴포넌트가 실제로 화면에 노출될 때 effect가 실행
+- 서버에서는 일단 fallback 상태의 트리를 클라이언트에 제공하고, 불러올 준비가 된다면 자연스럽게 렌더링
+
+</details>

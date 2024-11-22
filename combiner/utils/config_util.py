@@ -3,6 +3,7 @@ import yaml
 
 class ConfigUtil:
     CONFIG_FILE_NAME = "config.yaml"
+    REQUIRES_REVIEW_KEY = "requires_review"
     DEFAULT_REQUIRES_REVIEW = True
 
     @staticmethod
@@ -18,4 +19,4 @@ class ConfigUtil:
             except yaml.YAMLError:
                 return ConfigUtil.DEFAULT_REQUIRES_REVIEW
             
-        return config.get('requires_review', ConfigUtil.DEFAULT_REQUIRES_REVIEW)
+        return config.get(ConfigUtil.REQUIRES_REVIEW_KEY, ConfigUtil.DEFAULT_REQUIRES_REVIEW)

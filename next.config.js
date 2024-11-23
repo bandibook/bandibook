@@ -3,4 +3,14 @@ const withNextra = require('nextra')({
   themeConfig: './theme.config.jsx',
 });
 
-module.exports = withNextra();
+module.exports = withNextra({
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/book',
+        permanent: true,
+      },
+    ];
+  },
+});

@@ -27,4 +27,5 @@
 ## 🗺️ 책 지도
 
 
-![Group 1000004320](https://github.com/bandibook/bandibook/assets/112946860/90dbd943-1d79-4d8d-9d63-00ed67fde4b3)
+
+![Group 1000012313](https://github.com/user-attachments/assets/26dd524c-9ca4-474f-b24f-65f484366a96)

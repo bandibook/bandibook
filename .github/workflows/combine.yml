@@ -36,5 +36,5 @@ jobs:
 
     - name: Push changes
       run: |
-        git remote set-url origin https://bandibookk@github.com/bandibook/bandibook.git
+        git remote set-url origin https://binary-ho@github.com/binary-ho/bandibook.git
         git push origin main

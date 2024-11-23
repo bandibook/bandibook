@@ -1,5 +1,6 @@
 {
   "index": "Members",
+  "data-oriented-programming": "데이터 지향 프로그래밍",
   "useMicroState": "리액트 훅을 활용한 마이크로 상태 관리",
   "grokking-simplicity": "쏙쏙 들어오는 함수형 코딩",
   "react-deep-dive": "모던 리액트 Deep Dive",

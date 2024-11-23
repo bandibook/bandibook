@@ -1,0 +1,12 @@
+import { membersInfo } from '@/../constants';
+import { Member } from '@/../components';
+
+# 반디북 멤버
+
+<br />
+
+<div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+  {membersInfo.bandibook.map((member) => (
+    <Member key={member.username} {...member} />
+  ))}
+</div>

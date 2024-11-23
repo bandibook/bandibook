@@ -1,0 +1,12 @@
+import { membersInfo } from '@/../constants';
+import { Member } from '@/../components';
+
+# 만베거 멤버
+
+<br />
+
+<div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+  {membersInfo['10000-bagger'].map((member) => (
+    <Member key={member.username} {...member} />
+  ))}
+</div>

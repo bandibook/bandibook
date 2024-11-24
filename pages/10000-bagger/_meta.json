@@ -2,5 +2,6 @@
   "index": "Members",
   "--- separator": {
     "type": "separator"
-  }
+  },
+  "binary-ho": "binary-ho"
 }

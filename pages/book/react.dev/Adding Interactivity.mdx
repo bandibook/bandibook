@@ -1,0 +1,332 @@
+<details>
+  <summary>도은</summary>
+  ## Adding Interactivity
+
+```
+💡 State
+- React에서는 시간에 따라 변화하는 데이터를 state라고 한다.
+```
+
+- `state`는 어떠한 컴포넌트에든 추가 가능, 필요에 따라 업데이트 가능
+
+### 이벤트에 응답하기
+
+#### 이벤트 핸들러 추가하기
+
+- JSX 태그에 prop 형태로 전달
+- 호출이 아닌 함수를 전달해야 한다.
+
+  ```tsx
+  // bad
+  <button onClick={alert('...')}>
+
+  // good
+  <button onClick={() => alert('...')}>
+  ```
+
+  - 호출로 전달할 경우, **컴포넌트가 렌더링될 때마다 실행될 것**
+
+#### 이벤트 전파
+
+- 이벤트 핸들러는 해당 컴포넌트가 가진 어떤 **자식 컴포넌트의 이벤트를 수신**하는 것도 가능
+- 이를 이벤트가 트리를 따라 "bubble"되거나 "전파된다"고 표현
+- 이벤트는 발생한 지점에서 시작하여 트리를 따라 위로 전달
+
+```
+💡 JSX 태그 내에서만 실행되는 onScroll을 제외한 React 내 모든 이벤트는 전파된다
+```
+
+#### 전파 멈추기
+
+- 이벤트 핸들러는 **이벤트 객체**를 유일한 매개변수로 받는다.
+- 이벤트가 부모 컴포넌트에 닿지 못하도록 막을 수 있다.
+
+  ```tsx
+  <button onClick={e => e.stopPropagation()}>
+  ```
+
+#### 기본 동작 방지하기
+
+- 브라우저 이벤트는 관련된 기본 브라우저 동작을 가진다.
+- 예를 들어, `<form>` 제출 이벤트는 그 내부의 버튼을 클릭 시 페이지 전체를 리로드하는 것이 기본 동작
+- 이러한 일이 발생하지 않도록 `e.preventDefault()`를 이벤트 객체에서 호출 가능
+
+#### 이벤트 핸들러가 사이드 이펙트를 가질 수도 있는가?
+
+> 가능하다
+
+- 함수를 렌더링하는 것과 다르게 **이벤트 핸들러는 순수할 필요 X**
+- 이벤트 객체를 가지고 무언가를 변경하는 데 최적의 위치
+
+### State: A Component's Memory
+
+- 컴포넌트는 상호작용의 결과로 화면의 내용을 변경해야 하는 경우가 많다.
+
+```
+💡 React는 컴포넌트별 메모리를 state라고 부른다
+```
+
+#### 일반 변수로 충분하지 않은 경우
+
+- 지역 변수는 **렌더링을 일으키지 않는다**
+  - React는 새로운 데이터로 컴포넌트를 다시 렌더링해야 한다는 것을 인식 X
+- 컴포넌트를 새로운 데이터로 업데이트하기 위해서는 다음 2가지가 필요
+  1. 렌더링 사이에 데이터를 `유지`
+  2. React가 새로운 데이터로 컴포넌트를 렌더링하도록 `트리거`
+
+#### state 변수 추가하기
+
+- 훅은 컴포넌트의 최상위 혹은 커스텀 훅에서만 호출할 수 있다.
+
+**`🤔 왜 그럴까?`**
+
+> https://ko.legacy.reactjs.org/docs/hooks-rules.html
+
+- React는 렌더링될 때마다 **항상 동일한 순서로 hook이 호출되는 것을 보장**
+- 조건문이나 반복문 내에서 훅을 호출할 경우에
+  - 렌더링 중 훅 호출 순서가 변할 수 있다.
+  - 그래야 컴포넌트의 동작을 예측 가능하고 일관되게 만들 수 있다.
+
+아래와 같은 경우, 렌더링 중 훅 호출 순서가 달라질 것이다.
+
+```tsx
+function MyComponent() {
+  const [count, setCount] = useState(0); // 1번째 훅
+
+  if (count % 2 === 0) {
+    useEffect(() => {
+      // 2번째 훅 (짝수일 때만 호출됨)
+      console.log('Effect ran');
+    }, []);
+  }
+
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+```
+
+- React는 각 컴포넌트의 훅들을 `LinkedList(연결리스트)`로 관리
+  - 컴포넌트가 처음 렌더링될 때, React는 각 훅 호출마다 새로운 노드를 생성하여 LinkedList에 추가
+  - 컴포넌트 리렌더링 시, React는 생성된 LinkedList를 순회하면서 각 상태를 업데이트
+  - 따라서, 훅 호출 순서가 변경된다면, LinkedList 구조가 달라져야 한다.
+  - 항상 동일한 렌더링 순서를 보장할 수 없으므로, 의도대로 상태가 유지되지 않을 수 있으며 상태 추적도 어렵게 한다.
+
+### Render and Commit
+
+- 컴포넌트는 화면에 표시되기 전에 React에 의해 렌더링되어야 한다.
+- 컴포넌트가 렌더링되고 화면에 반영되기까지의 과정은 다음과 같다.
+  1. 렌더링 트리거
+  2. 컴포넌트 렌더링
+  3. DOM에 반영
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5e62422a-f0c4-4f1f-af5b-c39e32f046c2" width="500" />
+</p>
+
+#### 1단계: 렌더링 트리거
+
+- 컴포넌트 렌더링이 일어나는 데에는 2가지 이유
+  1. 컴포넌트의 초기 렌더링
+  2. 컴포넌트의 state가 업데이트
+
+```
+💡 set 함수를 통해 상태를 업데이트하면 자동으로 렌더링 대기열에 추가
+→ 실제로, 리렌더링이 너무 많이 일어나, 상태 업데이트의 딜레이가 느껴졌던 경험이 있다.
+```
+
+#### 2단계: React 컴포넌트 렌더링
+
+```
+💡 렌더링은 React에서 컴포넌트를 호출하는 것
+```
+
+- 초기 렌더링에서, React는 루트 컴포넌트를 호출
+- 이후 렌더링에서, React는 state 업데이트가 일어나 렌더링을 트리거한 컴포넌트를 호출
+
+#### 3단계: React가 DOM에 변경사항을 커밋
+
+- 컴포넌트를 **렌더링한 후 React는 DOM을 수정**
+- 초기 렌더링의 경우, React는 [`appendChild()`](https://developer.mozilla.org/ko/docs/Web/API/Node/appendChild) DOM API를 사용하여 모든 DOM 노드를 화면에 표시
+- 리렌더링의 경우, React는 필요한 최소한의 작업을 적용하여 DOM이 최신 렌더링 출력과 일치하도록
+
+```
+💡 React는 렌더링 간에 차이가 있는 경우에만 DOM 노드를 변경
+```
+
+### State as a Snapshot
+
+```
+💡 state는 스냅샷처럼 동작
+```
+
+#### 렌더링은 그 시점의 스냅샷을 찍는다
+
+- `렌더링`이란, React가 컴포넌트 즉 함수를 호출한다는 것
+- prop, 이벤트 핸들러, 로컬 변수는 모두 **렌더링 당시의 state를 사용해 계산**
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f1c18b1b-631e-48e3-98e5-5a7ef6f00772" width="500" />
+</p>
+
+아래 코드를 실행해서, 버튼을 클릭하면 1씩 증가한다.
+
+```tsx
+import { useState } from 'react';
+
+export default function Counter() {
+  const [number, setNumber] = useState(0);
+
+  return (
+    <>
+      <h1>{number}</h1>
+      <button
+        onClick={() => {
+          setNumber(number + 1);
+          setNumber(number + 1);
+          setNumber(number + 1);
+        }}
+      >
+        +3
+      </button>
+    </>
+  );
+}
+```
+
+- `setNumber(numer+1)`을 3번 호출했지만
+  - 이 렌더링에서 이벤트 핸들러에서 `number`는 항상 0이기 때문에 1로 세 번 설정하는 것
+
+### Queueing a Series of State updates
+
+#### React state batches 업데이트
+
+각 렌더링의 state의 값은 고정되어 있으므로, 첫 번째 렌더링에서의 이벤트 핸들러의 number 값은 setNumber을 몇 번 호출하든 이때 number는 0이다.
+
+![batch](https://github.com/user-attachments/assets/961d382b-2258-4e31-8f50-2318d2dfde08)
+
+```
+💡 React는 state 업데이트 전에 이벤트 핸들러의 모든 코드가 실행될 때까지 기다린다.
+```
+
+- 이렇게 하면 너무 많은 리렌더링 발생 X
+- 하지만, **이벤트 핸들러와 그 안에 있는 코드가 완료될 때까지 UI가 업데이트되지 않는다는 의미**이기도.. 🤔
+- React는 **클릭과 같은 의도적인 연속 이벤트에 대해서는 batch를 수행 X**
+
+#### 다음 렌더링 전에 동일한 state 변수를 여러 번 업데이트하기
+
+> 하나의 이벤트에서 일부 state를 여러 번 업데이트하려면, `setNumber(n => n + 1)` 업데이트 함수를 사용할 수 있다
+
+- 흔한 사례는 아니지만
+- 다음 렌더링 전에 동일한 state 변수를 여러 번 업데이트 하고 싶다면
+- `setNumber(n => n + 1)`와 같이 이전 큐의 state를 기반으로 다음 state를 계산하는 함수 전달 가능
+
+![batch2](https://github.com/user-attachments/assets/77131020-dfd4-4819-8c34-b3dda8b2c3c4)
+
+- React는 이벤트 핸들러의 다른 코드가 모두 실행된 후에 이 함수가 처리되도록 큐에 넣는다.
+- 다음 렌더링 중 React는 큐를 순회하여 최종 업데이트된 state를 제공
+
+```tsx
+setNumber((n) => n + 1);
+setNumber((n) => n + 1);
+setNumber((n) => n + 1);
+```
+
+- `setNumber(n => n + 1)`에서 `n => n + 1` 함수를 큐에 추가한다 x3
+- 다음 렌더링 중에 useState를 호출하면 React는 큐를 순회
+- `number` state는 0이었으므로 React는 이를 첫 번째 업데이트 함수에 n 인수로 전달
+- React는 3을 최종 결과로 저장하고 useState에서 반환
+
+### Updating Objects in State
+
+- 객체를 업데이트하고 싶을 때는, 새로운 객체를 생성(또는 기존 객체의 복사본을 만들어), state가 복사본을 사용하도록 해야 한다.
+
+#### 변경이란?
+
+- 자바스크립트에서 객체 자체의 내용을 바꿀 수 있다. 이것을 변경(mutation)이라고 한다.
+
+```tsx
+const [position, setPosition] = useState({ x: 0, y: 0 });
+
+position.x = 5;
+```
+
+#### 중첩된 객체 갱신하기
+
+아래와 같은 중첩된 객체 구조를 생각해보자
+
+```tsx
+const [person, setPerson] = useState({
+  name: 'Niki de Saint Phalle',
+  artwork: {
+    title: 'Blue Nana',
+    city: 'Hamburg',
+    image: 'https://i.imgur.com/Sd1AgUOm.jpg',
+  },
+});
+
+// city를 바꾸기 위해서는
+const newArtwork = { ...person.artwork, city: 'New Delhi' };
+const nextPerson = { ...person, artwork: newArtwork };
+setPerson(nextPerson);
+
+// 혹은 이렇게도 가능
+setPerson({
+  ...person, // 다른 필드 복사
+  artwork: {
+    // artwork 교체
+    ...person.artwork, // 동일한 값 사용
+    city: 'New Delhi', // 하지만 New Delhi!
+  },
+});
+```
+
+**`📖 DEEP DIVE ) 객체들은 사실 중첩되어 있지 않다`**
+
+```tsx
+let obj = {
+  name: 'Niki de Saint Phalle',
+  artwork: {
+    title: 'Blue Nana',
+    city: 'Hamburg',
+    image: 'https://i.imgur.com/Sd1AgUOm.jpg',
+  },
+};
+```
+
+중첩된 객체라는 것은 없으며, 실제로는 두 개의 다른 객체를 보는 것이다
+
+```tsx
+let obj1 = {
+  title: 'Blue Nana',
+  city: 'Hamburg',
+  image: 'https://i.imgur.com/Sd1AgUOm.jpg',
+};
+
+let obj2 = {
+  name: 'Niki de Saint Phalle',
+  artwork: obj1,
+};
+
+let obj3 = {
+  name: 'Copycat',
+  artwork: obj1,
+};
+```
+
+- `obj3.artwork.city`을 변경하려 했다면
+- `obj2.artwork.city`와 `obj1.city` 둘 다 영향을 미칠 것이다.
+- "중첩된" 것으로 생각하면 이해하기 어려울 수 있다.
+- 프로퍼티를 통해 서로를 "가리키는" 각각의 객체들이다.
+
+#### Immer로 간결한 갱신 로직 작성하기
+
+- [Immer](https://github.com/immerjs/use-immer?tab=readme-ov-file)는 복사본 생성을 도와주는 인기 있는 라이브러리이다.
+
+```tsx
+updatePerson((draft) => {
+  draft.artwork.city = 'Lagos';
+});
+```
+
+- Immer는 내부적으로 어느 부분이 변경되었는지 알아내어, 변경사항을 포함한 완전히 새로운 객체를 생성해준다.
+
+</details>

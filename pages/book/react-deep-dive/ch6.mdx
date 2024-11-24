@@ -1,0 +1,51 @@
+<details>
+  <summary>준영</summary>
+  
+</details><details>
+  <summary>도은</summary>
+  ## 6.1 리액트 개발 도구란?
+
+- 리액트 팀에서는 `react-dev-tools`를 만들어 제공
+- 리액트로 만들어진 애플리케이션을 디버깅하기 위해
+- 리액트 네이티브 등 다양한 플랫폼에서도 사용 가능
+
+## 6.2 리액트 개발 도구 설치
+
+> https://chromewebstore.google.com/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi
+
+## 6.3 리액트 개발 도구 활용하기
+
+### 6.3.1 컴포넌트
+
+- `Components` 탭에서는 현재 리액트 애플리케이션의 **컴포넌트 트리** 확인 가능
+
+아래와 같이 컴포넌트 트리를 확인할 수 있다. (DOM 트리 아님)
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c5378d02-1436-4a37-83a9-5ebc8462c812" width="500" />
+</p>
+
+- 까보면 더 자세하게 어떤 props가 전달되었는지도 모두 확인할 수 있다.
+- 원시값뿐만 아니라 함수도 포함
+
+컴포넌트에서 사용 중인 훅 정보도 확인 가능하다.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3d4ab787-489f-4325-ae19-958226998b56" width="500" />
+</p>
+
+### 6.3.2 프로파일러
+
+- 리액트가 렌더링하는 과정에서 발생하는 상황을 확인하기 위한 도구
+- 리액트 애플리케이션이 렌더링되는 과정에서
+  - 어떤 컴포넌트가 렌더링되었는지
+  - 몇 차례나 렌더링이 있어났으며
+  - 어떤 작업에서 오래 걸렸는지
+  - 컴포넌트 렌더링 과정에서 발생하는 일을 확인 가능
+- ⭐️ 프로덕션 빌드로 실행되는 리액트 애플리케이션을 사용 불가능
+- 설정 알아보기
+  - General 탭의 Highlight updates when components render: 컴포넌트가 렌더링될 때마다 해당 컴포넌트에 하이라이트를 표시한다.
+  - Debugging 탭의 Hide logs during second render in Strict Mode: 리액트 애플리케이션이 엄격 모드에서 실행되는 경우, 원활한 디버깅을 위해 useEffect 등이 두 번씩 작동하는 의도적인 작동이 숨겨져 있다. 이로 인해 useEffect 안에 넣은 console.log가 두 번씩 찍히기도 하는데, 이를 막고 싶다면 해당 버튼을 활성화하면 된다. 참고로, 프로덕션 모드에서는 해당 옵션과 관계없이 정상적으로 한 번씩 출력된다.
+  - Profiler 탭의 Record why each component rendered while profiling: 프로파일링 도중 무엇 때문에 컴포넌트가 렌더링됐는지 기록한다. 애플리케이션 속도가 조금 느려질 수는 있지만 디버깅에 도움이 되는 옵션이므로 켜두는 것이 좋다.
+
+</details>

@@ -4,7 +4,7 @@ import json
 class ConfigUtil:
     CONFIG_FILE_NAME = "config.json"
     REQUIRES_REVIEW_KEY = "requires_review"
-    DEFAULT_REQUIRES_REVIEW = True
+    DEFAULT_REQUIRES_REVIEW = False
 
     @staticmethod
     def requires_review(base_path, *paths):
@@ -14,9 +14,6 @@ class ConfigUtil:
             return ConfigUtil.DEFAULT_REQUIRES_REVIEW 
         
         with open(config_file_path, 'r') as config_file:
-            try:
-                config = json.load(config_file)
-            except (json.JSONDecodeError, OSError):
-                return ConfigUtil.DEFAULT_REQUIRES_REVIEW
+            config = json.load(config_file)
             
         return config.get(ConfigUtil.REQUIRES_REVIEW_KEY, ConfigUtil.DEFAULT_REQUIRES_REVIEW)

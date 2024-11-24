@@ -1,0 +1,235 @@
+<details>
+  <summary>우석</summary>
+  [데이터 지향 프로그래밍 - 2장 코드와 데이터 분리](https://egg528.tistory.com/3)
+</details><details>
+  <summary>만혁</summary>
+  # 코드와 데이터 분리
+
+
+DOP 의 첫 번째 통찰은 코드와 데이터를 분리함으로써 시스템의 복잡도를 낮출 수 있다는 것이다.
+
+데이터에서 코드가 분리되면 시스템이 데이터 개체와 코드 모듈이라는 큰 두 부분으로 나뉘어
+
+각각 독립적으로 생각할 수 있게 된다.
+
+> 코드를 함수 안에 두는 방식으로 데이터에서 코드를 분리한다. 
+> 함수의 동작은 어떤 식으로든 함수 콘텍스트에 캡슐화된 데이터에 따라 달라져서는 안된다.
+
+
+
+## 2.1분리하면 얻게되는 이점
+
+- 시스템이 단순하다. 즉 이해하기 쉽다.
+- 시스템이 유연하고 확장 가능하다. 변경된 요구 사항에 맞춰 설계를 바꿀 필요가 **거의** 없다.
+
+
+
+
+## 2.2 데이터 개체체
+
+데이터 개체는 시스템에서 정보를 보관하는 부분이다. 명사와 명사구로 구분한다.
+
+
+#### 요구 사항에서 데이터 개체에 대응하는 용어에 표시함
+- 사용자에는 도서관 **회원**과 **사서**, 두 유형이 있다.
+- **사용자**는 이메일과 비밀번호로 시스템에 로그인한다.
+- **회원**은 **책**을 빌릴 수 있다.
+- **회원**과 **사서**는 **제목**이나 **저자**로 **도서** 정보를 검색할 수 있다.
+- **사서**는 **회원**에 대해 대출을 금지하거나 해제할 수 있다.
+- **사서**는 회원에게 **대출된 책** 현황을 조회할 수 있다.
+- **도서** 하나에 **인쇄본**이 여러 권 있을 수 있다.
+
+
+
+
+위 개체를 자연스럽게 묶는다면 아래와 같다.
+
+#### 시스템 데이터 개체가 정리된 다단 목록
+- 장서 데이터
+  - 도서 정보 데이터
+  - 저자 데이터
+  - 책 데이터
+  - 대출 데이터 
+- 사용자 관리 데이터 
+  - 사용자 데이터 
+  - 회원 데이터 
+  - 사서 데이터 
+
+
+## 2.3 코드 모듈
+
+
+시스템의 기능을 식별하는 부분. 동사로 구분한다.
+
+
+#### 요구 사항에서 데이터 개체에 대응하는 용어에 표시함
+- 사용자에는 도서관 회원과 사서, 두 유형이 있다.
+- 사용자는 이메일과 비밀번호로 **시스템에 로그인**한다.
+- 회원은 책을 **빌릴** 수 있다.
+- 회원과 사서는 제목이나 저자로 **도서 정보를 검색**할 수 있다.
+- 사서는 회원에 대해 **대출을 금지**하거나 **해제**할 수 있다.
+- 사서는 회원에게 **대출된 책 현황을 조회**할 수 있다.
+- 도서 하나에 인쇄본이 여러 권 있을 수 있다.
+
+#### 도서관 시스템의 용도
+- 도서 정보 검색
+- 책 추가
+- 회원 대출 금지
+- 회원 대출 금지 해제
+- 사용자 시스템 로그인
+- 회원 대출 도서 조회
+- 도서 대출 
+- 도서 반납 
+- 사서 여부 확인 
+
+
+모듈은 함수를 모아놓은것이고 OOP 에서는 모듈이 클래스로 표현된다. 하지만 다른 언어에서는 패키지나 namespace가 될 수 있다.
+
+
+중요한 점은 DOP 코드 모듈에는 무상태 함수만 포함된다.
+
+```js
+// in OOP
+class Library {
+    catalog
+    userManagement
+
+    getBookLendings(userId, memberId) {
+        // 도서관의 상태는 this.catalog, this.userManagement로 접근함
+    }
+}
+```
+
+기존 OOP 에서 객체의 메서드에게는 객체의 상태가 암시적 인자다.
+
+
+DOP 에서는 명시적인 인자로 전달한다.
+
+```js
+// in DOP
+class Library {
+    static getBookLendings(libraryData, userId, memberId) {
+        // 도서관의 상태는 libraryData로 전달받음
+    }
+}
+```
+
+
+DOP 에서 코드 모듈의 함수는 상태가 없다. 
+
+
+
+## 2.4 이해하기 쉬운 DOP 시스템
+
+시스템이 코드 모듈과 데이터 개체로 나뉘기 때문에 이해하기 쉽다.
+
+
+코드가 데이터 개체를 어떻게 다루는지 자세히 고려할 필요가 없고,
+
+
+관심사가 코드와 데이터로 명확히 분리되어 더 쉽게 이해할 수 있다.
+
+
+|시스템의 부분|구성 요소에 대한 제약|관계의 제약|
+|:---|:---|:---|
+|데이터 개체|(코드 없는)순수 데이터|연관과 포함|
+|코드 모듈|(데이터 개체 없는)무상태 함수|사용(상속 없음)|
+
+
+## 2.5 유연한 DOP 시스템
+
+
+슈퍼 회원과 VIP 회원을 시스템에 추가해야한다면??
+
+
+```js
+// ex2.3 회원의 대출 도서 획득
+class Library {
+    static getBookLendings(libraryData, userId, memberId) {
+        if(UserManagement.isLibrarian(libraryData.userManagement, userId)) {
+            return Catalog.getBookLendings(libraryData.catalog, memberId);
+        } else {
+            throw "대출된 도서를 조회할 권한이 없음";
+        }
+    }
+}
+
+class UserManagement {
+    static isLibrarian(userManagementData, userId) {
+        // todo
+    }
+}
+
+class Catalog {
+    static getBookLendings(catalogData, memberId) {
+        // todo
+    }
+}
+```
+
+
+```js
+// ex2.4 슈퍼 회원이 다른 회원의 대출 도서를 얻을 수 있도록 함
+class Library {
+    static getBookLendings(libraryData, userId, memberId) {
+        const isLibrarian = UserManagement.isLibrarian(libraryData.userManagement, userId);
+        const isSuperMember = UserManagement.isSuperMember(libraryData.userManagement, userId);
+        if(isLibrarian || isSuperMember) {
+            return Catalog.getBookLendings(libraryData.catalog, memberId);
+        } else {
+            throw "대출된 도서를 조회할 권한이 없음";
+        }
+    }
+}
+
+class UserManagement {
+    static isLibrarian(userManagementData, userId) {
+        // todo
+    }
+    static isSuperMember(userManagementData, userId) {
+        // todo
+    }
+}
+
+class Catalog {
+    static getBookLendings(catalogData, memberId) {
+        // todo
+    }
+}
+```
+
+```js
+// ex2.5 Library.addBookItem signature
+class Library {
+    static addBookItem(libraryData, userId, bookItemInfo) {
+        // 
+    }
+}
+```
+
+VIP 회원 로직 추가
+
+```js
+// ex2.6 VIP 회원이 도서관에 책을 추가할 수 있도록 함
+class Library {
+    static addBookItem(libraryData, userId, bookItemInfo) {
+        const isLibrarian = UserManagement.isLibrarian(libraryData.userManagement, userId);
+        const isVIPMember = UserManagement.isVIPMember(libraryData.userManagement, userid)
+        if (isLibrarian || isVIPMember) {
+            return Catalog.addBookItem(libraryData.catalog, bookItemInfo);
+        } else {
+            thorw "대출된 도서를 조회할 권한이 없음";
+        }
+    }
+}
+
+class UserManagement {
+    static isLibrarian(userManagementData, userId) {
+        // todo
+    }
+    static isVIPMember(userManagementData, userId) {
+        // todo
+    }
+}
+```
+</details>

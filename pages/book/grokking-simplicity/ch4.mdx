@@ -1,7 +1,7 @@
 <details>
   <summary>우석</summary>
   # 액션에서 계산 빼내기
-```javascript
+```js
 // 예시 1
 function calc_cart_total() {
   shopping_cart_total = 0;
@@ -27,7 +27,7 @@ function add_item_to_cart(name, price) {
 위 2개의 메서드에서 액션을 빼내보자
 
 ## 1. 함수 추출하기
-```javascript
+```js
 // 예시 1
 function calc_total() {
   shopping_cart_total = 0;
@@ -50,7 +50,7 @@ function add_item(name, price) {
 - 이후 기존 로직에서 새로 생성한 메서드를 호출하도록 변경한다.
 
 ## 2. 암묵적 입력 찾고 명시적으로 변경하기
-```javascript
+```js
 // 예시 1
 function calc_total(cart) {
   var total = 0;
@@ -76,7 +76,7 @@ function add_item(cart, name, price) {
 - 암묵적 입력은 메서드를 액션으로 만들기 때문에 암묵적 입력으로 변경한다.
 
 ## 3. 암묵적 출력 찾고 명시적으로 변경하기
-```javascript
+```js
 // 예시 2
 function add_item(cart, name, price) {
   var new_cart = cart.slice();
@@ -286,4 +286,6 @@ function isFreeShipping(price, total) {
 </details>
 
 
+### 회독 후기
+- 액션에서 계산을 빼내는 작업은 쉬워보이지만 어렵다
 </details>

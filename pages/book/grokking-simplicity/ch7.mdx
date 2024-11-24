@@ -36,7 +36,10 @@ function black_friday_promotion_safe(cart) {
     - 안전한 코드로 데이터가 들어올 때 복사하기
 - 단, 방어적 복사에서 복사는 깊은 복사여야 한다. (어떤 데이터가 변경되는지 모르기 때문)
 
-
+## Javascript에서 깊은 복사 구현하기
+- Javascript에서 객체의 깊은 복사를 수행하기는 어렵다,
+- 깊은 복사를 위해서는 객체의 복사를 재귀적으로 수행해야 한다.
+- 때문에 미리 만들어진 Lodash 라이브러리를 활용하자
 </details><details>
   <summary>만혁</summary>
   # 신뢰할 수 없는 코드를 쓰면서 불변성 지키기

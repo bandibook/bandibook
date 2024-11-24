@@ -1,4 +1,179 @@
 <details>
+  <summary>우석</summary>
+  # 액션과 계산, 데이터의 차이를 알기
+3장에서는 액션과 계산 그리고 데이터에 대한 자세한 정의와 함께 함수형 사고를 하며 코드를 작성하는 법, 이미 작성된 코드에서 함수형 사고 적용해본다.
+
+## 액션과 계산, 데이터 요약
+### 액션 (Action)
+액션은 외부 세계에 영향을 주거나 받는 것을 말합니다. 주로 실행의 시점과 횟수에 의존합니다.
+
+- 구현 방법: 자바스크립트에서는 함수를 통해 구현합니다. 계좌 같은 복잡한 경우에도 함수를 통해 구분하기 쉽습니다.
+- 예: 이메일 보내기, 계좌에서 인출하기, 전화번호 변경하기, AJAX 요청 보내기.
+- 특징: 순수하지 않은 함수(impure function)로, 함수 외부에 영향을 주거나 받는 것을 포함합니다.
+- 사용법:
+    1. 가능한 작게 만들어야 합니다.
+    2. 외부 세계와 상호작용하는 것을 제한.
+    3. 호출 시점에 의존하지 않도록 해야 합니다.
+
+### 계산 (Calculation)
+계산은 입력값으로 출력값을 만드는 것입니다. 실행 시점과 횟수에 관계없이 항상 같은 결과를 반환합니다.
+
+- 구현 방법: 함수로 구현합니다. 자바스크립트에서도 함수를 사용해 구현합니다.
+- 예: 더하기나 곱하기, 문자열 합치기, 쇼핑 계산하기.
+- 특징: 순수 함수(pure function)로, 외부 세계와의 상호작용 없이 수행됩니다.
+- 장점:
+    1. 테스트가 쉽습니다.
+    2. 예측이 가능합니다.
+    3. 재사용성이 높습니다.
+
+### 데이터 (Data)
+데이터는 이벤트에 대한 사실입니다. 일어난 일의 결과를 기록한 것입니다.
+
+- 구현 방법: 기본 데이터 타입으로 구현합니다. 배열, 숫자, 문자열 등.
+- 예: 구매하는 음식 목록, 이름, 전화 번호, 음식 조리법.
+- 특징: 데이터를 통해 데이터를 쉽게 이해하고 해석할 수 있도록 표현합니다.
+- 장점:
+    1. 쉽게 저장하고 전송할 수 있습니다.
+    2. 다양한 방법으로 해석할 수 있습니다.
+    3. 다른 데이터와 비교가 가능합니다.
+
+이러한 개념들은 함수형 프로그래밍에서 중요하게 사용되며, 각각의 역할과 특징을 이해하면 더 효율적인 프로그래밍을 할 수 있습니다.
+
+
+## 함수형 사고를 하며 코드를 작성해보기
+책에서는 구독자들의 추천 횟수에 따라 다른 쿠폰을 이메일로 전달해주는 로직을 기준으로 함수형 사고를 적용해본다. 대략적인 로직은 아래와 같다.
+> `DB에서 구독자 가져오기` > `DB에서 쿠폰 가져오기` > `쿠폰 이메일 보내기`
+
+대략적인 로직을 나타내면 3개로 쪼갤 수 있다. 여기서 `쿠폰 이메일 보내기`에 함수형 사고를 통해 액션, 계산, 데이터로 나누어보자.
+
+> `구독자 데이터로 쿠폰 등급 결정하기` > `쿠폰 데이터 분류하기` > `분류된 쿠폰 데이터와 구독자 데이터로 이메일 데이터 만들기` > `이메일 발송하기`
+
+이메일 보내기로 뭉뚱그려진 로직은 잘 분석해보면 위 4가지 정도로 구분할 수 있다. 
+여기서 더 나눌 수 있지만 어느 수준에서 로직 쪼개기(액션, 계산, 데이터로)를 멈출지는 구현의 복잡성을 고려해 개발자가 선택할 항목이다.
+<br></br>
+
+쪼개진 4개의 로직 중 앞의 3개는 계산, 마지막 1개만 액션이다. 쿠폰 이메일 보내기란 액션 하나를 계산 3개와 1개의 액션으로 분리했다. 
+그렇다면 이렇게 쪼개야 하는 이유는 무엇일까? 계산의 장점 중 하나는 테스트가 용이하다는 것이다. 액션은 대개 외부와 연동하여 테스트를 해야하기 때문에 고려할 게 많다. 
+하지만 계산은 입력값만 있다면 테스트가 가능하다. 즉, 액션에서 계산을 분리하여 테스트가 용이한 구조로 만든 것이다.
+
+<br></br>
+또한 액션은 실행 시점, 횟수에 의존하기 때문에 생겨나는 문제들이 있는데 액션의 로직이 간소할 수록 문제를 명확히 파악하기 쉬워 보인다.
+
+<br></br>
+쪼개진 로직을 구현해보면 아래와 같다.
+
+```js
+const subscriber =  {
+    email: "sam@pmail.com",
+    rec_count: 16
+};
+
+const goods = [
+    {
+        code: "10PERCENT",
+        rank: "good"
+    }
+]
+
+const bests = [
+    {
+        code: "20PERCENT",
+        rank: "good"
+    }
+]
+
+const classifyCoupons = (subscriber) => {
+    if (10 <= subscriber.rec_count) {
+        return "best";
+    }
+
+    return "good";
+}
+
+const selectCouponsByRank = (coupons, rank) => {
+    const ret = [];
+
+    for (var c = 0; c < coupons.length; c++) {
+        const coupon = coupons[c];
+        if (coupon.rank === rank) {
+            ret.push(coupon.code);
+        }
+    }
+
+    return ret;
+}
+
+const emailForSubscriber = (subscriber, goods, bests) => {
+    const rank = classifyCoupons(subscriber);
+    
+    if (rank === "best") {
+        return {
+            from: "egg528@kakao.com",
+            to: subscriber.email,
+            subject: "금주의 쿠폰",
+            body: "쿠폰 종류: " + bests.join(", ")
+        }
+    } else {
+        return {
+            from: "egg528@kakao.com",
+            to: subscriber.email,
+            subject: "금주의 쿠폰",
+            body: "쿠폰 종류: " + goods.join(", ")
+        }
+    }
+}
+
+const emailsForSubscribers = (subscribers, goods, bests) {
+    const emails = [];
+    
+    for (var s = 0; s < subscribers.length; s++) {
+        const subscriber = subscribers[s];
+        const email = emailForSubscriber(subscriber, goods, bests);
+        emails.push(email);
+    }
+
+    return emails;
+}
+
+const sendIssue = () => {
+    const coupons = fetchCouponsFromDB(); // 액션
+    const goodCoupons = selectCouponsByRank(coupons, "good"); // 계산
+    const bestCoupons = selectCouponsByRank(coupons, "best"); // 계산
+    const subscribers = fetchSubscribersFromDB(); // 액션
+    const emails = emailsForSubscribers(subscribers, goodCoupons, bestCoupons); // 계산
+    for (var e = 0; e < emails.length; e++) {
+        const email = emails[e];
+        emailSystem.send(email); // 액션
+    } 
+}
+```
+
+## 액션을 계속해서 줄여가야 하는 이유
+```javascript
+function figurePayout(affiliate) {
+  var owed = affiliate.sales * affiliate.commission;
+  if(owed > 100)
+    sendPayout(affiliate.bank_code, owed); // 액션
+}
+
+function affiliatePayout(affiliates) {
+  for(var a = 0; a < affiliates.length; a++)
+    figurePayout(affiliate[a]);
+}
+
+function main(affiliates) {
+  affiliatePayout(affiliates);
+}
+```
+figurePayout(...) 메서드의 sendPayout은 송금 기능으로 액션에 해당한다. 하지만 액션은 자신을 사용하는 메서드 또한 액션으로 바꾼다. 
+예를 들어 sendPayout(...) 메서드가 속한 figurePayout도 액션이 되고, figurePayout(...)를 사용하는 affiliatePayout(...)도, affiliatePayout(...)를 사용하는 main(...) 또한 연쇄적으로 액션이 된다.
+이처럼 액션의 전파를 줄이기 위해서라도 되도록 액션에서 계산을 분리해내는 게 필요하다.
+
+## 정리
+우선 코드를 액션, 계산, 데이터 단위로 분류한다. 이후 액션에서 계산과 데이터를 더 분리해낸다. 계산은 더 작은 계산으로 분리한다. 이 과정은 코드를 테스트하기 용이한 구조로 만들며 액션을 최소화하여 액션을 더 잘 다룰 수 있게 만든다.
+하지만 로직을 쪼개는 건 코드를 더 복잡하게 만든는 측면이 있기에 어떤 지점까지 쪼갤지를 결정하는 것이 중요해 보인다.
+
+</details><details>
   <summary>만혁</summary>
   # 액션과 계산, 데이터의 차이를 알기
 
@@ -191,180 +366,5 @@ function main() {
 - 드물지만 타이밍이 어긋나는 경우는 실제로 일어난다.
 - 타임라인을 나누어 생각해보면 도움 될거 같다.
 - 액션을 잘게 나누는게 좋아보인다.
-
-</details><details>
-  <summary>우석</summary>
-  # 액션과 계산, 데이터의 차이를 알기
-3장에서는 액션과 계산 그리고 데이터에 대한 자세한 정의와 함께 함수형 사고를 하며 코드를 작성하는 법, 이미 작성된 코드에서 함수형 사고 적용해본다.
-
-## 액션과 계산, 데이터 요약
-### 액션 (Action)
-액션은 외부 세계에 영향을 주거나 받는 것을 말합니다. 주로 실행의 시점과 횟수에 의존합니다.
-
-- 구현 방법: 자바스크립트에서는 함수를 통해 구현합니다. 계좌 같은 복잡한 경우에도 함수를 통해 구분하기 쉽습니다.
-- 예: 이메일 보내기, 계좌에서 인출하기, 전화번호 변경하기, AJAX 요청 보내기.
-- 특징: 순수하지 않은 함수(impure function)로, 함수 외부에 영향을 주거나 받는 것을 포함합니다.
-- 사용법:
-    1. 가능한 작게 만들어야 합니다.
-    2. 외부 세계와 상호작용하는 것을 제한.
-    3. 호출 시점에 의존하지 않도록 해야 합니다.
-
-### 계산 (Calculation)
-계산은 입력값으로 출력값을 만드는 것입니다. 실행 시점과 횟수에 관계없이 항상 같은 결과를 반환합니다.
-
-- 구현 방법: 함수로 구현합니다. 자바스크립트에서도 함수를 사용해 구현합니다.
-- 예: 더하기나 곱하기, 문자열 합치기, 쇼핑 계산하기.
-- 특징: 순수 함수(pure function)로, 외부 세계와의 상호작용 없이 수행됩니다.
-- 장점:
-    1. 테스트가 쉽습니다.
-    2. 예측이 가능합니다.
-    3. 재사용성이 높습니다.
-
-### 데이터 (Data)
-데이터는 이벤트에 대한 사실입니다. 일어난 일의 결과를 기록한 것입니다.
-
-- 구현 방법: 기본 데이터 타입으로 구현합니다. 배열, 숫자, 문자열 등.
-- 예: 구매하는 음식 목록, 이름, 전화 번호, 음식 조리법.
-- 특징: 데이터를 통해 데이터를 쉽게 이해하고 해석할 수 있도록 표현합니다.
-- 장점:
-    1. 쉽게 저장하고 전송할 수 있습니다.
-    2. 다양한 방법으로 해석할 수 있습니다.
-    3. 다른 데이터와 비교가 가능합니다.
-
-이러한 개념들은 함수형 프로그래밍에서 중요하게 사용되며, 각각의 역할과 특징을 이해하면 더 효율적인 프로그래밍을 할 수 있습니다.
-
-
-## 함수형 사고를 하며 코드를 작성해보기
-책에서는 구독자들의 추천 횟수에 따라 다른 쿠폰을 이메일로 전달해주는 로직을 기준으로 함수형 사고를 적용해본다. 대략적인 로직은 아래와 같다.
-> `DB에서 구독자 가져오기` > `DB에서 쿠폰 가져오기` > `쿠폰 이메일 보내기`
-
-대략적인 로직을 나타내면 3개로 쪼갤 수 있다. 여기서 `쿠폰 이메일 보내기`에 함수형 사고를 통해 액션, 계산, 데이터로 나누어보자.
-
-> `구독자 데이터로 쿠폰 등급 결정하기` > `쿠폰 데이터 분류하기` > `분류된 쿠폰 데이터와 구독자 데이터로 이메일 데이터 만들기` > `이메일 발송하기`
-
-이메일 보내기로 뭉뚱그려진 로직은 잘 분석해보면 위 4가지 정도로 구분할 수 있다. 
-여기서 더 나눌 수 있지만 어느 수준에서 로직 쪼개기(액션, 계산, 데이터로)를 멈출지는 구현의 복잡성을 고려해 개발자가 선택할 항목이다.
-<br></br>
-
-쪼개진 4개의 로직 중 앞의 3개는 계산, 마지막 1개만 액션이다. 쿠폰 이메일 보내기란 액션 하나를 계산 3개와 1개의 액션으로 분리했다. 
-그렇다면 이렇게 쪼개야 하는 이유는 무엇일까? 계산의 장점 중 하나는 테스트가 용이하다는 것이다. 액션은 대개 외부와 연동하여 테스트를 해야하기 때문에 고려할 게 많다. 
-하지만 계산은 입력값만 있다면 테스트가 가능하다. 즉, 액션에서 계산을 분리하여 테스트가 용이한 구조로 만든 것이다.
-
-<br></br>
-또한 액션은 실행 시점, 횟수에 의존하기 때문에 생겨나는 문제들이 있는데 액션의 로직이 간소할 수록 문제를 명확히 파악하기 쉬워 보인다.
-
-<br></br>
-쪼개진 로직을 구현해보면 아래와 같다.
-
-```js
-const subscriber =  {
-    email: "sam@pmail.com",
-    rec_count: 16
-};
-
-const goods = [
-    {
-        code: "10PERCENT",
-        rank: "good"
-    }
-]
-
-const bests = [
-    {
-        code: "20PERCENT",
-        rank: "good"
-    }
-]
-
-const classifyCoupons = (subscriber) => {
-    if (10 <= subscriber.rec_count) {
-        return "best";
-    }
-
-    return "good";
-}
-
-const selectCouponsByRank = (coupons, rank) => {
-    const ret = [];
-
-    for (var c = 0; c < coupons.length; c++) {
-        const coupon = coupons[c];
-        if (coupon.rank === rank) {
-            ret.push(coupon.code);
-        }
-    }
-
-    return ret;
-}
-
-const emailForSubscriber = (subscriber, goods, bests) => {
-    const rank = classifyCoupons(subscriber);
-    
-    if (rank === "best") {
-        return {
-            from: "egg528@kakao.com",
-            to: subscriber.email,
-            subject: "금주의 쿠폰",
-            body: "쿠폰 종류: " + bests.join(", ")
-        }
-    } else {
-        return {
-            from: "egg528@kakao.com",
-            to: subscriber.email,
-            subject: "금주의 쿠폰",
-            body: "쿠폰 종류: " + goods.join(", ")
-        }
-    }
-}
-
-const emailsForSubscribers = (subscribers, goods, bests) {
-    const emails = [];
-    
-    for (var s = 0; s < subscribers.length; s++) {
-        const subscriber = subscribers[s];
-        const email = emailForSubscriber(subscriber, goods, bests);
-        emails.push(email);
-    }
-
-    return emails;
-}
-
-const sendIssue = () => {
-    const coupons = fetchCouponsFromDB(); // 액션
-    const goodCoupons = selectCouponsByRank(coupons, "good"); // 계산
-    const bestCoupons = selectCouponsByRank(coupons, "best"); // 계산
-    const subscribers = fetchSubscribersFromDB(); // 액션
-    const emails = emailsForSubscribers(subscribers, goodCoupons, bestCoupons); // 계산
-    for (var e = 0; e < emails.length; e++) {
-        const email = emails[e];
-        emailSystem.send(email); // 액션
-    } 
-}
-```
-
-## 액션을 계속해서 줄여가야 하는 이유
-```javascript
-function figurePayout(affiliate) {
-  var owed = affiliate.sales * affiliate.commission;
-  if(owed > 100)
-    sendPayout(affiliate.bank_code, owed); // 액션
-}
-
-function affiliatePayout(affiliates) {
-  for(var a = 0; a < affiliates.length; a++)
-    figurePayout(affiliate[a]);
-}
-
-function main(affiliates) {
-  affiliatePayout(affiliates);
-}
-```
-figurePayout(...) 메서드의 sendPayout은 송금 기능으로 액션에 해당한다. 하지만 액션은 자신을 사용하는 메서드 또한 액션으로 바꾼다. 
-예를 들어 sendPayout(...) 메서드가 속한 figurePayout도 액션이 되고, figurePayout(...)를 사용하는 affiliatePayout(...)도, affiliatePayout(...)를 사용하는 main(...) 또한 연쇄적으로 액션이 된다.
-이처럼 액션의 전파를 줄이기 위해서라도 되도록 액션에서 계산을 분리해내는 게 필요하다.
-
-## 정리
-우선 코드를 액션, 계산, 데이터 단위로 분류한다. 이후 액션에서 계산과 데이터를 더 분리해낸다. 계산은 더 작은 계산으로 분리한다. 이 과정은 코드를 테스트하기 용이한 구조로 만들며 액션을 최소화하여 액션을 더 잘 다룰 수 있게 만든다.
-하지만 로직을 쪼개는 건 코드를 더 복잡하게 만든는 측면이 있기에 어떤 지점까지 쪼갤지를 결정하는 것이 중요해 보인다.
 
 </details>

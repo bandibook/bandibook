@@ -13,6 +13,10 @@ class FileCopier:
         self.cache = LocalCache(cache_file)
 
     def copy_files(self, source_path):
+        self.__copy_current_directory_files(source_path)
+        self.__copy_subdirectory_files(source_path)
+
+    def __copy_current_directory_files(self, source_path):
         files = Parser.find_all_files(self.root_dir, source_path)
 
         for file_name in files:
@@ -32,3 +36,10 @@ class FileCopier:
     def __get_file_mod_time(self, source_path, file_name):
         file_path = os.path.join(self.root_dir, source_path, file_name)
         return os.path.getmtime(file_path)
+
+    def __copy_subdirectory_files(self, source_path):
+        directories = Parser.find_all_directories(self.root_dir, source_path)
+
+        for directory in directories:
+            subdirectory_path = os.path.join(source_path, directory)
+            self.copy_files(subdirectory_path)

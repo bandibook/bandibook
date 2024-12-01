@@ -1,0 +1,630 @@
+## 3장 기본 데이터 조작 - 명상과 프로그래밍
+
+
+이 장에선 데이터 자체를 이야기 한다.
+
+
+OOP 는 시스템 설계 과정에서 경직된 클래스 계층이 수반되지만, 
+
+DOP 는 데이터 모델을 맵과 배열의 유연한 조합으로 표현하고 
+
+각 정보 요소를 정보 경로를 통해 접근할 수 있도록 규정한다.
+
+> 원리-2 데이터 개체를 범용 자료구조(generic data structure)로 표현하라
+
+
+
+### 3.1 데이터 모델 설계
+
+데이터 개체도는 레코드로 구성 된다. 레코드의 값은 모두 원시 자료형, 순차 컬렉션(list), 색인(index) 중 하나다.
+
+레코드 간의 관계는 포함이나 연관 중 하나다.
+
+
+### 3.2 맵으로 관리되는 레코드
+
+- 코드는 데이터를 명시적인 인자로 전달받는 정적 함수로 구성된다.
+- 데이터 개체는 레코드로 모델링되며 레코드 간의 관계는 순차 컬렉션과 색인으로 표현된다.
+
+
+DOP 는 컬렉션과 색인에 대해 특별히 요구하는 것이 없다. 
+
+하지만, 레코드 표현에 대해서는 확고하다. 레코드는 맵 같은 범용 자료구조로 표현되어야 한다.
+
+> 색인은 동종 맵(homogeneous map) 으로 모든 값이 같은 자료형인 맵으로 포현하며,
+> 이종 맵(heterogeneous map)은 모든 값이 다른 자료형인 맵이다.
+
+
+
+```
+데이터 표현 
+        -> 레코드 -> 이종 맵
+        -> 컬렉션 -> 배열, 집합, 벡터
+        -> 색인 -> 동종 맵
+```
+
+
+범용 자료구조를 사용해 얻는 이점은 유연성과 일반성이다.
+
+
+```js
+// 3.1 맵으로 표현된 Book 레코드의 예
+{
+    "isbn": "978-1779501127",
+    "title": "Watchmen",
+    "publicationYear": 1987,
+    "authors": ["alan-moore", "dave-gibbons"],
+    "bookitems": [
+        {
+            "id": "book-item-r",
+            "libld": "nyc-central-lib", 
+            "isLent": true
+        },
+        {
+            "id": "book-item-2",
+            "libld": "nyc-central-lib", 
+            "isLent": false
+        }
+    ]
+}
+```
+
+자바스크립트나 파이썬 같은 동적 언어에서는 위 예시의 레코드의 인스턴스를 만들기 쉽지만
+
+자바 같은 정적 언어에서는 장황하지만 불변 맵과 불변 리스트를 사용해서 만들 수 있다.
+
+```java
+// 자바 맵으로 표현한 Book 레코드
+var watchmen = Map.<String, Object>of(
+    "isbn", "978-1779501127",
+    "title", "Watchmen",
+    "publicationYear", 1987,
+    "authors", List.of("alan-moore", "dave-gibbons"),
+    "bookitems", List.of(
+        Map.of(
+            "id", "book-item-1",
+            "libld", "nyc-central-lib", 
+            "isLent", true
+        ),
+        Map.of(
+            "id", "book-item-2",
+            "libld", "nyc-central-lib", 
+            "isLent", false
+        )
+    )
+)
+```
+
+```js
+// js 에서 Book 클래스의 인스턴스로 표현된 Book 레코드
+class Book {
+    isbn;
+    title;
+    publicationYear;
+    authors;
+    bookitems;
+    constructor(isbn, title, publicationYear, authors, bookitems) { 
+        this.isbn = isbn;
+        this.title = title;
+        this.publicationYear = publicationYear;
+        this.authors = authors;
+        this.bookitems = bookitems;
+    }
+}
+
+class Bookitem {
+    id;
+    libld;
+    isLent;
+    constructor(id, libld, isLent) { 
+        this.id = id; 
+        this.libld = libld;
+        this.isLent = isLent;
+    } 
+}
+var watchmenBook = new Book(
+    "978-1779501127",
+    "Watchmen", 
+    1987, 
+    [
+        "alan-moore",
+         "dave-gibbons"
+    ], 
+    [
+        new Bookitem("book-item-1", "nyc-central-lib", true), 
+        new Bookitem("book-item-2", "nyc-central-lib", false)
+    ]
+);
+```
+
+위와 같이 클래스를 사용하면 데이터 규격이 프로그램의 일부가 된다.
+
+장점은 IDE 로 필드 이름이 자동완성 되거나 컴파일 시점에 오류를 찾을 수 있다 
+
+
+만약 위 정보에서 도서 정보를 표현하고, 저자 ID 대신 저자 이름을 표시하고 싶다
+
+그리고 개별 인쇄본의 정보는 필요치 않는 경우에는 어떻게 처리 해야 할까?
+
+통상의 OOP 에서는 Book 클래스에서 bookItems는 없고 authorIds 대신 authorNames 를 구성 요소로 갖는 
+
+BookInSearchResults 클래스를 생성해야 한다.
+
+그리고 Book 객체를 받아서 복사하는 생성자를 작성해야한다.
+
+위와 같이 클래스만 이용하면 안전이 보장되지만 유연성이 희생된다.
+
+
+```js
+class BookInSearchResults {
+    isbn;
+    title;
+    publicationYear;
+    authorNames;
+    BookInSearchResults(book, authorNames) {
+        this.isbn = book.isbn;
+        this.title = book.title;
+        this.publicationYear = book.publicationYear;
+        this.authorNames = authorNames;
+    }
+}
+```
+
+
+DOP 에서는 맵으로 레코드를 표현한다. 
+
+데이터마다 클래스를 만들 필요가 없이 자유롭게 동적으로 추가하고 제거하고 이름을 변경한다.
+
+
+### 3.3 범용 함수를 사용한 데이터 조작
+
+도서관의 장서 데이터를 담은 Catalog 레코드의 한 예를 들어본다.
+
+```js
+// catalog 레코드
+var catalogData = {
+    "booksBylsbn": { 
+        "978-1779501127": { 
+            "isbn": "978-1779501127", 
+            "title": "Watchmen", 
+            "publicationYear": 1987, 
+            "authorlds": ["alan-moore", "dave-gibbons"],
+            "bookitems": [ 
+            {
+                "id": "book-item-1", 
+                "libld": "nyc-central-lib", 
+                "isLent": true  
+            }, 
+            {
+                "id": "book-item-2", 
+                "libld": "nyc-central-lib", 
+                "isLent": false 
+            } 
+            ] 
+        } 
+    },
+    "authorsByld": { 
+        "alan-moore": {
+            "name": "Alan Moore", 
+            "booklsbns": ["978-1779501127"] 
+        }, 
+        "dave-gibbons": {
+            "name": "Dave Gibbons", 
+            "booklsbns": ["978-1779501127"] 
+        } 
+    } 
+}
+```
+
+
+
+데이터 개체도에서는 레코드와 색인이 분명하게 구분된다. 하지만 코드에서는 둘 다 데이터일 뿐이다.
+
+OOP 에서는 데이터를 보통 객체로 표현하는데, 이로 인해 프로그램 내에서 데이터를 시각화 하기 더 어려워진다.
+
+
+장서 데이터에스 특정 도서의 제목을 얻기 위해서는
+
+정보 경로를 사용하면 해당 정보를 가져올 수 있다.
+
+예를 들어 왓치맨 이라는 책의 제목은 정보 경로가  ["booksBylsbn", "978-1779501127", "title"] 이다.
+
+
+정보 경로를 알았다면 로대시의 `_.get()` 함수를 사용해 정보를 얻을 수 있다.
+
+
+```js
+// 정보 경로로 도서 명을 얻음
+_.get(catalogData, ["booksBylsbn", "978-1779501127", "title"])
+// -> "Watchmen"
+```
+
+```js
+// get 구현
+function get(m, path) {
+    var res = m;
+    for (let i = 0; i < path.length; i++) {
+        const key = path[i];
+        res = res[key];
+    }
+    return res;
+}
+```
+
+`_.get()` 같은 함수가 정적 타입 언어에서도 동작하기 위해서는 
+
+값을 전달하기만 하면 되는지, 아니면 구체적으로 그 값에 접근해야 하는지에 따라 다르다.
+
+
+예를 들면 도서명을 하나 얻었고 이 문자열을 전부 대문자로 변환해야 하나면???
+
+```java
+((String)watchmen.get("title")).toUpperCase();
+```
+
+위와 같이 처리할 수 있다.
+
+
+하지만 맵의 값들은 모두 자료형이 서로 달라 컴파일러는 맵을 `Map<String, Object>`로 선언하게 될것이고
+
+레코드 항목은 자료형 정보를 잃어버리게 된다.
+
+하지만 우리 코드에서는 데이터를 전달하기만 하는 경우가 많기때문에 정적 형변환이 필요없다.
+
+
+
+정보경로의 경우 OOP 또한 `catalogData.booksBylsbn["978-1779501127"].title` 로 도서명에 접근할 수 있다
+
+하지만 DOP 에서는 근본적인 차이가 있다. 레코드를 맵으로 표현하면 _.get 과 같은 범용 함수를 사용해서 정보경로를 통해
+
+정보를 얻을 수 있다. 하지만 레코드가 객체로 표현된다면 각 정보의 경로 유형에 맞는 구체적인 코드를 작성해야 한다.
+
+
+즉 자바같은 정적 타입 언어에서는 `catalogData.booksBylsbn["978-1779501127"].title` 이런 방법으로
+
+데이터에 접근하려면 Catalog 와 Book 을 정의한 클래스가 있어야 정보에 접근 가능하지만 
+
+맵으로 표현한다면 각 클래스 없이 문자열로 접근이 가능하다
+
+
+다시 말하자면 DOP 에서는 정보 경로가 일급 시민이다.
+
+
+### 3.4 검색 결과 연산
+
+
+검색 결과에 isbn, 제목 저자명이 도서 정보 검색결과로 보여야 한다면?
+
+```js
+// 검색 결과에서 사용되는 watchmen bookInfo 레코드
+{
+    "title": "Watchmen",
+    "isbn": "978-1779501127",
+    "authorNames": [
+        "Alan Moore",
+        "Dave Gibbons"
+    ]
+}
+```
+
+
+```js
+// 저자 ID를 저자명에 대응
+_.map(
+    ["alan-moore", "dave-gibbons"], 
+    (authorId) =>  _.get(catalogData. ["authorsById", authorId, "name"])
+)
+// -> ["Alan Moore", "Dave Gibbons"]
+```
+
+```js
+function map(coll, f) {
+    const res = [];
+    for (let i = 0; i < coll.length; i++) {
+        res.push(f(coll[i]));
+    }
+    return res;
+}
+```
+
+
+```js
+// 도서의 저자명 연산
+function authorNames(catalogData, book) {
+    const authorIds = _.get(book, "authorIds");
+    const names = _.map(
+        authorIds,
+        (authorId) => _.get(catalogData, ["authorsById", authorId, "name"]))
+    return names;
+}
+```
+
+
+```js
+// Book 레코드를 BookInfo 레코드로 변환
+function bookInfo(catalogData, book) {
+    const bookInfo = {
+        "title": _.get(book, "title"),
+        "isbn": _.get(book, "isbn"),
+        "authorNames": authorNames(catalogData, book)
+    } 
+
+    return bookInfo; // -> BookInfo용 클래스를 만들 필요가 없다.
+}
+```
+
+
+코드를 보지 않고도 레코드의 정보를 알 수 있는 방법은
+
+데이터 개체도에 추가하거나 BookInfo 함수를 문서화 하면 된다. 
+
+> 동적 타입의 전형적인 단점 아닌가? 문서화 안하잖아~ ㅎㅎ;
+
+
+```js
+// 조건에 맞는 도서 검색
+function searchBooksByTitle(catalogData, query) {
+    const allBooks = _.values(_.get(catalogData, "booksByIsbn"));
+    const matchingBooks = _.filter(
+        allBooks,
+        (book) => _.get(book, "title").includes(query)
+    )
+    const bookInfos = _.map(
+        matchingBooks,
+        (book) => bookInfo(catalogData, book);
+    )
+    return bookInfos;
+}
+```
+
+```js
+function filter(coll, f) {
+    const res = [];
+    for (let i = 0; i < coll.length; i++) {
+        res.push(f(coll[i]));
+    }
+    return res;
+}
+```
+
+
+`_.get(book, "title")` 이 아닌  `bookt.title`, `book["title"]` 로 사용하지 않기 위해서는
+
+
+book 이 객체로 표현되지 않은 레코드라는 사실을 기억해야 한다
+
+
+searchBooksByTitle 함수의 반환 값을 JSON 직렬화를 하려면?
+
+```js
+function searchBooksByTitleJSON(libraryData, query) {
+    const results = searchBooksByTitle(_.get(libraryData, "catalog"), query);
+    const resultsJSON = JSON.stringify(results);
+    return resultsJSON;
+}
+```
+
+
+
+코드를 테스트 하려면 Catalog 가 포함되는 Library 레코드를 만들어야 한다.
+
+```js
+// Library 레코드
+const libraryData = {
+    "name": "",
+    "address": "",
+    "catalog": {
+        "booksBylsbn": { 
+        "978-1779501127": { 
+            "isbn": "978-1779501127", 
+            "title": "Watchmen", 
+            "publicationYear": 1987, 
+            "authorlds": ["alan-moore", "dave-gibbons"],
+            "bookitems": [ 
+            {
+                "id": "book-item-1", 
+                "libld": "nyc-central-lib", 
+                "isLent": true  
+            }, 
+            {
+                "id": "book-item-2", 
+                "libld": "nyc-central-lib", 
+                "isLent": false 
+            } 
+            ] 
+        } 
+    },
+    "authorsByld": { 
+        "alan-moore": {
+            "name": "Alan Moore", 
+            "booklsbns": ["978-1779501127"] 
+        }, 
+        "dave-gibbons": {
+            "name": "Dave Gibbons", 
+            "booklsbns": ["978-1779501127"] 
+        } 
+    } 
+    }
+}
+
+
+
+
+searchBooksByTitleJSON(libraryData, "Wat")
+
+```
+
+authorNames(), bookInfo(), searchBooksByTitle() 함수는 Catalog 모듈로 들어가고,
+
+searchBooksByTitleJSON 함수는  Library  모듈로 들어간다.
+
+
+```js
+// 최종 버전
+class Catalog {
+    static authorNames(catalogData, book) {
+        const authorIds = _.get(book, "authorIds");
+        const names = _.map(
+            authorIds,
+            (authorId) => _.get(catalogData, ["authorsById", authorId, "name"]))
+        return names;
+    }
+
+    static bookInfo(catalogData, book) {
+        const bookInfo = {
+            "title": _.get(book, "title"),
+            "isbn": _.get(book, "isbn"),
+            "authorNames": authorNames(catalogData, book)
+        } 
+        return bookInfo; // -> BookInfo용 클래스를 만들 필요가 없다.
+    }
+
+
+    static searchBooksByTitle(catalogData, query) {
+        const allBooks = _.values(_.get(catalogData, "booksByIsbn"));
+        const matchingBooks = _.filter(
+            allBooks,
+            (book) => _.get(book, "title").includes(query)
+        )
+        const bookInfos = _.map(
+            matchingBooks,
+            (book) => bookInfo(catalogData, book);
+        )
+        return bookInfos;
+    }
+}
+
+class Library {
+    static searchBooksByTitleJSON(libraryData, query) {
+        const results = searchBooksByTitle(_.get(libraryData, "catalog"), query);
+        const resultsJSON = JSON.stringify(results);
+        return resultsJSON;
+    }
+}
+```
+
+
+
+### 3.5 이종 자료형의 레코드 처리
+
+
+ DOP 가 어떻게 레코드를 일급 시민으로 다루는지 살펴봤다.
+
+
+ 레코드가 단지 여러 필드를 모아 놓은 것 뿐이라면, 레코드의 자료형이 무엇인지 어떻게 알 수 있을까?
+
+ DOP 는 놀랍게도 이 질문에 대한 답을 갖고있다.
+
+ 대부분, 레코드의 자료형을 알 필요가 없다.
+
+ 가장 중요한것은 각 필드의 값이다. 
+
+
+
+ 예를들어 `Catalog.authorNames` 코드를 보면,
+ 
+ 이 코드는 Book 레코드를 처리하지만 중요한것은 authorIds 필드 뿐이다.
+
+
+Member 와 Librarian 처럼 다양한 사용자 유형간의 차이는?
+
+둘 다 email 필드와  encryptedPassword 필드를 갖고있는데 
+
+어떤 레코드가 Member 인지 Librarian 인지를 알수 있을까?
+
+
+답은 간단하게 Catalog의 librariansByEmail 색인이나 membersByEmail 색인에서 
+
+그 레코드를 찾을 수 있는지 확인하면 된다.
+
+
+사서와 회원이 각각 한 명인것으로 가정한다면 UserManagement 레코드는 아래와 같다.
+
+
+```js
+// UserManagement 레코드
+const userManagementData = {
+    "librariansByEmail": {
+        "frank@gmail.com": {
+            "email": "frank@gmail.com",
+            "encryptedPassword": "bXlwYXNzd29yZA==" 
+        }
+    },
+    "membersByEmail": {
+        "samantha@gmail.com": {
+            "email": "samantha@gmail.com",
+            "encryptedPassword": "c2VjcmV0",
+            "isBlocked": false,
+            "bookLendings": [
+                {
+                    "bookItemId": "book-item-1",
+                    "bookIsbn": "978-1779501127",
+                    "lendingDate": "2020-04-23"
+                }
+            ]
+        }
+    }
+}
+```
+
+```js
+/// 사용자가 사서인지 확인
+function isLibrarian(userManagement, email) {
+    return _.has(_.get(userManagement, "librariansByEmail"), email);
+}
+
+isLibrarian(userManagementData, "frank@gmail.com");
+// -> true
+```
+
+
+회원이 슈퍼 회원이나 VIP 회원인지 확인할 때도 같은 패턴을 사용해야 될까?
+
+가능하지만 더 좋은 방법이 있다 vip 회원이면 isVIP 필드를 추가하는것이다.
+
+```js
+function isVIPMember(userManagement, email) {
+    return _.get(userManagement, ["membersByEmail", email, "isVIP"]) === true;
+}
+```
+
+동일하게 슈퍼 회원인 경우에는 isSuper 필드를 추가한다
+
+```js
+function isSuperMember(userManagement, email) {
+    return _.get(userManagement, ["membersByEmail", email, "isSuper"]) === true;
+}
+```
+
+```js
+// UserManagement 모듈의 코드
+class UserManagement {
+    static isLibrarian(userManagement, email) {
+        return _.has(_.get(userManagement, "librariansByEmail"), email);
+    } 
+    static isVIPMember(userManagement, email) {
+        return _.get(userManagement, ["membersByEmail", email, "isVIP"]) === true;
+    }
+
+    static isSuperMember(userManagement, email) {
+        return _.get(userManagement, ["membersByEmail", email, "isSuper"]) === true;
+    }
+}
+```
+
+회원 레코드에 VIP 나 Super 값을 갖는 type 필드를 두지 않는 이유는
+
+제품 요구사항에 따라  VIP 회원이자 슈퍼 회원일 수도 있다.
+
+따라서 types 필드가 VIP, Super 또는 둘 모두를 담는 컬렉션일 수 있다
+
+어떤 상황에서는  types 필드가 유용할수도 있지만,
+
+레코드가 지원하는 각 기능에 Boolean 필드를 두는것이 더 간단하다.
+
+isVip, isSuper 와 같은 필드를 `특성 필드(Feature Field)`라고 한다.
+
+
+isLibrarian 과 isMember 필드도 추가할 수 있지만
+사서와 회원은 데이터 관점에서 명확한 구분이 있어 별도 레코드 자료형을 갖는게 좋아 보인다.
+

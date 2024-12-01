@@ -1,0 +1,334 @@
+<details>
+  <summary>우석</summary>
+  [데이터 지향 프로그래밍 - 4장 상태 관리](https://egg528.tistory.com/5)
+</details><details>
+  <summary>만혁</summary>
+  ## 상태 관리 - 시간 여행
+
+
+
+
+DOP 에서는 상태를 바로 갱신하는 대신, 시스템 데이터의 여러 버전을 유지한다.
+
+특정 시점에 시스템 상태는 버전의 시스템 데이터를 참조한다.
+
+
+> 원리-3 데이터는 불변 이다.
+
+
+
+불변 데이터는 구조적 공유(structural sharing) 이라고 부르는 기법 덕분에
+
+연산과 메모리 모두의 측면에서 효율적이다.
+
+
+DOP 에서 변경은 두 단계로 나뉜다.
+
+- 연산 단계(caculation phase) 에서는 시스템 데이터의 차기 버전을 산출한다.
+- 반영 단계(commit phase) 에서는 시스템 상태가 연산 단계에서 연산된 시스템 데이터의 차기 버전을 참조하도록 이동시킨다.
+
+
+두 단계를 구분하면 시스템에서 상태를 갖는 부분을 최소로 줄일 수 있다.
+
+
+변경에서 반영 단계의 코드에만 상태가 있고, 연산 단계의 코드는 무 상태이며 조회 코드와 비슷하게
+
+범용 함수로 만들어진다.
+
+
+반영 단계의 구현은 모든 변경 작업에 공통적으로 쓰일 수 있다. 
+
+따라서 반영 단계 내에서는 상태가 언제나 유효한 버전의 시스템 데이터를 참조한다고 보장할 수 있다.
+
+이 상태 관리 방식의 또 다른 이점은 시스템 데이터의 이전 버전 이력을 추적할 수 있다.
+
+또한 간단히 이전 상태로 시스템을 복원할 수 있다.
+
+
+|단계|역할|상태|구현|
+|:---|---|:---|:---|
+|연산|시스템 데이터의 차기 버전을 연산|무상태|개별적|
+|반영|시스템 상태를 차기 버전으로 이동|상태 처리|공통적|
+
+
+> 이 장에서는 동시에 변경이 일어나지 않는다고 가정한다. 동시성 제어는 다음장에서~!
+
+
+### 4.1 다중 버전 시스템 데이터
+
+
+DOP 에서는 깃 같은 버전 관리 시스템이 하는것과 비슷하게 다중 상태 방식을 활용한다.
+
+데이터는 불변이지만 데이터를 참조하는 상태는 변경 가능하다.
+
+
+### 4.2 구조적 공유
+
+구조적 공유는 불변 데이터의 신규 버전을 효율적으로 생성할 수 있게 한다.
+
+
+로대시 함수는 기본적으로 불변이 아니기 때문에 FP 모듈을 사용해야 한다.
+
+
+기본 함수와 불변 함수(FP 모듈)의 시그니처는 다르기 때문에 아래와 같은 설정을 해줘야한다
+
+
+```js
+_ = fp.conver({
+    "cap": false, 
+    "curry": false, 
+    "fixed": false, 
+    "immutable": true, 
+    "rearg": false 
+})
+```
+
+
+왓치맨의 출판연도 정보경로를 사용하여 출판 연도를 변경하는 방법
+
+```js
+// _.set 을 불변 함수로 사용
+const nextLibrarydta = _.set(
+    libraryData,
+    ["catalog", "booksBylsbn", "978-1779501127","publicationYear" ],
+    1986
+)
+```
+
+
+```js
+// 회원을 추가하는 변경 코드
+UserManagement.addMember = (userManagement, member) => {
+    const email = get(member, "email");
+    const infoPath = ["membersByEmail", email];
+    if(_.has(userManagement, infoPath)) { 
+        throw "회원이 이미 존재함. "; 
+    }
+    const nextUserManagement = _.set(
+        userManagement // 새 회원이 포함된 새 userManagement 버전을 생성한다
+        infoPath, 
+        member
+    );
+    return nextUserManagement;
+};
+
+Library.addMember = (library, member) => {
+    const currentUserManagement = _.get(library, "userManagement");
+    const nextUserManagement = UserManagement.addMember(
+        currentUserManagement,
+        member
+    );
+    const nextLibrary = _.set(
+        library,
+        "userManagement",
+        nextUserManagement // 새 userManagement 버전을 포함하는 library 의 새 버전을 생성한다
+    ); 
+    
+    return nextLibrary; 
+}
+```
+
+
+### 4.3 구조적 공유 구현
+
+
+```js
+function setImmutable(map, path, v) {
+    let modifiedNode = v;
+    const k = path[0];
+    const restOfPath = path.slice(1);
+    if (restOfPath.length > 0) {
+        modifiedNode = setImmutable(map[k], restOfPath, v);
+    }
+    const res = Object.assign({}, map); // shallow clone
+    res[k] = modifiedNode;
+    return res;
+}
+```
+
+
+### 4.4 데이터 안정성
+
+두 버전이 공유하는 일부 데이터를 수정하면 어떻게 될까?
+
+```js
+// 두 버전이 공유하는 데이터 수정
+const books = {
+    "978-1779501127": {
+        "isbn": "978-1779501127",
+        "title": "Watchmen",
+        "publicationYear": 1987,
+        "authorlds": ["alan-moore","dave-gibbons"]
+    }
+}
+const nextBooks = _.set(books, ["978-1779501127", "publicationYear"], 1986);
+console.log("before : ", nextBooks["978-1779501127"]["authorIds"][1]);
+
+books["978-1779501127"]["authorIds"][1] = "dave-chester-gibbons";
+console.log("after : ", nextBooks["978-1779501127"]["authorIds"][1])
+
+// -> before : dave-gibbons
+// -> after : dave-chester-gibbons
+```
+
+모든 데이터 조작은 불변 함수로 처리되어야 한다. 해시맵에서 제공되는 값 설정 함수를 사용해서는 안된다
+
+개발자가 실수하지 않게 시스템을 보호하는 방법으로는 자료구조 수준에서 보장할 수 있는데
+
+이것을 `영속 자료 구조`라고 말한다.
+
+> 영속 자료구조는 데이터 수준에서 불변적이고 실수로라도 데이터를 변경할 방법이 없다
+
+영속 자료 구조를 지원하는 라이브러리로는
+
+js -> immutable.js
+
+java -> paguro
+
+
+영속 자료구조의 단점은 언어의 기본 자료구조가 아니라는 것.
+
+기본 자료구조를 영속 자료구조로 변환하거나 그 반대의 작업이 필요하다.
+
+
+재미로라면 불변 함수를 사용하고 제품을 만들거라면 영속 자료구조를 사용하는게 좋다.
+
+
+클로저는 기본 자료가 불변이다 
+
+### 4.5 변경의 반영 단계
+
+연산 단계는 시스템의 어떤 것도 바꾸지 않는다는 측면에서 무상태다.
+
+이제 반영 단계에서 상태를 어떻게 변경하는지 알아보자.
+
+
+`Library.addMember` 함수는 추가된 회원을 포함한 도서관의 새로운 상태를 반환한다.
+
+하지만 도서관의 현 상태는 아무런 영향 없이 그대로 유지된다.
+
+
+```js
+// 시스템 상태를 새 버전으로 이동시키는 반영 단계
+Library.addMember = (library, member) => {
+    const currentUserManagement = _.get(library, "userManagement");
+    const nextUserManagement = UserManagement.addMember(currentUserManagement, member);
+    const nextLibrary = _.set(library, "userManagement", nextUserManagement);
+    return nextLibrary;
+};
+```
+
+
+Library.addMember 는 데이터를 연산할 뿐이고 무상태이다.
+
+상태는 반영 단계에서 시스템 상태가 참조하는 상태 버전을 바꾸면서 갱신된다.
+
+#### 회원을 시스템에 추가할 때 일어나는 일
+
+1. 연산 단계에서는 회원이 둘인 상태의 버전을 생성한다.
+2. 반영 단계 전 시스템 상태는 회원이 하나인 상태의 버전을 참조.
+3. 반영 단계의 책임은 이 시스템 상태를 이동시켜 회원이 둘인 상태 버전을 참조하도록 만드는 것
+
+
+System 클래스는 상태를 가진 싱글턴 클래스이고 변경을 구현한다.
+
+SystemState는 상태를 가진 싱글턴 클래스이고 시스템 상태를 관리한다.
+
+
+```js
+class System {
+    addMember(member) {
+        const previous = SystemState.get();
+
+        const next = Library.addMember(previous, member);
+        SystemState.commit(previous, next);
+    }
+}
+
+class SystemState {
+    systemState;
+ 
+    get() {
+        return this.systemState;
+    }
+
+    commit(previous, next) {
+        this.systemState = next;
+    }
+}
+```
+
+
+> 연산 단계에는 상태가 없고 반영 단계에는 상태가 있다.
+
+
+
+### 4.6 시스템 상태 무결성 보장
+
+OOP 에서는 데이터와 메서드가 같은 클래스에 속하고 그 메서드로만 데이터를 조작한다.
+
+따라서 클래스 내부 상태가 다른 클래스 때문에 오염되는것을 막는다.
+
+
+#### 상태가 유효하지 않게 되는 예시
+
+어떤 코드가 회원에게 대출된 도서 항목을 추가하려고 변경하고자 한다.
+
+하지만 장서 목록에는 대출된 것으로 표시하지 않는다면 시스템 데이터는 오염된다.
+
+
+
+DOP 에서는 여러 클래스에 유효성 확인 역할을 분산하는 대신 전체 시스템 수준에서
+
+데이터 무결성을 보장하는 장점이 있다.
+
+반영 단계의 코드가 모든 변경에 공통적으로 관여하기 때문에 중앙에서 유효성을 확인할 수 있게 된다.
+
+
+```js
+// 데이터 유효성 확인이 추가된 반영 단계
+System.commit = (previous, next) => {
+    if(!SystemValidity.validate(previous, next)) {
+        throw "유효하지 않은 시스템 데이터로 변경하려고 했음";
+    }
+    this.systemData = next;
+}
+```
+
+
+### 4.7 이전 상태 복원
+
+메모리 사용의 증가 없이 데이터의 모든 버전 이력을 계속 보존할 수 있다.
+
+즉 보존하던 이력을 사용하면 이전 상태로 되돌릴 수 있다.
+
+
+취소(되돌리기) 기능을 구현하려면 SystemState 클래스가 두 시스템 데이터를 참조해야 한다.
+
+```js
+// 취소 기능이 추가된 SystemState 
+class SystemState {
+    systemData; // 현재 시스템 상태를 참조
+    previousSystemData; // 과거 시스템 데이터 상태를 참조
+ 
+    get() {
+        return this.systemData;
+    }
+
+    commit(previous, next) {
+        const systemDataBeforeUpdate = this.systemData;
+        if(!Consistency.validate(previous, next)) {
+            throw "유효하지 않은 시스템 데이터로 변경하려고 했음";
+        }
+
+        this.systemData = next;
+        this.previousSystemData = systemDataBeforeUpdate;
+    }
+
+    undoLastMutation() {
+        this.systemData = this.previousSystemData;
+    }
+}
+
+```
+</details>

@@ -16,3 +16,25 @@ body {
     'Segoe UI Symbol',
     sans-serif;
 }
+
+.light {
+  font-weight: 400;
+}
+
+img {
+  border-radius: 16px;
+  display: inline;
+  margin: 24px auto 8px;
+}
+
+.nextra-code-block {
+  margin-left: 8px;
+}
+
+.nx-list-disc {
+  margin-top: 0px !important;
+}
+
+.nextra-code-block {
+  margin-top: 8px !important;
+}

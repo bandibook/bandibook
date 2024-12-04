@@ -1,4 +1,4 @@
-name: Deploy Vercel Project
+name: Deploy BandiBook
 
 on:
   workflow_dispatch: # 수동 실행 트리거
@@ -8,6 +8,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger Vercel Deploy Hook
+      - name: Trigger Vercel Deployment without Build Cache
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          curl -X POST https://api.vercel.com/v1/integrations/deploy/${{ secrets.VERCEL_DEPLOY_HOOK }}
+          curl -X POST "https://api.vercel.com/v13/deployments" \
+          -H "Authorization: Bearer $VERCEL_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "name": "bandibook",
+            "projectId": "'$VERCEL_PROJECT_ID'",
+            "teamId": "'$VERCEL_TEAM_ID'",
+            "target": "production",
+            "buildCache": false
+          }'

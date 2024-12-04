@@ -7,6 +7,13 @@ export default {
     <>
       <link rel="icon" href="/favicon.ico" />
       <title>반디북 - 반디부디의 책지도</title>
+      {/* 가변 다이나믹 서브셋 */}
+      <link
+        rel="stylesheet"
+        as="style"
+        crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+      />
     </>
   ),
   useNextSeoProps: () => {

@@ -1,3 +1,5 @@
+import { Figure } from 'components';
+
 <details>
   <summary>준영</summary>
   
@@ -21,18 +23,16 @@
 
 아래와 같이 컴포넌트 트리를 확인할 수 있다. (DOM 트리 아님)
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/c5378d02-1436-4a37-83a9-5ebc8462c812" width="500" />
-</p>
+<img src="https://github.com/user-attachments/assets/c5378d02-1436-4a37-83a9-5ebc8462c812" width="500" />
 
 - 까보면 더 자세하게 어떤 props가 전달되었는지도 모두 확인할 수 있다.
 - 원시값뿐만 아니라 함수도 포함
 
-컴포넌트에서 사용 중인 훅 정보도 확인 가능하다.
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/3d4ab787-489f-4325-ae19-958226998b56" width="500" />
-</p>
+<Figure
+  img="https://github.com/user-attachments/assets/3d4ab787-489f-4325-ae19-958226998b56"
+  caption="컴포넌트에서 사용 중인 훅 정보도 확인 가능하다."
+  width={500}
+/>
 
 ### 6.3.2 프로파일러
 

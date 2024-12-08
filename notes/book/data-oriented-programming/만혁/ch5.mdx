@@ -1,0 +1,229 @@
+## 기본 동시성 제어 - 가정 불화
+
+
+시스템이 동시성을 관리하도록 바꿔야 하는 부분은 반영 단계(commit phase) 뿐이다.
+
+
+반영 단계는 불일치 조정 알고리즘을 포함하는데, 데이터가 불변 해시맵으로 표현된다면 
+
+이 알고리즘은 범용적으로 사용될 수 있다.
+
+
+DOP 에서는 반영 단계의 코드만 상태를 다루기 때문에 잠금(lock)이 전혀 필요 없는
+
+낙관적 동시성 제어 전략을 사용할 수 있다.
+
+따라서 읽고 쓰는 성능이 매우 높아진다.
+
+
+동시에 변경할 때 발생하는 불일치를 조정(reconciliation) 하는 알고리즘을 구현해야 하기 때문에
+
+간단하지는 않다.
+
+
+> 낙관적 동시성 제어는 불변 데이터와 효율이 좋다
+
+
+### 5.3 컬렉션 축소(reduce)
+
+```js
+// 5.1 _.reduce를 사용한 합계 계산
+_.reduce([1,2,3], (res, elem) => {
+    return res + elem;
+}, 0);
+// -> 6
+
+
+
+function reduce(coll, f, initVal) {
+    let currentres = initVal;
+    for (let i = 0; i < coll.length; i++) {
+        currentres = f(currentres, coll[i]);
+    }
+    return currentres;
+}
+```
+
+
+### 5.4 구조적 비교
+
+구조적 공유 방식에서는 두 버전의 시스템 상태가 중첩된 상태 대부분을 공유한다.
+
+따라서 대부분의 경우  diffObjects 가 호출되면  data1, data2 가 동일해서 바로 반환된다.
+
+
+
+
+
+```js
+function diffObjects(data1, data2) {
+    const emptyObject = _.isArray(data) ? [] : {};
+    
+    if (data1 == data2) {
+        return emptyObject;
+    }
+    
+    const keys = _.union(_.keys(data1), _.keys(data2));
+    
+    return _.reduce(keys, (acc, key) => {
+        const res = diff(_.get(data1, key), _.get(data2, key));
+
+        if((_.isObject(res) && _.isEmpty(res)) || res == 'no-diff') {
+            return acc;
+        }
+        return _.set(acc, [key], res);
+    },
+    emptyObject);
+}
+
+function diff(data1, data2) {
+    if(_.isObject(data1) && _.isObject(data2)) { 
+        return diffObjects(data1, data2);
+    }
+    if(data1 !== data2) { 
+        return data2;
+    }
+    return "no-diff";
+}
+
+```
+
+
+상충되지 않는 변경 예시
+
+```js
+
+const library = { 
+  "catalog": { 
+  "booksByIsbn": { 
+    "978-1779501127": {
+      "isbn": "978-1779501127",
+      "title": "Watchmen",
+      "publicationYear": 1987, 
+      "authorlds": ["alan-moore", "dave-gibbons"] 
+    }
+  }, 
+    "authorsById": { 
+      "alan-moore": {
+        "name": "Alan Moore",
+        "booklsbns": ["978-1779501127"] 
+      }, 
+      "dave-gibbons": {
+        "name": "Dave Gibbons",
+        "booklsbns": ["978-1779501127"]
+      }
+    }
+  } 
+}
+
+const previous = library;
+const next = _.set(
+  library,
+  ["catalog", "booksByIsbn", "978-1779501127","publicationYear"],
+  1986);
+
+const libraryWithUpdatedTitle = _.set( 
+  library, 
+  ["catalog", "booksByIsbn", "978-1779501127", "title"], 
+  "The Watchmen");
+
+
+
+const current = _.set( 
+  libraryWithUpdatedTitle, 
+  ["catalog", "authorsById", "dave-gibbons", "name"], 
+  "David Chester Gibbons")
+```
+
+
+```js
+// 5.10 중첩된 맵의 정보 경로 계산
+function informationpaths (obj, path = []) { 
+    return _.reduce(obj,(acc, v, k) => {
+        if (_.isObject(v)) { 
+            return _.concat(
+                acc, 
+                informationpaths(
+                    v, 
+                    _.concat(path, k))
+            );
+        }  
+    return _.concat(acc, [_.concat(path, k)]);
+    }, 
+[])；
+}
+```
+
+
+```js
+// 5.13 두 맵의 비교 결과에 공통 정보 경로가 있는지 확인
+function havePathInCommon(diffl, diff2) {
+    return 
+        !_.isEmpty(_.intersection(informationpaths(diff1), 
+        informationpaths(diff2)));
+}
+```
+
+두 변경간에 불일치가 없다면 이전 버전에서 차기 버전으로 바꾸는 변경사항을
+
+현재 버전에 안전하게 적용할 수 있다.
+
+
+
+
+```js
+// 5.15 systemstate class
+class SystemState {
+    systemData; 
+ 
+    get() {
+        return this.systemData;
+    }
+
+    set(_systemData) {
+        this.systemData = _systemData;
+    }
+
+    commit(previous, next) {
+        const nextSystemData = SystemConsistency.reconcile(
+            this.systemData,
+            previous,
+            next
+        );
+        if(!Consistency.validate(previous, nextSystemDatat)) {
+            throw "유효하지 않은 시스템 데이터로 변경하려고 했음";
+        }
+
+        this.systemData = next;
+    }
+}
+```
+
+
+```js
+class SystemConsistency {
+  static threeWayMerge(current, previous, next) {
+    var previousToCurrent = diff(previous, current); 
+    var previousToNext = diff(previous, next);
+
+    if (!havePathInCommon(previousToCurrent, previousToNext)) {
+      return _merge(current, previousToNext);  // 병합 수행
+    }
+
+    throw new Error("Conflicting concurrent mutations.");
+  }
+
+  static reconcile(current, previous, next) {
+    if (current === previous) {
+      return next;
+    }
+
+    return SystemConsistency.threeWayMerge(current, previous, next);
+  }
+}
+```
+
+
+이전 버전과 현재 버전의 참조를 비교하는 이유는
+
+불변 데이터는 참조를 비교해도 안전하다.

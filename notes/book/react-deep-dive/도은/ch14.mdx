@@ -1,0 +1,207 @@
+- 웹사이트의 성능만큼이나 중요한 것은 바로 웹사이트의 보안
+- 코드의 규모가 증가한다는 것은 필연적으로 보안 취약점에 노출될 확률도 증가한다는 것을 의미
+
+## 14.1 리액트에서 발생하는 크로스 사이트 스크립팅(XSS)
+
+```
+💡 크로스 사이트 스크립팅(XSS)란?
+   웹사이트 개발자가 아닌 제3자가 웹사이트에 악성 스크립트를 삽입해 실행할 수 있는 취약점을 의미
+```
+
+- `script`가 실행될 수 있다면, 웹사이트 개발자가 할 수 있는 모든 작업을 함께 수행 가능
+  - 쿠키를 획득해 사용자의 로그인 세션 등을 탈취
+  - 사용자의 데이터를 변경하는 등 각종 위험성
+
+### 14.1.1 dangerouslySetInnerHTML prop
+
+- 특정 브라우저 DOM의 innerHTML을 특정한 내용을 교체할 수 있는 방법
+- 일반적으로 게시판과 같이 사용자나 관리자가 입력한 내용을 브라우저에 표시하는 용도로 사용
+
+```tsx
+function App() {
+  return <div dangerouslySetInnerHTML={{ __html: 'First &middot; Second' }} />;
+}
+```
+
+- 위험성은 `dangerouslySetInnerHTML`이 인수로 받는 문자열에는 **제한이 없다는 것**
+
+```tsx
+const html = `<span><svg/onload=alrt(origin)></span>`;
+
+function App() {
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+```
+
+- 즉, 자바스크립트 코드가 들어가면 실행이 가능하다
+
+### 14.1.2 useRef를 활용한 직접 삽입
+
+- useRef를 활용하면 직접 DOM에 접근 가능 → innerHTML에 보안 취약점이 있는 스크립트를 삽입하면 동일한 문제가 발생
+
+```tsx
+const html = `<span><svg/onload=alert(origin)></span>`;
+
+function App() {
+  const divRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (divRef.current) {
+      divRef.current.innerHTML = html;
+    }
+  });
+
+  return <div ref={divRef} />;
+}
+```
+
+### 14.1.3 리액트에서 XSS 문제를 피하는 방법
+
+```
+💡 리액트에서 XXS 이슈를 피하는 가장 확실한 방법은
+   제 3자가 삽입할 수 있는 HTML을 안전한 HTML 코드로 한 번 치환하는 것
+```
+
+- 이러한 과정을 새니타이즈(sanitize) 또는 이스케이프(escape)라고 하는데
+- 직접 구현하는 방법도 있지만, 가장 확실한 방법은 라이브러리를 사용하는 것
+  - [DOMpurity](https://github.com/cure53/DOMPurify)
+  - [sanitize-html](https://github.com/apostrophecms/sanitize-html)
+  - [js-xss](https://github.com/leizongmin/js-xss)
+
+```tsx
+import sanitizeHTML, { IOptions as SanitizeOptions } from 'sanitize-html';
+
+// 허용하는 태그
+const allowedTags = [
+  'div',
+  'p',
+  'span',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'figure',
+  'iframe',
+  'a',
+  'strong',
+  'i',
+  'br',
+  'img',
+];
+
+// 위 태그에서 허용할 모든 속성
+const defaultAttributes = ['style', 'class'];
+
+// 허용할 iframe 도메인
+const allowedIframeDomains = ['naver.com'];
+
+// 허용되는 태그 중 추가로 허용할 속성
+const allowedAttributeForTags: {
+  [key in (typeof allowedTags)[number]]: Array<string>;
+} = {
+  iframe: ['src', 'allowfullscreen', 'scrolling', 'frameborder', 'allow'],
+  img: ['src', 'alt'],
+  a: ['href'],
+};
+
+// allowedTags, allowedAttributeForTags, defaultAttributes를 기반으로 허용할 태그와 속성을 정의
+const allowedAttributes = allowedTags.reduce((result, tag) => {
+  const additionalAttrs = allowedAttributeForTags[tag] || [];
+  return { ...result, [tag]: [...additionalAttrs, ...defaultAttributes] };
+}, {});
+```
+
+- 허용할 태그와 목록을 일일히 나열하는 이른바 허용 목록(allow list) 방식을 채택하기 때문에
+  - 사용하기에 매우 귀찮게 느껴질 수도...
+  - 그러나 이렇게 허용 목록ㅇ르 작성하는 것이 훨씬 안전
+- 단순히 보여줄 때뿐만 아니라 **사용자가 콘텐츠를 저장할 때도 한번 이스케이프 과정**을 거치는 것이 효율적이고 안전
+  - 애초에 XSS 위험이 있는 콘텐츠를 데이터베이스에 저장하는 것이 도움
+  - 이러한 치환 과정은 되도록 서버에서 수행하는 것이 좋다
+  - 서버는 '클라이언트에서 사용자가 입력한 데이터는 일단 의심한다'라는 자세로 POST 요청이 있는 HTML을 이스케이프 하는 것이 제일 안전
+
+마지막으로 단순히 게시판과 같은 예시가 없다고 하더라도 XSS 문제는 충분히 발생 가능
+
+```tsx
+import { useRouter } from 'next/router';
+
+function App() {
+  const router = useRouter();
+  const query = router.query;
+  const html = query?.html?.toString() || '';
+
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+```
+
+- 위와 같이 쿼리스트링에 있는 내용을 그대로 실행하거나 보여주는 경우에도 보안 취약점이 발생
+
+## 14.2 getServerSideProps와 서버 컴포넌트를 주의하자
+
+- 서버에서는 일반 사용자에게 노출되면 안 되는 정보들이 담겨 있기 때문에
+- 클라이언트, 즉 브라우저에 정보를 내려줄 때는 조심해야 한다.
+
+```tsx
+export default function App({ cookie }: { cookie: string }) {
+  if (!validateCookie(cookie)) {
+    Router.replace(/* ... */);
+    return null;
+  }
+  /* do something... */
+}
+export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
+  const cookie = ctx.req.headers.cookie || '';
+  return {
+    props: {
+      cookie,
+    },
+  };
+};
+```
+
+- 예제에서는 getServerSideProps에서 cookie 정보를 가져온 다음, 이를 클라이언트 리액트 컴포넌트에 문자열로 제공해
+  - 클라이언트에서 쿠기의 유효성에 따라 이후 작업을 처리
+  - 보안에 썩 좋지 못함
+- getServerSideProps가 반환하는 props 값은 모두 사용자의 HTML에 기록
+- 충분히 getServerSideProps에서 처리할 수 있는 리다이렉트가 클라이언트에서 실행되어 성능 측면에서도 손해
+
+```
+💡 getServerSideProps가 반환하는 값 또는 서버 컴포넌트가 클라이언트 컴포넌트에 반환하는 props는
+   반드시 필요한 값으로만 철저하게 제한되어야 한다.
+```
+
+다음과 같이 수정할 수 있다.
+
+```tsx
+export default function App({ token }: { token: string }) {
+  const user = JSON.parse(window.atob(token.split('.')[1]));
+  const user_id = user.id;
+  /* do something... */
+}
+export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
+  const cookie = ctx.req.headers.cookie || '';
+  const token = validateCookie(cookie);
+
+  if (!token) {
+    return {
+      redirect: {
+        destination: '/404',
+        permanet: false,
+      },
+    };
+  }
+  return {
+    props: {
+      token,
+    },
+  };
+};
+```
+
+- 쿠키 전체를 제공하는 것이 아니라 클라이언트에서 필요한 token 값만 제한적으로 제공
+- 이 값을 얻을 때 예외 처리할 리다이렉트 모두 서버에서 처리
+
+## 14.3 `<a>` 태그의 값에 적절한 제한을 둬야 한다
+
+- 웹 개발 시에는 `<a>` 태그의 href에 `javascript:`로 시작하는 자바스크립트 코드를 넣어둔 경우를 본 적이 있을 것

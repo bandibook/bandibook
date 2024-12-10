@@ -33,5 +33,10 @@ export const membersInfo: Record<string, Array<MembersInfo>> = {
       profileUrl: 'https://avatars.githubusercontent.com/u/71186266?v=4',
       github: 'https://github.com/binary-ho',
     },
+    {
+      username: '권우석',
+      profileUrl: 'https://avatars.githubusercontent.com/u/62459196?v=4',
+      github: 'https://github.com/egg528',
+    },
   ],
 };

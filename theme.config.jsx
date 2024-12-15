@@ -1,9 +1,4 @@
-import MDXImage from './components/MDXImage';
-
 export default {
-  components: {
-    img: MDXImage
-  },
   logo: <img src="https://github.com/user-attachments/assets/2586cea2-d6fc-46c5-b3d2-d894796d6e33" width="80" />,
   project: {
     link: 'https://github.com/bandibook/bandibook',

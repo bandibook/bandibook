@@ -1,0 +1,172 @@
+<details>
+  <summary>우석</summary>
+  [데이터 지향 프로그래밍 - 6장 단위 테스트](https://egg528.tistory.com/7)
+</details><details>
+  <summary>만혁</summary>
+  ## 단위 테스트
+
+
+
+DOP 에서는 코드가 주로 데이터 조작 작업을 한다.
+
+함수 대부분이 데이터를 받고 데이터를 반환 한다는 것이다.
+
+이는 코드가 정상 동작하는지 확인하는 것이 무척 쉽다라는 뜻.
+
+
+
+
+### 6.1 간결한 데이터 지향 테스트 케이스
+
+테스트 케이스의 단계
+
+1. 입력 데이터 생성 : dataIn
+2. 기대되는 결과 생성 :  dataOut
+3. 함수가 반환하는 결과와 기대되는 결과 비교 : f(dataIn) 과  dataOut
+
+
+```js
+// 동일한 데이터 컬렉션의 재귀적 비교
+_.isEqual({
+ "name": "Alan Moore",
+ "booklsbns": ["978-1779501127"] 
+}, {
+ "name": "Alan Moore"
+ "booklsbns": ["978-1779501127"] 
+});
+
+// 동일하지 않은 데이터 컬랙션의 재귀적 비교
+
+_.isEqual({
+ "name": "Alan Moore",
+ "booklsbns": ["978-1779501127"] 
+}, {
+ "name": "Alan Moore"
+ "booklsbns": ["bad-isbn"] 
+});
+```
+
+
+```js
+// 데이터 지향 테스트 케이스의 일반 패턴
+const dataIn = {} // 입력
+const dataOut = {} // 기대 결과
+
+ _.isEqual(f(dataIn), dataOut);
+```
+
+
+
+### 6.2.1 함수 호출 트리
+
+코드베이스에 속하지 않은 함수에 도달할때 까지 계속 재귀적으로 트리를 확장해야 
+한다.
+
+
+> 함수 f의 함수 호출 트리는 f 가 루트인 트리다.
+> 그리고 트리 중 노드 g 의 자식은 g 가 호출하는 함수다.
+> 트리의 끝 단잎 노드는 애플리케이션의 코드베이스에 속하지 않는 함수다.
+> 이런 함수는 다른 함수를 호출하지 않는 함수다.
+
+### 6.2.2 끝 단 함수의 단위 테스트
+
+
+```js
+
+Catalog.authorNames = (catalogData, authorIds) => {
+    return _.map(authorIds, (authorId) => {
+        return _.get(catalogData, ["authorsById", authorId, "name"]);
+    });
+};
+```
+
+위 함수는  catalogData, authorIds 를 입력으로  authorNames 를 반환하는 함수이다.
+
+
+
+| catalogData | authorIds                      | authorNames                    |
+|-------------|--------------------------------|--------------------------------|
+| 저자가 둘인 장서   | []                             | []                             |
+| 저자가 둘인 장서   | ["alan-moore"]                 | ["Alan Moore"]                 |
+| 저자가 둘인 장서   | ["alan-moore", "dave-gibbons"] | ["Alan Moore", "Dave Gibbons"] |
+
+
+```js
+// 완전한 형태의 catalogData
+const catalogData = {
+  "booksByIsbn": {
+    "978-1779501127": {
+      "isbn": "978-1779501127",
+      "title": "Watchmen",
+      "publicationYear": 1987,
+      "authorIds": ["alan-moore", "dave-gibbons"],
+      "bookItems": [
+        {
+          "id": "book-item-1",
+          "libId": "nyc-central-lib",
+          "isLent": true
+        },
+        {
+          "id": "book-item-2",
+          "libId": "nyc-central-lib",
+          "isLent": false
+        }
+      ]
+    }
+  },
+  "authorsById": {
+    "alan-moore": {
+      "name": "Alan Moore",
+      "bookIsbns": ["978-1779501127"]
+    },
+    "dave-gibbons": {
+      "name": "Dave Gibbons",
+      "bookIsbns": ["978-1779501127"]
+    }
+  }
+}
+
+// 최소한의 catalogData
+const catalogData = {
+    "authorsById": {
+        "alan-moore": {
+          "name": "Alan Moore",
+          "bookIsbns": ["978-1779501127"]
+        },
+        "dave-gibbons": {
+          "name": "Dave Gibbons",
+          "bookIsbns": ["978-1779501127"]
+        }
+    }
+}
+```
+
+
+> DOP 에서 데이터의 유효성은 맥락에 따라 달라진다.
+> 데이터가 작을수록 다루기 쉽다.
+
+```js
+// authorNames 의 단위 테스트
+const catalogData = {
+  "authorsById": {
+    "alan-moore": {
+      "name": "Alan Moore"
+    },
+    "dave-gibbons": {
+      "name": "Dave Gibbons"
+    }
+  }
+};
+
+console.log(_.isEqual(Catalog.authorNames(catalogData, []), []));  
+console.log(_.isEqual(Catalog.authorNames(catalogData, ["alan-moore"]), ["Alan Moore"]));  
+console.log(_.isEqual(Catalog.authorNames(catalogData, ["alan-moore", "dave-gibbons"]), ["Alan Moore", "Dave Gibbons"]));
+```
+
+
+트리 내 위치가 위쪽일수록 데이터의 복잡도는 높고 테스트 케이스는 적다
+
+반대로 아래쪽일수록 데이터의 복잡도는 낮고 테스트 케이스 수는 많다.
+
+
+</details>

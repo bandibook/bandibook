@@ -29,7 +29,7 @@ export const membersInfo: Record<string, Array<MembersInfo>> = {
   ],
   '10000-bagger': [
     {
-      username: 'binary_ho',
+      username: '이진호',
       profileUrl: 'https://avatars.githubusercontent.com/u/71186266?v=4',
       github: 'https://github.com/binary-ho',
     },
@@ -37,6 +37,21 @@ export const membersInfo: Record<string, Array<MembersInfo>> = {
       username: '권우석',
       profileUrl: 'https://avatars.githubusercontent.com/u/62459196?v=4',
       github: 'https://github.com/egg528',
+    },
+    {
+      username: '류홍석',
+      profileUrl: 'https://avatars.githubusercontent.com/u/34956359?v=4',
+      github: 'https://github.com/deepbig',
+    },
+    {
+      username: '허준영',
+      profileUrl: 'https://avatars.githubusercontent.com/u/45158550?v=4',
+      github: 'https://github.com/hjy0951',
+    },
+    {
+      username: '신민경',
+      profileUrl: 'https://avatars.githubusercontent.com/u/80238096?v=4',
+      github: 'https://github.com/newminkyung',
     },
   ],
 };

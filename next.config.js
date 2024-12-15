@@ -1,8 +1,15 @@
-const replaceBr = require('./lib/remark-plugin');
+const fixImageLink = require('./lib/plugins/fix-image-link');
+const fixBrTag = require('./lib/plugins/fixBrTagPlugin');
 
 const withNextra = require('nextra')({
   theme: 'nextra-theme-docs',
   themeConfig: './theme.config.jsx',
+  mdxOptions: {
+    remarkPlugins: [
+      fixBrTag,
+      fixImageLink,
+    ]
+  }
 });
 
 module.exports = withNextra({
@@ -14,22 +21,5 @@ module.exports = withNextra({
         permanent: true,
       },
     ];
-  },
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.md$/,
-      use: [
-        {
-          loader: 'remark-loader',
-          options: {
-            remarkOptions: {
-              plugins: [replaceBr],
-            },
-          },
-        },
-      ],
-    });
-
-    return config;
-  },
+  }
 });

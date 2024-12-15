@@ -1,0 +1,48 @@
+## 기본 데이터 유효성 확인
+
+
+DOP 를 적용할때 범용 자료구조로 표현될 때 유효성을 확인하는 방법을 설명한다.
+
+
+DOP 에서는 데이터는 데이터대로 존재하고 데이터 스키마는 또 그 자체로 존재하게 된다.
+
+
+```js
+// 스키마 예시
+const searchBooksRequestSchema = {
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "publishers",
+          "number_of_pages",
+          "weight",
+          "physical—format",
+          "subjects",
+          "publish_date",
+          "physical_dimensions"
+        ]
+      }
+    },
+    "required": [
+      "title",
+      "fields"
+    ]
+  }
+}
+```
+
+JSON 스키마 문법은 클래스를 선언하는 문법에 비해 장황하다
+
+하지만 각 언어마다 스키마 유효성을 확인하는 도구들이 존재한다.
+
+
+
+시스템 경계의 데이터가 유효하다면, 시스템 내부의 데이터 유효성은 심각한 문제가 아니다.
+
+JSON 스키마를 정의하는것은 과거 ts 가 나오기전 js 로 타입을 명시하기 위한 노력과 닮은거 같다

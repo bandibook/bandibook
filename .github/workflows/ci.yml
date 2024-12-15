@@ -3,12 +3,9 @@ name: Bandibook CI
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-  push:
-    branches:
-      - main
 
 jobs:
-  setup-and-build:
+  build-bandibook:
     runs-on: ubuntu-latest
     
     steps:

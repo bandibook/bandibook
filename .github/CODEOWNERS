@@ -1,1 +1,9 @@
-* @hjy0951 @Doeunnkimm @ManHyuk @egg528 @binary-ho
+# 반디북 디렉토리
+/notes/book/ @hjy0951 @Doeunnkimm @ManHyuk @egg528
+
+# 10000-bagger 디렉토리
+/notes/10000-bagger/ @binary-ho @hjy0951 @egg528 @deepbig @newminkyung
+
+# 반디북 관리
+*.{js,ts,tsx,py,json} @binary-ho @egg528 @Doeunnkimm
+/.github/workflows/ @binary-ho @Doeunnkimm @egg528

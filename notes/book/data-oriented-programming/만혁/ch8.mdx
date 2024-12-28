@@ -1,0 +1,78 @@
+## 고급 동시성제어 
+
+
+
+동시성을 제어하기 위해서는 락이 필요하다
+
+락은 조회, 쓰기시에 적용이 가능하지만
+
+
+조회시에 락을 사용하는것은 규모가 큰 시스템에서는 비용이 크다
+
+
+> 조회시 락을 사용하는 이유는 다중 스레드 환경에서 
+> 조회 도중에 데이터가 변경되는 상황을 막기 위해서다
+
+
+DOP 에서는 불변 데이터이기 때문에 조회시에 락을 적용할 필요 없다
+
+
+또한 쓰기에서도 원자라고 부르는 더 단순한 구조를 사용하기에 락이 필요 없다
+
+
+
+### 8.2 스레드 안전한 원자 계수기(thread safe atomic counter)
+
+
+```js
+class Atom {
+  state;
+  constructor() {}
+  get() {
+    return this.state;
+  }
+  set(state) {
+    this.state = state;
+  }
+  swap(f) {
+    while (true) {
+      var stateSnapshot = this.state;
+      var nextState = f(stateSnapshot);
+      if (!atomicCompareAndSet(this.state, stateSnapshot, nextState)) {
+        continue;
+      }
+      return nextState;
+    }
+  }
+}
+
+```
+
+
+> 자바에서의 [atom](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicReference.html)
+
+
+```java
+// 자바에서 사용 예시
+Atom<Integer> counter = new Atom<Integer>();
+
+counter.set(0);
+counter.swap(x -> x + 1);
+counter.get();
+```
+
+이론적으로 수천개의 스레드가 swap 만 실행하고 있다면 원자는 기아(starvation)에 빠질 수 있다.
+
+하지만 현실에서는 일단 swap 이 실행되면 스레드는 db i/o 와 같은 본업을 수행한다.
+
+따라서 다른 스레드가 원자의 swap 을 성공적으로 실행할 기회가 주어진다.
+
+
+
+---
+
+데이터를 다루는 방법은 다양한것 같다. 미처 생각도 못한 내용도 많았고, 
+
+의식하고 사용하지 않았음에도 내부 구현이 되어있는 경우도 있는것 같다.
+
+근데 내 코드에는 어떻게 적용해야할지 감도 안온다

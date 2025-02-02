@@ -26,6 +26,11 @@ export const membersInfo: Record<string, Array<MembersInfo>> = {
       profileUrl: 'https://avatars.githubusercontent.com/u/62459196?v=4',
       github: 'https://github.com/egg528',
     },
+    {
+      username: '이세민',
+      profileUrl: 'https://avatars.githubusercontent.com/u/89172499?v=4',
+      github: 'https://github.com/semnil5202',
+    },
   ],
   '10000-bagger': [
     {

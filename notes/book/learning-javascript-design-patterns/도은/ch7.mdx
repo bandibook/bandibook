@@ -1,0 +1,555 @@
+> 자바스크립트에서 사용되는 다양한 종류의 고전 및 최신 디자인 패턴을 다룬다.
+
+## 7.1 생성 패턴
+
+- 생성자 패턴
+- 모듈 패턴
+- 노출 모듈 패턴
+- 싱글톤 패턴
+- 프로토타입 패턴
+- 팩토리 패턴
+
+## 7.2 생성자 패턴
+
+- 생성자는 객체가 새로 만들어진 뒤 **초기화하는 데에 사용**되는 특별한 메서드
+
+![Image](https://github.com/user-attachments/assets/384ea688-bea1-4d10-9a48-5e14cb4018f2)
+
+### 7.2.1 객체 생성
+
+- 다음은 자바스크립트에서 새로운 객체를 만들 때 사용되는 세 가지 일반적인 방법이다.
+
+```js
+// 방법 1. 리터럴 표기법을 사용하여 빈 객체 생성
+const newObject = {};
+
+// 방법 2. Object.create() 메서드를 사용하여 빈 객체 생성
+const newObject = Object.create(Object.prototype);
+
+// 방법 3. new 키워드를 사용하여 빈 객체 생성
+const newObject = new Object();
+```
+
+### 7.2.2 생성자의 기본 특징
+
+- 아래는 생성자 패턴의 간단한 예제이다.
+- 그러나 몇 가지 문제가 있다.
+  - 상속이 어려워진다는 점
+  - Car 생성자로 객체를 생성할 때마다 `toString()`과 같은 함수를 새로 정의한다는 점
+  - Car 유형의 인스턴스는 모두 동일한 함수를 공유해야 하므로 이 방법은 효과적 X
+
+```js
+class Car {
+  constructor(model, year, miles) {
+    this.model = model;
+    this.year = year;
+    this.miles = miles;
+  }
+
+  toString() {
+    return `${this.model} has done ${this.miles} miles`;
+  }
+}
+
+let civic = new Car('Honda Civic', 2009, 20000);
+let mondeo = new Car('Ford Mondeo', 2010, 5000);
+```
+
+### 7.2.3 프로토타입을 가진 생성자
+
+- 자바스크립트의 프로토타입 객체는 함수나 클래스 등 특정 객체의 모든 인스턴스 내에 공통 메서드를 쉽게 정의 가능
+- **생성자를 통해 객체를 생성하면 생성자의 프로토타입 객체에 속한 속성을 새 객체에서도 활용 가능**
+
+```js
+class Car {
+  constructor(model, year, miles) {
+    this.model = model;
+    this.year = year;
+    this.miles = miles;
+  }
+}
+
+// 프로토타입 객체의 재정의를 피하기 위해 Object.prototype 대신
+// Object.prototype.newMethod 형태를 사용하고 있음의 유의하자
+// 기존에 이미 정의된 프로토타입 객체를 유지하기 위함
+Car.prototype.toString = function () {
+  return `${this.model} has done ${this.miles} miles`;
+};
+
+// 사용법
+// 이제 모든 Car 객체는 toString() 메서드를 공유하게 된다.
+let civic = new Car('Honda Civic', 2009, 20000);
+let mondeo = new Car('Ford Mondeo', 2010, 5000);
+```
+
+_**📝 NOTE**_
+
+- ES6 클래스는 메서드를 prototype에 자동으로 추가
+
+## 7.3 모듈 패턴
+
+- 모듈은 애플리케이션 아키텍처의 핵심 구성 요소
+- 프로젝트를 구성하는 코드 단위를 체계적으로 분리 및 관리하는 데 효과적으로 활용
+
+### 7.3.1 객체 리터럴
+
+- 다음은 객체 리터럴 표기법을 사용하여 모듈을 정의한 예제이다.
+- 객체 리터럴을 사용하면 **코드를 캡슐화하여 깔끔하고 체계적으로 정리** 가능
+
+```js
+const myModule = {
+  myProperty: 'someValue',
+  // 객체 리터럴은 속성으로 값과 메서드를 모두 가질 수 있다.
+  saySomething() {
+    console.log('Where is Paul Irish debugging today?');
+  },
+  // 현재 객체의 속성 값을 사용하는 메서드
+  reportMyConfig() {
+    console.log(`Caching is: ${this.myConfig.useCaching ? `enabled` : `disabled`}`);
+  },
+  // 현재 객체의 속성 값을 덮어씌우는(override) 메서드
+  updateMyConfig(newConfig) {
+    if (typeof newConfig === 'object') {
+      this.myConfig = newConfig;
+      console.log(this.myConfig.language);
+    }
+  },
+};
+```
+
+### 7.3.2 모듈 패턴
+
+- 클래스의 **캡슐화**를 위해 처음 고안되었다.
+
+![Image](https://github.com/user-attachments/assets/c534c63a-6c3c-4e20-ba86-7333e488dc13)
+
+#### 비공개
+
+- 모듈 패턴은 클로저(closure)를 활용해 '비공개' 상태와 구성을 캡슐화
+- 모듈 패턴을 사용한다면 공개 API 만을 노출하고 나머지는 클로저 내부에 비공개로 유지할 수 있다.
+
+#### 예제
+
+- import, export를 사용하여 독립적인 모듈을 만들어 모듈 패턴을 구현해보자
+
+```js
+let counter = 0;
+
+const testModule = {
+  incrementCounter() {
+    return counter++;
+  },
+  resetCounter() {
+    console.log(`counter value prior to reset ${counter}`);
+    counter = 0;
+  },
+};
+
+// 변수명을 정하지 않고 디폴트 default로서 내보내는 방법
+export default testModule;
+
+// 모듈을 가져올 경로 설정
+import testModule from './testModule';
+testModule.incrementCounter();
+testmodule.resetCounter();
+```
+
+- counter 변수는 전역 스코프로부터 완전히 보호되어 비공개 변수로서 작동
+- 모듈 내에서 선언된 변수는 해당 모듈을 import한 모든 파일에서 공유하므로
+- foo.js, bar.js 파일에서 불러서 `incrementCounter` 한다면 그 값을 공유하게 된다.
+
+_**🤔 바인딩**_
+
+- 변수 이름에 값 또는 메모리 위치를 **연결**하는 작업
+- `import`는 모듈에서 내보낸 바인딩을 가져올 수 있게 하는 키워드
+
+_**🤔 javascript의 bind 메서드**_
+
+- `this` 값을 고정하고, 함수의 인자들을 미리 설정
+- `bind()`를 통해 바인딩을 명시적으로 설정할 수 있다.ㄴ
+
+```js
+function greet() {
+  console.log(`Hello, my name is ${this.name}`);
+}
+
+const person = {
+  name: 'Alice',
+};
+
+const greetPerson = greet.bind(person);
+greetPerson(); // "Hello, my name is Alice"
+```
+
+- 아래는 다른 에제이다.
+
+```js
+// 비공개 변수 및 함수
+const basket = [];
+
+const doSomethingPrivate = () => {
+  // ...
+};
+const doSomethingElsePrivate = () => {
+  // ...
+};
+// 다른 파일에 공개할 객체 생성
+const basketModule = {
+  addItem(values) {
+    basket.push(values);
+  },
+  getItemCount() {
+    return basket.length;
+  },
+  doSomething() {
+    doSomethingPrivate();
+  },
+  getTotal() {
+    return basket.reduce((currentItem, item) => item.price + currentSum, 0);
+  },
+};
+
+import basketModule from './basketModule';
+basketModule.addItem({
+  item: 'bread',
+  price: 0.5,
+});
+basketModule.addItem({
+  item: 'butter',
+  price: 0.3,
+});
+
+console.log(basketModule.getItemCount()); // 2
+console.log(basketModule.getTotal()); // 0.8
+```
+
+### 7.3.3 모듈 패턴의 변형
+
+- 시간이 지나면서 각자의 입맛에 맞는 모듈 패턴의 변형들이 등장하기 시작
+
+#### 믹스인(Mixin) 가져오기 변형
+
+- 외부 라이브러리 같은 전역 스코프에 있는 요소를 모듈 내부의 고차 함수에 인자로 전달할 수 있게 한다.
+- 전역 스코프 요소를 가져와 맘대로 이름을 지정하는 것이 가능
+
+```js
+// utils.js
+export const min = (arr) => Math.min(...arr);
+
+// privateMethods.js
+import { min } from './utils';
+
+export const privateMethod = () => {
+  console.log(min([10, 5, 100, 2, 1000]));
+};
+
+// myModule.js
+import { privateMethod } from './privateMethods';
+
+const myModule = () => ({
+  publicMethod() {
+    privateMethod();
+  },
+});
+export default myModule;
+
+// main.js
+import myModule from './myModule';
+
+const moduleInstance = myModule();
+moduleInstance.publicMethod();
+```
+
+#### 내보내기 변형
+
+- 이름을 지정해주지 않고 전역 스코프로 변수를 내보낸다.
+
+```js
+// module.js
+const privateVaraible = 'Hello World';
+
+const privateMethod = () => {
+  // ...
+};
+
+const module = {
+  publicProperty: 'Foobar',
+  publicMethod: () => {
+    console.log(privateVariable);
+  },
+};
+export default mdoule;
+```
+
+#### 장점
+
+> 어째서 모듈 패턴을 사용해야 할까?
+
+- 모듈 사이의 의존성을 관리
+- 전역 요소를 원하는 만큼 넘겨주어 코드의 유지보수를 용이하게 하고 독립적으로
+- `export`를 이용해 바깥으로 노출하는 모듈은 공개, 그렇지 않으면 비공개로 유지
+  - 불필요한 전역 스코프 오염을 방지하는 것이 가능
+
+#### 단점
+
+- 공개와 비공개 멤버를 서로 다르게 접근해야 한다는 것
+- 공개 여부를 바꾸고 싶다면 값이 위치한 파일로 가서 바꾸어주어야 한다.
+- 자동화 단위 테스트에서 비공개 멤버는 제외된다는 것
+- 핫 픽스가 필요한 오류를 고칠 때 복잡도를 높인다
+  - 오류가 발생한 비공개 멤버를 고치기 위해서는 해당 비공개 멤버를 사용하는 모든 공개 메서드를 살펴봐야만 한다.
+  - 🤔 ^ 이건 모든 모듈이 다 그런 거 아닌가 ,,
+
+### 7.3.4 WeakMap을 사용하는 최신 모듈 패턴
+
+- [`WeakMap`](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/WeakMap) 객체는 약한 참조를 가진 키-값의 쌍으로 이루어진 집합체
+- **키는 기본적으로 약하게 유지되어, 참조되지 않는 키는 GC의 대상**이 된다.
+
+**_🤔 WeakMap을 사용하면 뭐가 특별한가?_**
+
+1. 안전한 캡슐화 → 외부에서 접근 불가능한 private 상태 유지
+2. 자동 메모리 관리 → 인스턴스가 삭제되면 WeakMap 내부의 값도 GC의 대상이 됨
+3. this 기반으로 객체를 관리 → 특정 인스턴스에만 연관된 데이터 저장 가능
+
+즉, WeakMap을 사용하면 안전하고 효율적인 private 변수를 가질 수 있다.
+
+아래와 같이 일반 속성으로 관리할 경우 외부에서 값을 접근하고 변경하는 것이 가능하다.
+
+```js
+class Module {
+  constructor() {
+    this.counter = 0; // 내부 상태를 일반 속성으로 관리
+  }
+  incrementCounter() {
+    this.counter++;
+    return this.counter;
+  }
+  resetCounter() {
+    console.log(`Counter before reset: ${this.counter}`);
+    this.counter = 0;
+  }
+}
+
+const module1 = new Module();
+console.log(module1.incrementCounter()); // 1
+console.log(module1.incrementCounter()); // 2
+module1.resetCounter(); // Counter before reset: 2
+
+// 외부에서 직접 접근 가능!
+console.log(module1.counter); // 0
+module1.counter = 999; // 값 변경 가능
+console.log(module1.counter); // 999
+```
+
+👇 기본 모듈 정의
+
+```js
+let _counter = new WeakMap();
+
+class Module {
+  constructor() {
+    _counter.set(this, 0);
+  }
+  incrementCounter() {
+    let counter = _counter.get(this);
+    counter++;
+    _counter.set(this, counter);
+    return _counter.get(this);
+  }
+  resetCounter() {
+    console.log(`counter value prior to reset: ${_counter.get(this)}`);
+    _counter.set(this, 0);
+  }
+}
+
+const testModule = new Module();
+testModule.incrementCounter();
+testModule.resetCounter();
+```
+
+👇 공개/비공개 변수 지정
+
+```js
+const myPrivateVar = new WeakMap();
+const myPrivateMethod = new WeakMap();
+
+class myNamespace {
+  constructor() {
+    myPrivateVar.set(this, 0);
+    myPrivateMethod.set(this, (foo) => console.log(foo));
+    // 공개 변수
+    this.myPublicVar = 'foo';
+  }
+  myPublicFunction(bar) {
+    let privateVar = myPrivateVar.get(this);
+    const privateMethod = myPrivateMethod.get(this);
+    privateVar++;
+    myPrivateVar.set(this, privateVar);
+    privateMethod(bar);
+  }
+}
+```
+
+## 7.4 노출 모듈 패턴
+
+- 공개 변수나 메서드에 접근하기 위해 가져온 메인 객체의 이름을 반복해서 사용해야 한다는 점에 답답함을 느끼면서 생겨났다.
+- 그 결과 모든 함수와 변수를 비공개 스코프에 정의하고
+- 공개하고 싶은 부분만 포인터를 통해 비공개 요소에 접근할 수 있게 해주는 익명 객체를 반환하는 패턴이 생겼다.
+
+```js
+let privateVar = 'Rob Dodson';
+const publicVar = 'Hey there!';
+
+const privateFunction = () => {
+  console.log(`Name:${privateVar}`);
+};
+const publicSetName = (strName) => {
+  privateVar = strName;
+};
+const publicGetName = () => {
+  privateFunction();
+};
+
+// 비공개 함수와 속성에 접근하는 공개 포인터
+const myRevealingModule = {
+  setName: publicSetName,
+  greeting: publicVar,
+  getName: publicGetName,
+};
+export default myRevealingModule;
+
+// 사용법
+import myRevealingModule from './myRevealingModule';
+myRevealingModule.setName('Matt Gaunt');
+```
+
+- 노출 모듈 패턴을 사용하면 좀 더 구체적인 이름을 붙여 비공개 요소를 공개로 내보낼 수도 있다.
+
+### 7.4.1 장점
+
+- 코드의 일관성이 유지
+- 모듈의 가장 아래에 위치한 공개 객체를 더 알아보기 쉽게 바꾸어 가독성 향상
+
+### 7.4.2 단점
+
+- 사용처에서의 확장이 어려움
+  - 새로운 기능을 추가하거나 수정하려면 기존 모듈을 수정해야 함
+
+**_🤔 함수 호출에 의해 내보내기를 해야 할 때는 노출 모듈 패턴 사용이 불가피하지 않나?_**
+
+- ES6 모듈은 정적 구조가 제약이 있음
+  - 분기로 export하는 것이 불가능
+- 넘긴 인자에 따라, 필요한 기능 혹은 값만 노출하고 싶을 때는 노출 모듈 패턴이 유용하다고 생각
+
+```js
+const { fooA, fooB, updateFoo } = useFoo('foo');
+```
+
+## 7.5 싱글톤 패턴
+
+- **인스턴스가 오직 하나만** 존재하도록 제한하는 패턴
+- 전역에서 접근 및 공유해야 하는 단 하나의 객체가 필요할 때 유용
+- **인스턴스가 이미 존재할 경우에는 해당 인스턴스의 참조를 반환**
+- ES2015+에서는 클래스의 전역 인스턴스를 단 한 번만 생성하는 싱글톤 패턴을 구현 가능
+
+```js
+let instance;
+const privateMethod = () => {
+  console.log('I am private');
+};
+const privateVariable = "I'm also private";
+
+class MySingleton {
+  constructor() {
+    if (!instance) {
+      this.publicProperty = 'I am also public';
+      this.randomNumber = Math.random(); // **인스턴스 내에서 유지**
+      instance = this;
+    }
+    return instance;
+  }
+
+  publicMethod() {
+    console.log('The public can see me!');
+  }
+
+  getRandomNumber() {
+    return this.randomNumber; // **인스턴스 변수 사용**
+  }
+}
+
+// 사용법
+const singleA = new MySingleton();
+const singleB = new MySingleton();
+console.log(singleA === singleB); // ✅ true (같은 인스턴스)
+console.log(singleA.getRandomNumber() === singleB.getRandomNumber()); // ✅ true
+```
+
+- 싱글톤의 특징은 인스턴스에 대한 전역 접근을 허용한다는 것
+- 싱글톤 패턴의 적합성을 다음과 같이 말한다.
+
+  - 클래스의 인스턴스는 정확히 하나만 있어야 하며, 눈에 잘 보이는 곳에 위치시켜 접근을 용이하게 해야 한다.
+  - 싱글톤 인스턴스는 하나만 존재해야 하므로, 인스턴스의 상태나 기능을 확장하려면 서브클래스를 통해서만 확장해야 한다.
+
+    ```js
+    // 기본 싱글톤 클래스
+    let instance;
+
+    class MySingleton {
+      constructor() {
+        if (!instance) {
+          this.publicProperty = 'I am also public';
+          this.randomNumber = Math.random(); // 랜덤 값
+          instance = this; // 최초 인스턴스를 저장
+        }
+        return instance; // 기존 인스턴스 반환
+      }
+
+      publicMethod() {
+        console.log('The public can see me!');
+      }
+
+      getRandomNumber() {
+        return this.randomNumber;
+      }
+    }
+
+    // 서브클래싱을 통해 확장하기
+    class ExtendedSingleton extends MySingleton {
+      constructor() {
+        super(); // 부모 클래스의 생성자를 호출하여 기존 싱글톤 인스턴스를 가져옴
+        this.newProperty = 'I am a new property'; // 새로 추가한 속성
+      }
+
+      newMethod() {
+        console.log('I am a new method in the extended singleton!');
+      }
+    }
+
+    // 사용 예제
+    const instanceA = new ExtendedSingleton();
+    const instanceB = new ExtendedSingleton();
+
+    console.log(instanceA === instanceB); // true: 싱글톤이기 때문에 동일한 인스턴스를 참조
+
+    console.log(instanceA.getRandomNumber() === instanceB.getRandomNumber()); // true: 동일한 값
+
+    console.log(instanceA.newProperty); // "I am a new property"
+    instanceA.newMethod(); // "I am a new method in the extended singleton!"
+    ```
+
+### 7.5.1 단점
+
+- 테스트하기 어려움
+  - 싱글톤은 전역적으로 하나의 인스턴스를 공유하기 때문에, 테스트 환경에서 상태를 초기화하거나 독립적인 테스트를 수행하기 어려울 수 있다.
+  - 하나의 테스트에서 상태가 변경되면, 다른 테스트에도 영향을 줄 수 있다.
+- 유지보수하기 힘듦
+  - 여러 곳에서 싱글톤을 참조하면, 코드 의존성이 증가하고 유지보수가 어려워진다.
+
+**_🤔 언제 싱글톤을 피해야 할까?_**
+
+> ✅ 상태가 자주 변경되지 않는 경우에는 사용 가능
+
+- 여러 컴포넌트에서 상태 변경이 빈번한 경우 피하자
+  - 어느 컴포넌트에서 상태를 변경했는지 추적하기 어렵기 때문
+
+**_🤔 리액트로 알아보는 싱글톤 패턴_**

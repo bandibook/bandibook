@@ -765,6 +765,498 @@ abstractVehicleFactory.registerVehicle('car', Car);
 abstractVehicleFactory.registerVehicle('truck', Truck);
 ```
 
-**_🤔 추상 팩토리 잘 쓰기_**
-
 ## 7.8 구조 패턴
+
+- 클래스와 객체의 구성을 다룬다.
+- 상속의 개념을 통해 인터페이스와 객체를 구성하여 새로운 기능을 추가할 수 있는 것처럼
+
+다음과 같은 구조 패턴을 다룬다.
+
+- 퍼사드 패턴
+- 믹스인 패턴
+- 데코레이터 패턴
+- 플라이웨이트 패턴
+
+## 7.9 퍼사드 패턴
+
+- 실제 모습을 숨기고 겉모습만을 세상에 드러내는 것
+- **심층적인 복잡성을 숨기고, 사용하기 편리한 높은 수준의 인터페이스를 제공하는 패턴**
+- 곧, 사용성 향상
+
+```js
+const addMyEvent = (el, ev, fn) => {
+  if (el.addEventListener) {
+    el.addEventListender(ev, fn, false);
+  } else if (el.attachEvent) {
+    el.attachEvent(`on${ev}`, fn);
+  } else {
+    el[`on${ev}`] = fn;
+  }
+};
+```
+
+```
+💡 많은 사람이 사용하는 복잡한 구현을 숨긴다
+```
+
+```js
+// privateMethods.js
+const _private = {
+  i: 5,
+  get() {
+    console.log(`current value: ${this.i}`);
+  },
+  set(val) {
+    this.i = val;
+  },
+  run() {
+    console.log(`running`);
+  },
+  jump() {
+    console.log(`jumping`);
+  },
+};
+export default _private;
+
+// module.js
+import _private from './privateMethods.js';
+const module = {
+  facade({ val, run }) {
+    _private.set(val);
+    _private.get();
+    if (run) {
+      _private.run();
+    }
+  },
+};
+export default module
+
+// index.js
+import module from './module.js'
+
+// 출력: "current value: 10" and "running"
+module.facade({
+  run: true,
+  val: 10
+})
+```
+
+- `module.facade()`는 모듈 내부에서 비밀스런 동작을 실행하지만
+- 사용자는 내부에서 무슨 일이 벌어지는지 몰라도 됩니다.
+
+## 7.11 서브 클래싱
+
+- ES2015+에서 도입된 기능을 통해 기존 또는 부모 클래스를 확장할 수도, 부모 클래스의 메서드를 호출할 수도 있게 되었다.
+- 부모 클래스를 확장하는 자식 클래스를 **서브클래스**라고 한다.
+
+```
+💡 서브클래싱
+   부모 클래스 객체에서 속성을 상속받아 새로운 객체를 만드는 것
+```
+
+- 서브클래스는 부모 클래스에서 먼저 정의된 메서드를 오버라이드하는 것도 가능
+- 부모 클래스의 생성자를 호출할 수도 있다. 이를 생성자 체이닝이라고 한다.
+
+```js
+class Person {
+  constructor(firstName, lastName) {
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.gender = 'male';
+  }
+}
+
+// Person의 새 인스턴스는 이처럼 쉽게 생성된다.
+const clark = new Person('Clark', 'Kent');
+
+// Person 클래스의 서브클래스가 되는 새 클래스를 만들자
+class Superhero extends Person {
+  constructor(firstName, lastName, powers) {
+    super(firstName, lastName);
+    this.powers = powers;
+  }
+}
+```
+
+## 7.12 믹스인
+
+- 자바스크립트에서는 기능의 확장을 위해 믹스인 상속을 이용한다.
+- 새롭게 만들어지는 클래스는 부모 클래스로부터 메서드와 속성을 부여받는다.
+- 믹스인은 **최소한의 복잡성으로 객체의 기능을 빌리거나 상속할 수 있게** 해준다.
+- 자바스크립트 클래스는 **부모 클래스를 하나만 가질 수 있지만**
+  - 여러 클래스의 기능을 섞는 것으로 문제를 해결할 수 있다.
+- 부모 클래스를 받아 새로운 서브클래스를 만들어내는 믹스인 함수를 정의할 수 있다.
+
+```js
+const MyMixins = (superclass) => {
+  return class extends superclass {
+    moveUp() {
+      console.log('move up');
+    }
+    moveDown() {
+      console.log('move down');
+    }
+    stop() {
+      console.log('stop! in the name of love!');
+    }
+  };
+};
+```
+
+- 부모 클래스를 받아 확장하는 `MyMixins` 함수를 만들었다.
+
+이제 `MyMixins`를 사용하여 기존 클래스의 기능에 더불어 추가 기능을 가진 서브클래스를 생성해보자
+
+```js
+// CarAnimator 생성자와 기본 구조
+class CarAnimator {
+  moveLeft() {
+    console.log('move left');
+  }
+}
+
+class PersonAnimator {
+  moveRendomly() {
+    //...
+  }
+}
+
+class MyAnimator extends MyMixins(CarAnimator) {}
+
+cont myAnimator = new MyAnimator()
+myAnimator.moveLeft()
+myAnimator.moveDown()
+myAnimator.stop()
+```
+
+### 7.12.1 장점과 단점
+
+```
+💡 믹스인은 함수의 중복을 줄이고 재사용성을 높인다.
+```
+
+- 장점
+  - 믹스인을 통해 **기능을 공유하여 중복을 피하고** 고유 기능을 구현하는 데에 집중 가능
+- 단점
+  - 몇몇의 개발자들은 클래스나 객체의 프로토타입에 기능을 주입한느 것을 나쁜 방법이라고
+  - 프로토타입 오염과 함수의 출처에 대한 불확실성을 초래하기 때문
+  - **믹스인은 객체나 클래스의 프로토타입을 수정해서 기능을 추가하는 방식**
+
+## 7.13 데코레이터 패턴
+
+- **코드 재사용**을 목표로 하는 구조 패턴
+- 믹스인과 마찬가지로 객체 서브클래싱의 다른 방법
+- 데코레이터는 기존 클래스에 **동적으로 기능을 추가하기 위해** 사용
+- 데코레이터를 사용하면 **기존 시스템의 내부 코드를 힘겹게 바꾸지 않고도 기능을 추가할 수 있게** 된다.
+- 객체의 생성을 신경 쓰지 않는 대신, **기능의 확장**에 좀 더 초점
+
+👇 생성자에 **데코레이터를 붙여** 새로운 기능 추가하거
+
+```js
+// Vehicle 생성자
+class Vehicle {
+  constructor(vehicleType) {
+    // 일부 합리적인 기본값
+    this.vehicleType = vehicleType || 'car';
+    this.mode = 'default';
+    this.license = '00000-000';
+  }
+}
+
+// 기본 Vehicle에 대한 테스트 인스턴스
+const testInstance = new Vehicle('car');
+console.log(testInstance); // vehicle: car, mode:default, license: 00000-000
+
+// 데코레이터될 새로운 차량 인스턴스를 생성
+const truck = new Vehicle('truck');
+truck.setModel = function (modelName) {
+  this.mode = modelName;
+};
+truck.setColor = function (color) {
+  this.color = color;
+};
+
+truck.setModel('CAT');
+truck.setColor('blue');
+
+console.log(truck); // vehicle:truck, model:CAT, color:blue
+
+// "vehicle"이 변경되지 않았음을 보여준다
+const secondInstance = new Vehicle('car');
+console.log(secondInstance); // vehicle:car, mode:default, license: 0000-000
+```
+
+- `truck`은 `Vehicle` 클래스의 인스턴스
+- `setColor`와 `setModel` 메서드를 **데코레이터로 추가**
+
+👇 여러 데코레이터로 객체의 기능 확장하기
+
+```js
+// 데코레이터를 사용할 생성자
+class MacMook {
+  constructor() {
+    this.cost = 997;
+    this.screenSize = 11.6;
+  }
+  getCost() {
+    return this.cost;
+  }
+  getScreenSize() {
+    return this.screenSize;
+  }
+}
+
+// 데코레이터 1
+class Memory extends MacBook {
+  constructor(macBook) {
+    super();
+    this.macBook = macBook;
+  }
+  getCost() {
+    return this.macBook.getCost() + 75;
+  }
+}
+
+// 데코레이터2
+class Engraving extends MacBook {
+  constructor(macBook) {
+    super();
+    this.macBook = macBook;
+  }
+  getCost() {
+    return this.macBook.getCose() + 200;
+  }
+}
+
+// 메인 객체 초기화
+let mb = new MacBook();
+// 데코레이터 초기화
+mb = new Memory(mb);
+mb = new Memory(mb);
+```
+
+- 맥북의 업그레이드에 필요한 추가 비용을 반환하기 위해 `MacBook` 부모 클래스 객체의 `.getCost()` 힘수를 **데코레이터로 오버라이드**
+
+**_🤔 데코레이터 === 오버라이드 === 확장 ?_**
+
+- 오버라이드는 완전히 재정의하는 것
+- 데코레이터는 기존 기능을 감싸서 기능 추가
+- 확장은 기존 기능을 늘리는 것
+
+![Image](https://github.com/user-attachments/assets/e0ed2d92-3b94-421c-94c1-cf8fc282a670)
+
+## 7.14 의사 클래스 데코레이터
+
+- 데코레이터의 변형 버전
+
+### 7.14.1 인터페이스
+
+```
+💡 인터페이스
+   객체가 가져야 할 메서드를 정의하는 방법
+   → 메서드가 가지는 매개변수
+```
+
+👇 덕 타이핑을 사용해 자바스크립트의 인터페이스를 구현
+
+```js
+// 인터페이스의 이름과 노출할 스켈레톤 메서드를 받아들이는 Interface 생성자를 사용하여 인터페이스 생성
+
+const reminder = new Interface('List', ['summary', 'placeholder']);
+const properties = {
+  name: 'Remember to buy the milk',
+  date: '05/06/2040',
+  actions: {
+    summary() {
+      return `Remember to buy the milk, we are almost out!`;
+    },
+    placeholder() {
+      return 'Ordering milk from your local grocery store';
+    },
+  },
+};
+
+// 이제 이러한 속성과 메서드를 구현하는 생성자 생성
+class Todo {
+  constructor({ actions, name }) {
+    // `actions` 객체가 `reminder` 인터페이스의 요구사항을 충족하는지 확인
+    // 충족하지 않다면 내부에서 에러를 throw하거나 할 것..
+    Interface.ensureImpements(actions, reminder);
+    this.name = name;
+    this.methods = actions;
+  }
+}
+
+//  Todo 생성자의 새 인스턴스 생성
+const todoItem = new Todo(properties);
+```
+
+**_🤔 TypeScript를 사용하면 위 패턴은 그닥..?_**
+
+- `Interface.ensureImpements()` 같은 패턴을 쓰는 이유는 인터페이스를 강제하기 위해서
+- 런타임 오류를 줄이고, 협업 시 규칙을 명확하게 만들 수 있음
+- 하지만 실제로는 `TypeScript` 같은 정적 타입 시스템을 쓰는 게 훨씬 좋은 방법
+
+### 7.14.2 추상 데코레이터
+
+- 컴포넌트의 구조를 유지하면서도 기능을 확장
+- 같은 인터페이스를 사용하기 때문에 서로 호환성을 높이는 방법
+
+```js
+const MacBook = new Interface('MacBook', ['addEngraving', 'addParallels', 'add4GBRam', 'add8GBRam', 'addCase']);
+
+// MacBook Pro는 다음과 같이 표현될 수 있다.
+class MacBookPro {
+  // MacBook 구현
+}
+
+// 내부적으로 같은 구조를 사용하기 때문에 ES2015+의 `Object.prototype`을 사용하여 새로운 메서드 추가 가능
+MacBookPro.prototype = {
+  addEngraving() {},
+  addParallels() {},
+  ...
+};
+```
+
+- 추상 데코레이터 클래스는 `MacBook` 인터페이스를 구현하기 위해 필요한 기본 메서드를 정의
+  - 나머지 옵션은 서브클래스
+
+```js
+// MacBook 추상 데코레이터 클래스
+class MacBookDecorator {
+  constructor(macbook) {
+    Interface.ensureImpements(macbook, MacBook);
+    this.macbook = macbook;
+  }
+  addEngraving() {
+    return this.macbook.addEngraving();
+  }
+  ...
+}
+```
+
+- 정의했던 `MacBook` 인터페이스를 사용하면 각 메서드는 컴포넌트에서 같은 일므의 메서드를 호출하면 된다.
+
+```js
+// 이제 MacBookDecorator를 사용해 CaseDecorator를 확장
+class CaseDecorator extends MacBookDecorator {
+  constructor(macbook) {
+    super(macbook);
+  }
+  addCase() {
+    return `${this.macbook.addCase()}Adding case to macbook`;
+  }
+  getPrice() {
+    return this.macbook.getPrice() + 45;
+  }
+}
+```
+
+- 데코레이터는 객체를 동적으로 확장 가능
+- 개별 서브클래스를 관리하는 것보다 객체를 감싸는 데코레이터를 만드는 게 더 쉬울 때도 존재
+
+## 7.15 장점과 단점
+
+- 장점
+  - 베이스 객체가 변경될 걱정 없이 사용 가능
+- 단점
+  - 네임스페이스에 작고 비슷한 객체를 추가하기 때문에
+    - 잘 관리하지 않는다면 애플리케이션의 구조를 무척 복잡하게 만들 수도
+  - 이 패턴에 익숙하지 않는 다른 개발자가 패턴의 사용 목적을 파악하기 어렵게 되어 관리 어려움
+
+**_🤔 리액트에서 데코레이터 패턴 사용하기_**
+
+> HOC 패턴
+
+- HOC 패턴도 기존 기능을 수정하지 않고 확장된 기능을 추가한 컴포넌트를 반환해준다는 점에서 비슷하다.
+- 기능을 감싸고 간소화하는 역할을 한다는 점에서 퍼사드 패턴도 있는 것 같다.
+
+## 7.16 플라이웨이트 패턴
+
+- 반복되고 느리고 비효율적으로 데이터를 공유하는 코드를 최적화하는 전통적인 구조적 해결 방법이다.
+- **연관된 객체끼리 데이터를 공유하게 하면서 메모리를 최적화하는 목적**
+
+```
+💡 플라이웨이트 패턴의 목적: 메모리 공간의 경량화
+   → 공통으로 사용되는 부분만을 하나의 외부 객체로 내보내는 것으로 공유 방식 사용
+```
+
+- 각 데이터를 저장하기보다는 하나의 의존 외부 데이터에 모아서 저장 가능
+
+### 7.16.1 사용법
+
+1. 데이터 레이어에서 메모리에 저장된 수많은 비슷한 객체 사이로 데이터를 공유
+2. DOM 레이어에서는 비슷한 동작을 하는 이벤트 핸들러를 모든 자식 요소에 등록하기보다는 부모 요소 같은 중앙 이벤트 관리자에게 맡기는 방법
+
+### 7.16.2 데이터 공유
+
+플리이웨이트 패턴에는 **두 가지 개념**이 있다.
+
+1. 내재적 상태
+   - 객체의 내부 메서드에 필요한 것
+   - 없으면 절대로 동작 X
+2. 외재적 상태
+   - 제거되어 외부에 저장될 수 있는 것
+
+```
+💡 같은 내재적 정보를 가진 객체를 팩토리 메서드를 사용해 만들어진
+   하나의 공유된 객체로 대체 가능 → 저장된 내부 데이터의 양을 상당히 줄일 수 있다.
+```
+
+- 외재적 정보를 다룰 때에는 따로 관리자를 사용한다.
+- 관리자는 다양한 방법으로 구현할 수 있는데
+  - 플라이웨이트 객체와 내재적 상태를 보관하는 중앙 데이터베이스를 관리자로 사용하는 것
+
+**_🤔 와 말이 너무 어려움 help.. GPT..._**
+
+> 플라이웨이트 패턴을 이해하기 위한 예시
+
+- 예제: 게임에서 나무 객체를 생성하는 경우
+  - 게임을 만들 때, 수천 개의 나무를 배치한다고 생각해보자
+  - 각각의 나무가 메모리에 개별적으로 저장된다면 메모리 사용량이 엄청날 것
+  - 나무는 대부분 같은 속성(모양, 색상 등)을 공유한다.
+  - 그렇다면, 같은 속성을 공유하고 필요한 데이터만 개별적으로 관리하면 메모리를 절약할 수 있을 것이다.
+- 내재적 상태(Intrinsic State) → "공유할 수 있는 부분"
+  - 여러 객체가 공통으로 가지는 정보
+  - 변경되지 않음 → 공유 가능
+  - 예시: 나무의 모양, 색상, 텍스처 등
+  - 하나의 객체만 만들어두고 여러 개가 공유함
+- 외재적 상태(Extrinsic State) → "각 객체마다 다른 부분"
+  - 객체별로 달라지는 정보
+  - 공유할 수 없기 때문에, 외부에서 별도로 저장 및 관리
+  - 예시: 나무의 좌표 (x, y)
+
+#### 'implements' 덕 펀칭하기
+
+- 덕 펀칭(Duck punching)dms **런타임 소스를 수정할 필요 없이** 언어나 솔루션의 기능을 확장할 수 있게 해준다.
+- `Function.prototype.implementsFor`는 객체 생성자에 적용하며 부모 클래스(함수) 또는 객체를 받아들여
+  - 일반적인 상속(함수일 떼) 또는 가상 상송(객체일 때)을 이용해 상속 받는다.
+
+```js
+// 인터페이스의 구현을 시뮬레이션하기 위한 유틸리티 클래스
+class InterfaceImplementation {
+  static implemenetsFor(superclassOrInterface) {
+    if (superclassOrInterface instanceof Function) {
+      this.prototype = Object.create(superclassOrInterface.prototype);
+      this.prototype.constructor = this;
+      this.prototype.parent = superclassOrInterface.prototype;
+    } else {
+      this.prototype = Object.create(supercalssOrInterface);
+      this.prototype.constructor = this;
+      this.prototype.parent = superclassOrInterface;
+    }
+    return this;
+  }
+}
+```
+
+- `implements` 키워드의 부재를 보완
+- 함수가 인터페이스를 상속할 수 있도록 만들어준다.
+
+```js
+// CoffeeOrder 인터페이스
+const CoffeOrder = {
+  setveCoffe(context) {},
+  getFlavor() {},
+};
+```

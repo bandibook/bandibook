@@ -1,0 +1,224 @@
+<details>
+  <summary>만혁</summary>
+  ## 13. 다형성
+
+
+
+13장은 DOP 에서 다형성을 다루는 방법에 대해서 이야기한다.
+
+
+
+#### 13.1 다형성의 핵심
+
+```java
+// OOP 에서 동물로 묘사된 다형성
+interface IAnimal {
+    public void greet();
+}
+
+class Dog implements IAnimal {
+    private String name;
+    private void greet() {
+        log.info("멍ㅇ머엄엄어멍머엄어!!!!  이름 : " + animal.name);
+    }
+}
+
+class Cat implements IAnimal {
+    private String name;
+    private void greet() {
+        log.info("냐냐냐냐냔냐ㅏㅇ옹 이름 : " + animal.name);
+    }
+}
+
+class Cow implements IAnimal {
+    private String name;
+    private void greet() {
+        log.info("으으으음메메메 이름 : " + animal.name);
+    }
+}
+```
+
+
+```js
+// type 에 따라 다르게 행동하는 switch
+function greet(animal) {
+    switch (animal.type) {
+        case "dog":
+            console.log("멍멍멍멍머머머멈ㅁ 이름 : " +  animal.name);
+            break;
+        case "cat":
+            console.log("냥냥냥냥 이름 : " +  animal.name);
+            break;
+        case "cow":
+            console.log("음ㅁ메멤 이름 : " +  animal.name);
+            break;
+        default:
+            break;
+    }
+}
+```
+
+switch 의 단점은, 특정 동물 때문에 greet 의 구현을 수정하고 싶을 때 마다
+
+모든 동물을 다루는 코드를 변경해야 한다는 것이다
+
+OOP 에서는 특정 동물 클래스만 변경하면 되는데도!!
+
+
+```js
+// 함수로 분리된 개별 구현
+function greet(animal) {
+    switch (animal.type) {
+        case "dog":
+            greetDog(animal);
+            break;
+        case "cat":
+            greetCat(animal);
+            break;
+        case "cow":
+            greetCow(animal);
+            break;
+        default:
+            break;
+    }
+}
+
+function greetDog(animal) {
+    console.log("멍멍멍멍머머머멈ㅁ 이름 : " +  animal.name);
+}
+```
+
+그나마 대안적으로 제안되는 예시
+
+즉 개별 함수를 구현해 특정 동물을 수정한다
+
+하지만 이 마저도 greet 기능 확장을 위해 새로운 동물을 추가하게 되면
+
+switch 문을 수정해야한다.
+
+이를 해결하기 위해 다중 메서드가 도입된다
+
+
+#### 13.2 단일 디스패치 다중 메서드
+
+```js
+// greet 다중 메서드의 디스패치 함수
+function greetDispatch(animal) {
+    // 실제 예제는 인자 유효성 확인 코드가 있지만 생략
+    return animal.type;
+}
+
+var greet = multi(greetDispatch)
+
+function greetDog(animal) {
+    console.log("멍멍멍멍머머머멈ㅁ 이름 : " +  animal.name);
+}
+
+
+function greetCat(animal) {
+    console.log("냥냥 이름 : " +  animal.name);
+}
+
+function greetCow(animal) {
+    console.log("음메메 이름 : " +  animal.name);
+}
+
+greet = method("dog", greetDog)(greet)
+greet = method("cat", greetCat)(greet)
+greet = method("cow", greetCow)(greet)
+
+
+const myDog = { type: "dog", name: "Fido"}
+const myCat = { type: "cat", name: "Meonji"}
+const myCoow = { type: "cow", name: "Clarabelle"}
+greet(myDog) // 음메메 Fido
+greet(myCat) // 냥냥 이름 : 먼지
+greet(myCow) // 음메메 이름 : Clarabelle
+```
+
+
+> multi 함수는 링크 확인
+> [multi](https://github.com/caderek/arrows/tree/master/packages/multimethod)
+
+
+
+#### 13.3 다중 디스패치 다중 메서드
+
+단일 디스패치와 다르게 다중 디스패치의 경우 하나의 값을 리턴하는게 아닌 여러개를 리턴한다
+
+```js
+// animal { type: "dog", name: "Fido"}
+// language { type: "en", name: "English"}
+function greetMultiDispatch(animal, language) {
+    // 유효성 검증 생략
+    return [animal.type, language.type]
+}
+
+var greetLang = multi(greetMultiDispatch)
+
+function greetLangDogEn(animal, language) {
+    console.log("Woof Woof My name is " + animal.name + " and i speak " + language.name);
+}
+
+greetLang = method(["dog", "en"], greetLangDogEn)(greetLang);
+
+function greetLangDogKr(animal, language) {
+    console.log("멍멍 내 이름 " + animal.name + " 글고 나 말한다 " + language.name);
+}
+
+greetLang = method(["dog", "kr", greetLangDogKr])(greetLang)
+
+function greetLangCatKr(animal, language) {
+    console.log("냥냥 내 이름 " + animal.name + " 글고 나 말한다 " + language.name);
+}
+
+greetLang = method(["cat", "kr", greetLangCatKr])(greetLang)
+
+
+greetLang(myDog, english);
+greetLang(myDog, korea);
+greetLang(myCat, korea); 
+```
+
+주의 할 점은 배열 요소의 순서는 중요하지 않지만 연결된 메서드의 순서와 일치해야 한다
+
+
+#### 13.4 동적 디스패치 다중 메서드
+
+동적 디스패치는 반환하는 값이 동적으로 변한다 
+
+```js
+function dynamicGreetDispatch(animal) {
+    const hasLongName = animal.name.length > 5;
+    return [animal.type, hasLongName]; // 동물 이름의 길이에 따라 디스패치 반환값이 달라짐
+}
+```
+
+
+#### 요약
+처음 switch 내용이 나왔을땐 패턴매칭 이야기가 나올줄 알았는데
+
+다중 메서드라는 처음 들어보는 방법이 소개되었다
+
+쭈욱 읽어보니 Dispatch 함수는 프록시같은 역할을 하고 결국엔 뒤에 매칭된 함수를 호출하는 방법인것 같다.
+
+
+지피티에 물어보니 visitor 패턴과 연계하여 설명해주던데 비슷한 방법론이 있었나보다 ㅎㅎ;
+
+애초에 OOP 의 상속과 인터페이스같은 개념을 잘 모르고 사용하고 있다보니
+
+이런 상황에 어떤식으로 처리하면 좋을지 몰라 항상 똑같은 코드를 두 세개씩 만들어서 사용했는데
+
+해결책을 찾은거같다 (실제로 써먹을 수 있을진 모르겠지만)
+
+
+
+
+
+
+
+
+</details><details>
+  <summary>우석</summary>
+  [데이터 지향 프로그래밍 - 13장 다형성](https://egg528.tistory.com/14)
+</details>

@@ -1,0 +1,115 @@
+## 14. 고급 데이터 조작
+
+
+### 14.1 풍부한 표현의 맵 값 갱신
+
+```js
+
+// 직관적이지만 장황한 중복 제거 코드
+function removeAuthorDuplicates(book) {
+    var authors = _.get(book, "authors");
+    var uniqAuthors = _.uniq(authors);
+    return _.set(book, "authors", uniqAuthors);
+}
+```
+
+
+```js
+// 중복을 제거하는 세련된 코드
+function removeAuthorDuplicates(book) {
+    return update(book, "authors", _.uniq);
+}
+
+// 범용 함수
+function update(map, path, fun) {
+    var currentValue = _.get(map, path);
+    var nextValue = fun(currentValue);
+    return _.set(map, path, nextValue);
+}
+```
+
+
+#### 14.2 중첩된 데이터 조작
+
+
+```js
+const authorIds = [
+    ["sean-covey", "stephen-covey"],
+    ["alan-moore", "dave-gibbons"]
+];
+
+// 여러 도서의 저자 ID 가 배열의 배열로 반환되는 코드
+function authorIdsInBooks(books) {
+    return _.map(books, "authorIds");
+}
+
+// 문자열의 배열로 도서 목록 내 저자 ID 반환
+function authorIdsInBooks(books) {
+    return _.flatten(_.map(books, "authorIds"));
+}
+
+// flatMap 구현
+function flatMap(coll, f) {
+    return _.faltten(_.map(coll, f));
+}
+
+
+// to-be
+function authorIdsInBooks(books) {
+    return flatMap(books, "authorIds");
+}
+```
+
+
+### 14.3 최적의 도구 사용
+
+```js
+// as-is
+function lendingRatio(books) {
+    var bookItems = flatMap(books, "bookItems");
+    var lent = 0;
+    var notLent = 0;
+    
+    _.forEach(bookItems, function(item) {
+        if (_.get(item, "isLent")) {
+            lent = lent + 1;
+        } else {
+            notLent = notLent + 1;
+        }
+    });
+    
+    return lent / (lent + notLent);
+}
+```
+
+```js
+// to-be reduce 사용
+function lendingRatio(books) {
+    var bookItems = _.flatMap(books, "bookItems");
+    var stats = _.reduce(bookItems, function(res, item) {
+        if (_.get(item, "isLent")) {
+            res.lent = res.lent + 1;
+        } else {
+            res.notLent = res.notLent + 1;
+        }
+        return res;
+    }, { notLent: 0, lent: 0 });
+
+    return stats.lent / (stats.lent + stats.notLent);
+}
+
+
+function lendingRatio(books) {
+    var bookItems = flatMap(books, "bookItems");
+    var stats = countByBoolField(bookItems, "isLent", "lent", "notLent");
+    return stats.lent / (stats.lent + stats.notLent);
+}
+```
+
+
+forEach 는 지나치게 범용적이고 장황하기에 reduce 를 사용하는게 더 좋다
+
+
+범용적인 함수를 만들고 의미있는 함수명을 만들어 감싸서 범용 함수를 사용하라는 말인것 같다.
+
+즉  oop 의 설계에 fp 의 구현체를 넣는 느낌인것 같다

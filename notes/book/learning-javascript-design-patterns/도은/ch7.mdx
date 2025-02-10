@@ -1228,7 +1228,7 @@ class CaseDecorator extends MacBookDecorator {
 
 #### 'implements' 덕 펀칭하기
 
-- 덕 펀칭(Duck punching)dms **런타임 소스를 수정할 필요 없이** 언어나 솔루션의 기능을 확장할 수 있게 해준다.
+- 덕 펀칭(Duck punching)은 **런타임 소스를 수정할 필요 없이** 언어나 솔루션의 기능을 확장할 수 있게 해준다.
 - `Function.prototype.implementsFor`는 객체 생성자에 적용하며 부모 클래스(함수) 또는 객체를 받아들여
   - 일반적인 상속(함수일 떼) 또는 가상 상송(객체일 때)을 이용해 상속 받는다.
 
@@ -1256,7 +1256,371 @@ class InterfaceImplementation {
 ```js
 // CoffeeOrder 인터페이스
 const CoffeOrder = {
-  setveCoffe(context) {},
+  setveCoffee(context) {},
   getFlavor() {},
 };
+
+class CoffeeFlavor extends InterfaceImplementation {
+  constructor(newFlaver) {
+    super();
+    this.flavor = newFlavor;
+  }
+  getFlavor() {
+    return this.flavor;
+  }
+  serveCoffee(context) {
+    // 커피 제공 로그
+    console.log(`Serving Coffee flavor ${this.flavor} to table ${context.getTable()}`);
+  }
+}
+
+// CoffeeOrder 인터페이스 구현
+CoffeeFlavor.implementsFor(CoffeeOrder);
+const CoffeeOrderContext = (tableNumber) => ({
+  getTable() {
+    return tableNumber;
+  },
+});
+
+class CoffeFlavorFactory {
+  constructor() {
+    this.flavors = {};
+    this.length = 0;
+  }
+  getCoffeFlavor(flavorName) {
+    let flavor = this.flavors[flavorName];
+    if (!flavor) {
+      flavor = new CoffeeFlavor(flavorName);
+      this.flavors[flavorName] = flavor;
+      this.length++;
+    }
+    return flavor;
+  }
+  getTotalCoffeeFlavorsMade() {
+    return this.length;
+  }
+}
+
+// 사용 예시
+const testFlyweight = () => {
+  const flavors = [];
+  const tables = [];
+  let ordersMade = 0;
+  const flavorFactory = new CoffeeFlavorFactory();
+
+  function takeOrders(flavorIn, table) {
+    flavors.push(flavorFactory.getCoffeeFlavor(flavorIn));
+    tales.push(CoffeeOrderContext(table));
+    ordersMade++;
+  }
+
+  // 주문 처리
+  takeOrders('Cappuccino', 2);
+  // ...
+
+  // 주문 제공
+  for (let i = 0; i < ordersMade; i++) flavors[i].serveCoffee(tables[i]);
+
+  console.log(`total CoffeeFlavor objects made: ${flavorFactory.getTotalCoffeeFlavorsMade()}`);
+};
+
+testFlyweight();
+```
+
+**_🤔 와! 어렵다_**
+
+GPT야.. 이해하기 쉬운 예제 plz..
+
+- fontFactory 가 이미 생성된 폰트 객체를 관리해서 중복 생성을 방지함.
+- `font1`과 `font2`는 동일한 객체를 공유하지만, `font3`는 다른 속성을 가지므로 새로운 객체를 생성함.
+
+```js
+// Flyweight (공유되는 폰트 객체)
+class Font {
+  constructor(name, size, color) {
+    this.name = name; // 폰트 이름
+    this.size = size; // 폰트 크기
+    this.color = color; // 폰트 색상
+  }
+}
+
+// Flyweight Factory (폰트 객체를 관리하는 팩토리)
+class FontFactory {
+  constructor() {
+    this.fonts = {}; // 이미 생성된 폰트를 저장할 객체
+  }
+
+  getFont(name, size, color) {
+    const key = `${name}-${size}-${color}`; // 고유한 키 생성
+
+    if (!this.fonts[key]) {
+      this.fonts[key] = new Font(name, size, color);
+    }
+
+    return this.fonts[key]; // 기존 객체를 반환하거나 새로 생성
+  }
+}
+
+// 클라이언트 코드
+const factory = new FontFactory();
+
+const font1 = factory.getFont('Arial', 12, 'black');
+const font2 = factory.getFont('Arial', 12, 'black');
+const font3 = factory.getFont('Arial', 14, 'blue');
+
+console.log(font1 === font2); // true (재사용됨)
+console.log(font1 === font3); // false (새로운 객체)
+```
+
+### 7.16.4 플라이웨이트로 변환하기
+
+도서관 책을 관리하는 시스템을 구현할 때 플라이웨이트를 써보자
+
+```js
+class Book {
+  constructor(
+    id,
+    title,
+    author,
+    genre,
+    pageCount,
+    publisherID,
+    ISBN,
+    checkoutDate,
+    checkoutMemebr,
+    dueReturnDate,
+    availability,
+  ) {
+    this.id = id;
+    // ...
+  }
+  getTitle() {
+    return this.title;
+  }
+  getAuthor() {
+    return this.author;
+  }
+  getISBN() {
+    return this.ISBN;
+  }
+  // ...
+  updateCheckoutStatus(bookId, newStatus, checkoutDate, checkoutMember, newReturnDate) {
+    this.id = bookId;
+    this.availability = checkoutDate;
+    this.checkoutMember = checkoutMember;
+    this.dueReturnDate = newReturnDate;
+  }
+  extendCheckoutPeriod(bookId, newReturnDate) {
+    this.id = bookId;
+    this.dueReturnDate = newReturnDate;
+  }
+  isPastDue(bookId) {
+    const currentDate = new Date();
+    return currentDate.getTime() > Date.parse(this.dueReturnDate);
+  }
+}
+```
+
+- 위 시스템은 도서관이 확장되며 많은 책의 다양한 버전과 사본이 추가되면서 관리 시스템이 느려질 것
+- 수천 개의 책 객체를 다루는 건 메모리에 부담이 되기 때문에
+
+👇 플라이웨이트로 최적화한 버전
+
+```js
+class Book {
+  /**
+   * ⭐️ checkoutDate, checkoutMemebr, dueReturnDate, availability과 같은 외부 상태를 나타내는 인자 제거
+   * 변하지 않는 정보로만 객체를 생성한다.
+   *
+   * 만약 이전 코드에서 "해리포터" 책 100권을 관리한다고 하면 각각 객체가 필요 (왜나하면 책 하나하나에 대해 대출 가능한지... 누가 대출했는지... 정보를 들고 있기 때문에)
+   */
+  constructor({ title, author, genre, pageCount, publisherID, ISBN }) {
+    this.title;
+    this.author = author;
+    // ...
+  }
+}
+```
+
+- 외부 상태를 나타내는 부분이 제거
+- 도서 대출에 대한 책임은 관리자로 이동
+- 객체 데이터가 분리되었기 때문에 인스턴스화를 위한 팩토리를 사용할 수 있게 되었다.
+
+### 7.16.5 기본 팩토리
+
+- 기본적인 팩토리를 정의해보자
+- 시스템 내부에서 특정 제목의 책이 이미 생성되었는지 확인한다.
+
+**_👀 팩토리 패턴 기억해보기_**
+
+> [이거 아주 예시 맛집이다](https://jusungpark.tistory.com/14)
+
+- **객체 생성을 캡슐화**
+
+```js
+// Book 팩토리의 싱글톤
+const existingBooks = {};
+
+class BookFactory {
+  // 👇 객체 생성을 캡슐화 (팩토리 패턴 적용)
+  createBook({ title, author, genre, pageCount, publisherID, ISBN }) {
+    const existingBook = existingBooks[ISBN];
+    if (existingBook != null) {
+      return existingBook;
+    } else {
+      // 존재하지 않을 경우, 새로운 책 인스턴스 생성 후 저장
+      const book = new Book({ title, author, genre, pageCount, publisherID, ISBN });
+      existingBook[ISBN] = book; // 책 추가
+      return book;
+    }
+  }
+}
+```
+
+### 7.16.6 외부 상태 관리하기
+
+- 이제 `Book` 객체에서 제거했던 외부 상태를 어딘가에 저장해야 하는데...
+- 관리자를 두고, 정보를 모두 저장하며 플라이웨이트 패턴을 통해 `Book` 클래스를 최적화해보자
+
+```js
+// Book 레코드 관리자 싱글톤
+const bookRecordDatabase = {};
+
+class BookRecordManager {
+  // 도서관 시스템에 새로운 도서 추가
+  addBookRecord({
+    id,
+    title,
+    author,
+    genre,
+    pageCount,
+    publisherID,
+    ISBN,
+    checkoutDate,
+    checkoutMember,
+    dueReturnDate,
+    availability,
+  }) {
+    const bookFactory = new BookFactory(); // createBook 메서드 가지고 있음
+    const book = bookFactory.createBook({ title, author, genre, pageCount, publisherID, ISBN });
+    bookRecordDatabase[id] = {
+      checkoutMember,
+      checkoutDate,
+      dueReturnDate,
+      availability,
+      book,
+    };
+  }
+  updateCheckoutStatus({ bookID, newStatus, checkoutDate, checkoutMember, newReturnDate }) {
+    const record = bookRecordDatabase[bookID];
+    record.availability = newStatus;
+    record.checkoutDate = checkoutDate;
+    record.checkoutMember = checkoutMember;
+    record.dueReturnDate = newReturnDate;
+  }
+  extendCheckoutPeriod(bookID, newReturnDate) {
+    bookRecordDatabase[bookID].dueReturnDate = newReturnDate;
+  }
+  isPastDue(bookID) {
+    const currentDate = newDate();
+    return currentDate.getTime() > Date.parse(bookRecordDatabase[bookID].dueReturnDate);
+  }
+}
+```
+
+- `Book` 클래스에서 추출된 모든 데이터는 `BookManager` 싱글톤의 속성(`BookDatabase`)에 저장
+
+### 7.16.7 플라이웨이트 패턴과 DOM 객체
+
+- DOM은 **이벤트 캡쳐링**과 **이벤트 버블링** 두 가지 방식의 `이벤트 감지`를 지원한다.
+- 플라이웨이트는 **이벤트 핸들링 과정을 최적화**할 수 있다.
+
+### 7.16.9 예시: 중앙 집중식 이벤트 핸들링
+
+- 하위 여러 요소에 하나하나 클릭 이벤트를 바인딩하는 대신
+- 최상위 컨테이너에 플라이웨이트를 부착하여 하위 요소로부터 전달되는 이벤트를 감지할 수 있다.
+
+## 7.17 행위 패턴
+
+- 객체 간의 의사소통을 돕는 패턴
+
+```
+💡 행위 패턴의 목적
+   시스템 내 서로 다른 객체 간의 의사소통 방식을 개선하고 간소화
+```
+
+- 관찰자 패턴
+- 중재자 패턴
+- 커맨트 패턴
+
+## 7.18 관찰자 패턴
+
+- 객체가 변경될 때 다른 객체들에게 변경되었음을 알릴 수 있게 하는 패턴
+- 누가 자신을 구독하는지 알 필요 없이 알림을 보낸다.
+
+```js
+class ObserverList {
+  constructor() {
+    this.observerList = [];
+  }
+  add(obj) {
+    return this.observerList.push(obj);
+  }
+  count() {
+    return this.observerList.length;
+  }
+  get(index) {
+    if (index > -1 && index < this.observerList.length) {
+      return this.observerList[index];
+    }
+  }
+  indexOf(obj, startIndex) {
+    let i = startIndex;
+
+    while (i < this.observerList.length) {
+      if (this.observerList[i] === obj) {
+        return i;
+      }
+      i++;
+    }
+    return -1;
+  }
+  removeAt(index) {
+    this.observerList.splice(index, 1);
+  }
+}
+```
+
+다음으로 주체가 관찰자 목록을 추가하고 제거하고 알리는 기능을 구현해 보자
+
+```js
+class Subject {
+  constructor() {
+    this.observers = new ObserverList();
+  }
+  addObserver(observer) {
+    this.observers.add(observer);
+  }
+  removeObserver(observer) {
+    this.observers.removeAt(this.observers.indexOf(observer, 0));
+  }
+  notify(context) {
+    const observerCount = this.observers.count();
+    for (let i = 0; i < observerCount; i++) {
+      this.observers.get(i).update(context);
+    }
+  }
+}
+```
+
+이 클래스를 기반으로 다음과 같은 기능을 구현한다고 해보자
+
+- 관찰 가능한 새로운 체크박스를 추가할 수 있는 버튼
+- 선택 상태가 변경되면 다른 체크박스에도 같은 상태로 업데이트하라는 알림을 보내는 주체 역할의 체크박스
+- 새롭게 추가되는 체크박스를 담을 컨테이너
+
+주체 체크박스가 클릭되었을 때 알림을 보낸다.
+
+```js
+
 ```

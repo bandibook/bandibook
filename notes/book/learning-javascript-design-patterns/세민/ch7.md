@@ -34,7 +34,7 @@
 ## 7.6 프로토타입 패턴
 
 프토토타입 패턴과 [철학적 관점](https://parkjju.github.io/vue-TIL/javascript/prototype.html)
-- 개인적으로 객체 지향 패턴보단 포로토타입 패턴을 조금 더 선호하는 편이다. (실리적이고 효율적이라고 생각)
+- 개인적으로 객체 지향 패턴보단 포로토타입 패턴을 조금 더 선호하는 편입니다. (실리적이고 효율적이라고 생각)
 
 ## 7.14.2 추상 데코레이터
 
@@ -113,3 +113,147 @@ class Book {
 각 컴포넌트마다 결합도를 낮추고 상태를 효과적으로 관리할 수 있었습니다. (물론 모든 상태가 전역 상태가 되서, 상태가 너무 많아지면 관리가 되려 어려웠지만요.)
 
 유사한 패턴으로 프록시 패턴도 활용해보았었습니다. ([PR 링크](https://github.com/semnil5202/vanilla-js-practice/pull/3/files)) 개인적으론 옵저버 패턴이 조금 더 취향인편..
+
+## 7.18.1 관찰자 패턴과 발행/구독 패턴의 차이점
+
+개인적으로 관찰자 패턴과 발행/구독 패턴의 구분이 명확하지 않았는데요. GPT 4o 센세가 아주 좋은 예시를 들어줘서 공유드립니다.
+
+결국 Subject와 Observer 간 Event Bus 같은 매개 요소를 하나 두어서, Subject와 Observer 간 의존성을 끊고 매개 요소에 위임하게 되네요.
+
+### GPT 4o 센세의 답변
+```
+옵저버 패턴과 PubSub(발행-구독) 패턴은 개념이 비슷하지만 중요한 차이가 있어. 동일한 예시(유튜브 구독 시스템)를 통해 비교해볼게.
+
+🎥 예제: 유튜브 채널 구독 시스템
+1️⃣ 옵저버 패턴 (Observer Pattern)
+옵저버 패턴에서는 구독자(Observer)가 직접 유튜브 채널(Subject)에 등록해서 변경 사항을 알림받아.
+```
+
+```javascript
+// 유튜브 채널 (Subject)
+class YouTubeChannel {
+  constructor(name) {
+    this.name = name;
+    this.subscribers = []; // 구독자 리스트
+  }
+
+  subscribe(subscriber) {
+    this.subscribers.push(subscriber);
+  }
+
+  unsubscribe(subscriber) {
+    this.subscribers = this.subscribers.filter(sub => sub !== subscriber);
+  }
+
+  uploadNewVideo(videoTitle) {
+    console.log(`📢 ${this.name} 채널: '${videoTitle}' 업로드!`);
+    this.subscribers.forEach(sub => sub.notify(this.name, videoTitle));
+  }
+}
+
+// 구독자 (Observer)
+class Subscriber {
+  constructor(name) {
+    this.name = name;
+  }
+
+  notify(channel, videoTitle) {
+    console.log(`👀 ${this.name}님, ${channel} 채널의 '${videoTitle}' 새 영상이 업로드되었습니다!`);
+  }
+}
+
+// 사용 예시
+const channel = new YouTubeChannel("개발 채널");
+const user1 = new Subscriber("철수");
+const user2 = new Subscriber("영희");
+
+channel.subscribe(user1);
+channel.subscribe(user2);
+
+channel.uploadNewVideo("옵저버 패턴 vs PubSub 패턴"); 
+// 📢 개발 채널: '옵저버 패턴 vs PubSub 패턴' 업로드!
+// 👀 철수님, 개발 채널의 '옵저버 패턴 vs PubSub 패턴' 새 영상이 업로드되었습니다!
+// 👀 영희님, 개발 채널의 '옵저버 패턴 vs PubSub 패턴' 새 영상이 업로드되었습니다!
+```
+
+> 🔍 옵저버 패턴 특징
+>
+> **구독자(Observer)** 가 직접 채널(Subject)을 알고 있어야 함. 채널이 구독자 리스트를 직접 관리하며, 업로드될 때 직접 알림을 보냄. 객체 간 강한 결합이 있음(구독자가 채널을 직접 알고 있어야 함).
+
+```
+2️⃣ PubSub (Publish-Subscribe) 패턴
+PubSub 패턴에서는 채널과 구독자가 서로 직접 알지 않음. 이벤트 브로커(Event Bus)가 중간에서 전달 역할을 해.
+```
+```javascript
+// 이벤트 브로커 (PubSub 시스템)
+class EventBus {
+  constructor() {
+    this.subscribers = {};
+  }
+
+  subscribe(event, callback) {
+    if (!this.subscribers[event]) {
+      this.subscribers[event] = [];
+    }
+    this.subscribers[event].push(callback);
+  }
+
+  publish(event, data) {
+    if (this.subscribers[event]) {
+      this.subscribers[event].forEach(callback => callback(data));
+    }
+  }
+}
+
+// 이벤트 시스템 생성
+const eventBus = new EventBus();
+
+// 유튜브 채널 (발행자)
+class YouTubeChannel {
+  constructor(name) {
+    this.name = name;
+  }
+
+  uploadNewVideo(videoTitle) {
+    console.log(`📢 ${this.name} 채널: '${videoTitle}' 업로드!`);
+    eventBus.publish("new-video", { channel: this.name, videoTitle });
+  }
+}
+
+// 구독자 (구독자)
+class Subscriber {
+  constructor(name) {
+    this.name = name;
+    eventBus.subscribe("new-video", this.notify.bind(this));
+  }
+
+  notify({ channel, videoTitle }) {
+    console.log(`👀 ${this.name}님, ${channel} 채널의 '${videoTitle}' 새 영상이 업로드되었습니다!`);
+  }
+}
+
+// 사용 예시
+const channel2 = new YouTubeChannel("개발 채널");
+const user3 = new Subscriber("철수");
+const user4 = new Subscriber("영희");
+
+channel2.uploadNewVideo("옵저버 패턴 vs PubSub 패턴");
+// 📢 개발 채널: '옵저버 패턴 vs PubSub 패턴' 업로드!
+// 👀 철수님, 개발 채널의 '옵저버 패턴 vs PubSub 패턴' 새 영상이 업로드되었습니다!
+// 👀 영희님, 개발 채널의 '옵저버 패턴 vs PubSub 패턴' 새 영상이 업로드되었습니다!
+```
+> 🔍 PubSub 패턴 특징
+>
+> 유튜브 채널(발행자)과 구독자(구독자)가 직접 서로 알 필요 없음. 이벤트 브로커(Event Bus)를 통해 메시지를 중재. 더 유연하고 확장 가능하지만, 중간 이벤트 브로커가 없으면 메시지를 받을 수 없음.
+
+- 🎯 비교 정리
+
+| 특징 | 옵저버 패턴 | PubSub 패턴 |
+|------|-----------|-------------|
+| **구독 방식** | 객체(Subject)가 직접 구독자(Observer) 관리 | 중앙 이벤트 브로커(Event Bus)를 통해 관리 |
+| **결합도** | 높은 결합도 (Subject가 Observer를 직접 참조) | 낮은 결합도 (발행자와 구독자가 서로 모름) |
+| **알림 방식** | Subject가 직접 Observer에 알림 | 이벤트 브로커가 구독자에게 알림 |
+| **확장성** | 다소 제한적 (Subject가 직접 Observer를 관리해야 함) | 확장성이 뛰어남 (브로커만 변경하면 구조 변경 가능) |
+| **사용 예시** | UI 이벤트 핸들링, 모델-뷰 패턴 등 | 메시징 시스템, 이벤트 드리븐 아키텍처 등 |
+
+PubSub에서 Event Bus 만 갈아 끼우면 여러 맥락의 구독도 가능하겠네요. (ex: 유튜브, 트위터, 인스타그램을 각각의 Event Bus로 바라보기)

@@ -72,3 +72,118 @@ mock, stub 은 강력하지만 사용하기 복잡하고 테스트를 유지보�
 
 목과 스텁이 필요하지 않은 경우가 많다
 
+
+
+<details>
+    <summary>연습 문제 1.2</summary>
+
+```kotlin
+class E02_DiscountTest {
+    class Promotion(
+        val name: String,
+        val strategy: String
+    ) {
+
+        fun decode(): DiscountRule {
+            val (x, y) = strategy.split("x").map { it.toInt() }
+            return DiscountRule(x, y)
+        }
+
+        fun toDiscountRule(): DiscountRule {
+            val (buy, pay) = this.decode()  // 기존 decode() 활용
+            return DiscountRule(buy, pay)
+        }
+    }
+
+    data class DiscountRule(val buy: Int, val pay: Int) {
+        companion object {
+            val NO_DISCOUNT = DiscountRule(1, 1)
+        }
+    }
+
+    class Product(
+        val name: String,
+        val price: Double
+    )
+
+    class CashRegister(
+        val products: List<com.ubertob.fotf.exercises.chatper1.Product>,
+        val promotions: List<com.ubertob.fotf.exercises.chatper1.Promotion>
+    ) {
+
+        fun checkout(items: List<String>): Double {
+            val itemMap = items.groupingBy { it }.eachCount()
+
+            return itemMap.entries.sumOf { (name, count) ->
+                val product = products.find { it.name == name }
+                val rule = promotions.find { it.name == name }
+                    ?.toDiscountRule()
+                    ?: DiscountRule.NO_DISCOUNT
+
+                product
+                    ?.let { calculateTotalPrice(it, count, rule) }
+                    ?: 0.0
+            }
+        }
+
+        fun calculateDiscount(count: Int, rule: DiscountRule): Int {
+            val discounted = count / rule.buy
+            val remaining = count % rule.buy
+
+            return discounted * rule.pay + remaining
+        }
+
+        fun calculateTotalPrice(
+            product: com.ubertob.fotf.exercises.chatper1.Product,
+            count: Int,
+            rule: DiscountRule
+        ): Double {
+            val discounted = calculateDiscount(count, rule)
+            return product.price * discounted
+        }
+
+    }
+
+    @Test
+    fun `discount`() {
+        // 1. 랜덤한 상품 목록 생성
+        val productNames = listOf("milk", "banana", "orange", "apple", "grape")
+        val products = productNames.shuffled()
+            .take(Random.nextInt(1, productNames.size))
+            .map { name ->
+                Product(name, Random.nextDouble(1.0, 5.0)) // 가격 1.0 ~ 5.0 사이 랜덤
+            }
+
+        // 2. 랜덤한 할인 전략 생성 (N > M)
+        val promotions = products.shuffled()
+            .take(Random.nextInt(1, products.size))
+            .map { product ->
+                val buy = Random.nextInt(2, 10) // 최소 2개 이상 구매해야 함
+                val pay = buy - Random.nextInt(1, buy) // 항상 N > M 유지
+                Promotion(product.name, "${buy}x${pay}")
+            }
+
+        // 3. 랜덤하게 특정 상품 여러 개 구매하도록 설정
+        val selectedProduct = products.random()
+        val quantity = Random.nextInt(5, 15) // 5~15개 랜덤 구매
+        val items = List(quantity) { selectedProduct.name }
+
+        val cashRegister = CashRegister(products, promotions)
+        val total = cashRegister.checkout(items)
+
+        // 4. 기대 가격 계산 후 검증
+        val discountRule = promotions.find { it.name == selectedProduct.name }?.decode()
+        val expectedTotal = if (discountRule != null) {
+            val (buy, pay) = discountRule
+            val discountedQuantity = (quantity / buy) * pay + (quantity % buy)
+            discountedQuantity * selectedProduct.price
+        } else {
+            quantity * selectedProduct.price
+        }
+
+        expectThat(total).isEqualTo(expectedTotal)
+    }
+}
+```
+
+</details>

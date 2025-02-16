@@ -38,7 +38,7 @@ class CashRegister private constructor(
     private fun parsePromotion(foodName: String): Pair<Int, Int> =
         promotions.getValue(foodName).split("x")
             .map(String::toInt)
-            .let { it[0] to it[1] }
+            .let { (buy, pay) -> buy to pay }
 
     private fun calculateDiscountedQuantity(
         quantity: Int,

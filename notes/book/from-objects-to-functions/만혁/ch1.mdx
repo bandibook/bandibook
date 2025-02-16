@@ -89,8 +89,8 @@ data class Promotion(
 ) {
 
     fun decode(): DiscountRule {
-        val (x, y) = strategy.split("x").map { it.toInt() }
-        return DiscountRule(x, y)
+        val (buy, pay) = strategy.split("x").map { it.toInt() }
+        return DiscountRule(buy, pay)
     }
 
     fun toDiscountRule(): DiscountRule {

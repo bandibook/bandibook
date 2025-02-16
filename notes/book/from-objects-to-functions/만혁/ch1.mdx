@@ -78,74 +78,93 @@ mock, stub 은 강력하지만 사용하기 복잡하고 테스트를 유지보�
     <summary>연습 문제 1.2</summary>
 
 ```kotlin
+data class Product(
+    val name: String,
+    val price: Double
+)
+
+data class Promotion(
+    val name: String,
+    val strategy: String
+) {
+
+    fun decode(): DiscountRule {
+        val (x, y) = strategy.split("x").map { it.toInt() }
+        return DiscountRule(x, y)
+    }
+
+    fun toDiscountRule(): DiscountRule {
+        val (buy, pay) = this.decode()  // 기존 decode() 활용
+        return DiscountRule(buy, pay)
+    }
+}
+
+data class DiscountRule(val buy: Int, val pay: Int) {
+    companion object {
+        val NO_DISCOUNT = DiscountRule(1, 1)
+    }
+}
+
+class CashRegister(
+    val products: List<Product>,
+    val promotions: List<Promotion>
+) {
+
+    fun checkout(items: List<String>): Double {
+        val itemMap = items.groupingBy { it }.eachCount()
+
+        return itemMap.entries.sumOf { (name, quantity) ->
+            val product = products.find { it.name == name }
+            val rule = promotions.find { it.name == name }
+                ?.toDiscountRule()
+                ?: DiscountRule.NO_DISCOUNT
+
+            product
+                ?.let { calculateTotalPrice(it, quantity, rule) }
+                ?: 0.0
+        }
+    }
+
+    fun calculateDiscount(quantity: Int, rule: DiscountRule): Int {
+        val discounted = quantity / rule.buy
+        val remaining = quantity % rule.buy
+
+        return discounted * rule.pay + remaining
+    }
+
+    fun calculateTotalPrice(product: Product, quantity: Int, rule: DiscountRule): Double {
+        val discounted = calculateDiscount(quantity, rule)
+        return product.price * discounted
+    }
+
+}
+```
+
+```kotlin
 class E02_DiscountTest {
-    class Promotion(
-        val name: String,
-        val strategy: String
-    ) {
-
-        fun decode(): DiscountRule {
-            val (x, y) = strategy.split("x").map { it.toInt() }
-            return DiscountRule(x, y)
-        }
-
-        fun toDiscountRule(): DiscountRule {
-            val (buy, pay) = this.decode()  // 기존 decode() 활용
-            return DiscountRule(buy, pay)
-        }
-    }
-
-    data class DiscountRule(val buy: Int, val pay: Int) {
-        companion object {
-            val NO_DISCOUNT = DiscountRule(1, 1)
-        }
-    }
-
-    class Product(
-        val name: String,
-        val price: Double
-    )
-
-    class CashRegister(
-        val products: List<com.ubertob.fotf.exercises.chatper1.Product>,
-        val promotions: List<com.ubertob.fotf.exercises.chatper1.Promotion>
-    ) {
-
-        fun checkout(items: List<String>): Double {
-            val itemMap = items.groupingBy { it }.eachCount()
-
-            return itemMap.entries.sumOf { (name, count) ->
-                val product = products.find { it.name == name }
-                val rule = promotions.find { it.name == name }
-                    ?.toDiscountRule()
-                    ?: DiscountRule.NO_DISCOUNT
-
-                product
-                    ?.let { calculateTotalPrice(it, count, rule) }
-                    ?: 0.0
-            }
-        }
-
-        fun calculateDiscount(count: Int, rule: DiscountRule): Int {
-            val discounted = count / rule.buy
-            val remaining = count % rule.buy
-
-            return discounted * rule.pay + remaining
-        }
-
-        fun calculateTotalPrice(
-            product: com.ubertob.fotf.exercises.chatper1.Product,
-            count: Int,
-            rule: DiscountRule
-        ): Double {
-            val discounted = calculateDiscount(count, rule)
-            return product.price * discounted
-        }
-
-    }
 
     @Test
-    fun `discount`() {
+    fun `정적 상품 계산 테스트`() {
+        val products = listOf(
+            Product("milk", 1.5),
+            Product("banana", 2.0),
+            Product("orange", 3.0)
+        )
+
+        val promotions = listOf(
+            Promotion("milk", "6x4"),
+        )
+
+        val cashRegister = CashRegister(products, promotions)
+
+        val total = cashRegister.checkout(listOf("milk", "milk", "milk","milk", "milk", "milk"))
+
+        expectThat(total).isEqualTo(6.0)
+    }
+
+
+    @Test
+    fun `동적 상품 계산 테스트`() {
         // 1. 랜덤한 상품 목록 생성
         val productNames = listOf("milk", "banana", "orange", "apple", "grape")
         val products = productNames.shuffled()

@@ -1,8 +1,99 @@
 > ch7에서 나온 패턴들을 예제 위주로 살펴봅니다.
 
-## 생성자 패턴
-
 ## 모듈 패턴
+
+TL;DR
+
+- 캡슐화
+- 외부에서 접근할 수 있는 공개 메서드만 제공
+- 내부 상태를 보호하면서 필요한 기능만 외부에 노출하는 것이 가능
+- 내부에서 사용할 것들은 내보내지 않고, 내보낼 것만 `export` 하거나 `return` 하는 것을 떠올릴 수 있다.
+- JS에서는 모듈에서 일부만 `export`, React에서는 커스텀 훅에서 선택적으로 상태나 관련 메서드 혹은 업데이트 함수만을 `return` 하는 것이 대표적인 듯
+
+  ```
+  💡 캡슐화
+  데이터(상태)와 그 데이터를 조작하는 메서드를 하나의 단위로 묶고,
+  외부에서 직접 접근할 수 없도록 제한하는 것
+
+  → 불필요한 정보는 숨기고 필요한 정보만 외부에 노출하는 것이 핵심
+  ```
+
+👇 JavaScript 클래스 활용
+
+- 만들어 놓을 기능(메서드)들이 내부에서 관리되는 필드를 기준으로 돌아간다면
+- 그리고 이 필드가 외부에 공개될 필요가 없다면, 클래스 + 모듈 패턴 조합을 사용할 듯
+
+아래는 최근에 실제로 작성한 코드다. (알고보니 모듈 패턴이였던 것..?)
+
+```ts
+import { cookies } from 'next/headers';
+
+const isProduction = process.env.NODE_ENV === 'production';
+const ACCESS_TOKEN = 'access_token';
+
+export class CookieModule {
+  private cookieStore: ReturnType<typeof cookies>;
+
+  constructor() {
+    this.cookieStore = cookies();
+  }
+
+  getAccessToken() {
+    return this.cookieStore.get(ACCESS_TOKEN)?.value;
+  }
+
+  setAccessToken(token: string) {
+    this.cookieStore.set({
+      name: ACCESS_TOKEN,
+      value: token,
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+    });
+  }
+}
+```
+
+👇 JavaScript에서 export
+
+- 내보내기를 원하는 변수나 함수만을 export하고
+- 해당 모듈에서 사용할 것들은 export하지 않는 것
+
+```ts
+// 내부에서만 사용하는 함수 -> export하지 않는다. (공개 X)
+const logOperation = (operation: string, result: number) => {
+  console.log(`Operation: ${operation}, Result: ${result}`);
+};
+
+export const add = (a: number, b: number) => {
+  const result = a + b;
+  logOperation('Addition', result);
+  return result;
+};
+
+export const subtract = (a: number, b: number) => {
+  const result = a - b;
+  logOperation('Subtraction', result);
+  return result;
+};
+```
+
+👇 React에서 커스텀 훅
+
+- 커스텀 훅을 구현할 때 노출할 상태나 업데이트 함수만을 선택적으로 `return`으로 내보내기 처리
+- 내부에서 사용하는 정보들은 노출하지 않음
+
+```ts
+export const useCounter = (initialValue = 0) => {
+  const [counter, setCounter] = useState(initialValue);
+
+  const increment = () => setCount(count + 1);
+  const decrement = () => setCount(count - 1);
+  const reset = () => setCount(initialValue);
+
+  return { count, increment, decrement, reset };
+};
+```
 
 ## 노출 모듈 패턴
 

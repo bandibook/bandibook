@@ -151,6 +151,74 @@ console.log(dog1.__proto__);
 
 ## 팩토리 패턴
 
+TL;DR
+
+- 함수 호출의 결과로 객체를 만든다.
+- 동일한 프로퍼티(구조)를 가진 객체를 생성할 때 유용
+
+👇 인자를 받아 객체를 생성해주는 함수
+
+```js
+const createUser = ({ firstName, lastName, email }) => ({
+  firstName,
+  lastName,
+  email,
+  fullName() {
+    return `${this.firstName} ${this.lastName}`;
+  },
+});
+
+const user1 = createUser({
+  firstName: 'John',
+  lastName: 'Doe',
+  email: 'john@doe.com',
+});
+
+const user2 = createUser({
+  firstName: 'Jane',
+  lastName: 'Doe',
+  email: 'jane@doe.com',
+});
+```
+
+👇 객체를 리턴하는 함수보다 클래스를 사용하는 것이 메모리 측면에서 좋다고 한다
+
+- 클래스를 사용하면 메서드는 `prototype`에 저장되어 모든 인스턴스가 공유할 수 있어서
+- 팩토리 패턴을 구현해야 할 일은 꽤 자주 있다고 생각하는데, 이럴 때 클래스를 사용해보자 👀
+
+```ts
+const createUser = (name) => {
+  return {
+    name,
+    sayHello() {
+      console.log(`Hello, my name is ${this.name}`);
+    },
+  };
+};
+
+const user1 = createUser('Alice');
+const user2 = createUser('Bob');
+
+console.log(user1.sayHello === user2.sayHello); // false (메모리 낭비 발생)
+```
+
+```ts
+class User {
+  constructor(name) {
+    this.name = name;
+  }
+
+  sayHello() {
+    console.log(`Hello, my name is ${this.name}`);
+  }
+}
+
+const user1 = new User('Alice');
+const user2 = new User('Bob');
+
+console.log(user1.sayHello === user2.sayHello); // true (메모리 절약)
+```
+
 ## 퍼사드 패턴
 
 ## 믹스인 패턴

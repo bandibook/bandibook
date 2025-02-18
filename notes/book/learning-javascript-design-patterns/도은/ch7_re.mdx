@@ -95,9 +95,26 @@ export const useCounter = (initialValue = 0) => {
 };
 ```
 
-## 노출 모듈 패턴
-
 ## 싱글톤 패턴
+
+TL;DR
+
+- 인스턴스 딱 하나만 존재, 모두가 공유해서 쓰기
+
+🤔 `import`해서 쓰는 것으로 어느정도는 대체할 수 있지 않을까?
+
+- 사실 싱글톤으로 구현하지 않아도
+- 인스턴스를 하나 만들고, 이 인스턴스의 참조값을 `export/import` 해서 사용하면
+- 싱글톤을 따로 구현하지 않아도, 계속해서 동일한 참조값으로 사용할 수 있다.
+- 겉으로 보았을 때는 인스턴스를 계속 생성하는 것처럼 보이지만 내부에서 존재하는 인스턴스를 리턴해서 처리해주는 것이므로
+- 오히려, 참조값을 `import` 하는 것이 좀 더 자연스럽게 느껴졌다.
+
+👇 Why is the singleton such a favorite design pattern among front-end developers?
+
+> https://www.quora.com/Why-is-the-singleton-such-a-favorite-design-pattern-among-front-end-developers
+
+- 패턴이란 게 반복되는 문제와 주제에 적용할 수 있는 재사용 가능한 템플릿이라고 생각한다.
+- 억지로 싱글톤을 적용하려고 하는 게 아니라, 필수적으로 싱글톤 패턴이 필요할 때 사용하면 되겠다.
 
 ## 프로토타입 패턴
 

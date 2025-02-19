@@ -347,9 +347,84 @@ console.log(milkCoffee.cost()); // 7 (새로운 기능이 추가된 객체)
   <img src="https://github.com/user-attachments/assets/0ebf8675-85e9-4e5f-aca5-135a82c5fbb0" width={400} />
 </p>
 
-## 플라이웨이트 패턴
-
 ## 관찰자 패턴
+
+TL;DR
+
+- 특정 객체를 구독할 수 있다.
+- 객체에서 이벤트가 발생할 때마다 **옵저버에게 이벤트를 전파**
+
+👇 구독 가능한 객체를 구현
+
+```js
+class Observable {
+  constructor() {
+    this.observers = []; // 전파받을 옵저버를 담을 배열
+  }
+
+  subscribe(func) {
+    this.observers.push(func);
+  }
+
+  unsubscribe(func) {
+    this.observers = this.observers.filter((observer) => observer !== func);
+  }
+
+  notify(data) {
+    this.observers.forEach((observer) => observer(data));
+  }
+}
+```
+
+👇 이벤트 핸들러 호출 → observable가 전파 예제
+
+> https://codesandbox.io/p/sandbox/observer-pattern-1-md8k5?file=%2Fsrc%2FApp.js%3A13%2C1&from-embed
+
+```jsx
+import React from 'react';
+import { Button, Switch, FormControlLabel } from '@material-ui/core';
+import { ToastContainer, toast } from 'react-toastify';
+import observable from './Observable';
+
+function handleClick() {
+  observable.notify('User clicked button!');
+}
+
+function handleToggle() {
+  observable.notify('User toggled switch!');
+}
+
+function logger(data) {
+  console.log(`${Date.now()} ${data}`);
+}
+
+function toastify(data) {
+  toast(data, {
+    position: toast.POSITION.BOTTOM_RIGHT,
+    closeButton: false,
+    autoClose: 2000,
+  });
+}
+
+observable.subscribe(logger);
+observable.subscribe(toastify);
+
+export default function App() {
+  return (
+    <div className="App">
+      <Button variant="contained" onClick={handleClick}>
+        Click me!
+      </Button>
+      <FormControlLabel control={<Switch name="" onChange={handleToggle} />} label="Toggle me!" />
+      <ToastContainer />
+    </div>
+  );
+}
+```
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/99f66a4a-d1c4-457a-8035-092e374bf99b" width={500} />
+</p>
 
 ## 중재자 패턴
 

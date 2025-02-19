@@ -300,10 +300,52 @@ type OrderConstructor = typeof Order;
 // Order 클래스의 인스턴스 타입을 가져옴 -> 변수에 할당해서 인스턴스 타입을 고정할 수 있는.. 그렇게 쓸 수 있을 듯
 type OrderInstance = InstanceType<typeof Order>;
 // Order의 인스턴스에서 가능한 키들을 가져옴 (필드, 메서드)
-type OrderKeys = keyof Order; // "id" | "status" | "getStatus"
+type OrderKeys = keyof Order; // "id" | "status" | "getStatus" 👈 string으로 가져옴 ;;
 ```
 
 ## 데코레이터 패턴
+
+TL;DR
+
+- A라는 클래스의 인스턴스를 B라는 인스턴스를 생성할 때 생성자로 전달하는 패턴
+- 원본 객체를 수정하지 않고, 전달받은 인스턴스를 기준으로 기능을 확장해서 사용할 수 있다.
+
+👇 클래스 예제
+
+```js
+class Coffee {
+  cost() {
+    return 5;
+  }
+}
+
+// 데코레이터 패턴: 기존 객체를 감싸서 확장
+class MilkDecorator {
+  constructor(coffee) {
+    this.coffee = coffee;
+  }
+
+  cost() {
+    return this.coffee.cost() + 2;
+  }
+}
+
+const coffee = new Coffee();
+const milkCoffee = new MilkDecorator(coffee);
+
+console.log(coffee.cost()); // 5 (원본 객체는 변하지 않음)
+console.log(milkCoffee.cost()); // 7 (새로운 기능이 추가된 객체)
+```
+
+🤔 타입 세이프티하게 사용하는 게 중요할 거 같다
+
+- 그게 아니라면 런타임 오류가 잦을 듯
+
+해보았는데, 아래와 같이 `InstanceType<typeof Class>`를 활용하면 쉽게 긁어올 수 있었다.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0ebf8675-85e9-4e5f-aca5-135a82c5fbb0" width={400} />
+</p>
 
 ## 플라이웨이트 패턴
 

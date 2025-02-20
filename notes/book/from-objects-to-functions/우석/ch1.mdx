@@ -1,0 +1,136 @@
+[객체에서 함수로 - 1장 애플리케이션 준비하기](https://egg528.tistory.com/17)
+
+
+## 연습문제 1.2
+### CashRegister
+```kotlin
+package com.ubertob.fotf.exercises.chapter1
+
+class CashRegister private constructor(
+    private val prices: Map<String, Double>,
+    private val promotions: Map<String, String>
+) {
+    companion object {
+        fun create(
+            prices: Map<String, Double>,
+            promotions: Map<String, String>
+        ): CashRegister {
+            return CashRegister(prices.toMap(), promotions.toMap())
+        }
+    }
+
+    fun calculatePrice(items: List<String>): Double {
+        val itemCounts = items.groupingBy { it }.eachCount()
+        return itemCounts.entries.sumOf { (foodName, quantity) -> calculatePrice(foodName, quantity) }
+    }
+
+    private fun calculatePrice(
+        foodName: String,
+        quantity: Int
+    ): Double {
+        val price = prices.getValue(foodName)
+        val (minQuantityForDiscount, discountedQuantity) = parsePromotion(foodName)
+
+        val totalQuantity = calculateDiscountedQuantity(quantity, minQuantityForDiscount, discountedQuantity)
+        return totalQuantity * price
+    }
+
+    private fun parsePromotion(foodName: String): Pair<Int, Int> =
+        promotions.getValue(foodName).split("x")
+            .map(String::toInt)
+            .let { (buy, pay) -> buy to pay }
+
+    private fun calculateDiscountedQuantity(
+        quantity: Int,
+        minQuantityForDiscount: Int,
+        discountedQuantity: Int
+    ): Int {
+        val discountedTotalQuantity = (quantity / minQuantityForDiscount) * discountedQuantity
+        val normalQuantity = (quantity % minQuantityForDiscount)
+
+        return discountedTotalQuantity + normalQuantity
+    }
+}
+```
+
+### CashRegister 테스트
+```kotlin
+package com.ubertob.fotf.exercises.chapter1
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.isEqualTo
+import java.lang.reflect.Method
+import kotlin.random.Random
+
+class E02_CashRegisterTest {
+
+    fun randomInt() = Random.nextInt(from = 1, until = 100_000_000)
+    fun randomDouble() = Random.nextDouble(from = 1.0, until = 100_000_000.0)
+
+    @Test
+    fun `단일 상품에 대한 계산 메서드 테스트`() {
+        repeat(100) {
+            val foodName = "apple"
+            val price = randomDouble() / 1_000_000
+
+            val prices = mapOf(foodName to price)
+            val promotions = mapOf(foodName to "3x2")
+
+            val quantity = (randomInt() % 100) + 1
+
+            val sut = CashRegister.create(prices, promotions)
+
+            val method: Method = sut::class.java.getDeclaredMethod(
+                "calculatePrice",
+                String::class.java,
+                Int::class.java
+            )
+            method.isAccessible = true
+
+            val expectedPrice = (quantity / 3 * 2 + quantity % 3) * price
+            val actualPrice: Double = method.invoke(sut, foodName, quantity) as Double
+
+            expectThat(actualPrice).isEqualTo(expectedPrice, 1e-6)
+        }
+    }
+
+    @Test
+    fun `상품 리스트에 대한 계산 테스트`() {
+        repeat(100) {
+            val foods = listOf("apple", "banana", "cherry")
+            val prices = foods.associateWith { randomDouble() / 1_000_000 }
+
+            val promotions = foods.associateWith { food ->
+                val minSaleQuantity = randomInt()
+                val discountUnits = randomInt() - randomInt()
+                "$minSaleQuantity" + "x" + "$discountUnits"
+            }
+
+            val itemCount = randomInt() % 100
+            val items = List(itemCount) { foods.random() }
+
+            val expectedTotal = items.groupingBy { it }
+                .eachCount()
+                .entries
+                .sumOf { (foodName, quantity) ->
+                    val price = prices.getValue(foodName)
+                    val (minQuantityForDiscount, discountedQuantity) = promotions.getValue(foodName)
+                        .split("x")
+                        .map(String::toInt)
+
+                    val discountedUnit = (quantity / minQuantityForDiscount) * discountedQuantity
+                    val unit = quantity % minQuantityForDiscount
+
+                    (discountedUnit + unit) * price
+                }
+
+            val sut = CashRegister.create(prices, promotions)
+            val actualTotal = sut.calculatePrice(items)
+
+            expectThat(actualTotal).isEqualTo(expectedTotal, 1e-6)
+        }
+    }
+}
+```

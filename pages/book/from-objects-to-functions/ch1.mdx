@@ -1,0 +1,349 @@
+<details>
+  <summary>우석</summary>
+  [객체에서 함수로 - 1장 애플리케이션 준비하기](https://egg528.tistory.com/17)
+
+
+## 연습문제 1.2
+### CashRegister
+```kotlin
+package com.ubertob.fotf.exercises.chapter1
+
+class CashRegister private constructor(
+    private val prices: Map<String, Double>,
+    private val promotions: Map<String, String>
+) {
+    companion object {
+        fun create(
+            prices: Map<String, Double>,
+            promotions: Map<String, String>
+        ): CashRegister {
+            return CashRegister(prices.toMap(), promotions.toMap())
+        }
+    }
+
+    fun calculatePrice(items: List<String>): Double {
+        val itemCounts = items.groupingBy { it }.eachCount()
+        return itemCounts.entries.sumOf { (foodName, quantity) -> calculatePrice(foodName, quantity) }
+    }
+
+    private fun calculatePrice(
+        foodName: String,
+        quantity: Int
+    ): Double {
+        val price = prices.getValue(foodName)
+        val (minQuantityForDiscount, discountedQuantity) = parsePromotion(foodName)
+
+        val totalQuantity = calculateDiscountedQuantity(quantity, minQuantityForDiscount, discountedQuantity)
+        return totalQuantity * price
+    }
+
+    private fun parsePromotion(foodName: String): Pair<Int, Int> =
+        promotions.getValue(foodName).split("x")
+            .map(String::toInt)
+            .let { (buy, pay) -> buy to pay }
+
+    private fun calculateDiscountedQuantity(
+        quantity: Int,
+        minQuantityForDiscount: Int,
+        discountedQuantity: Int
+    ): Int {
+        val discountedTotalQuantity = (quantity / minQuantityForDiscount) * discountedQuantity
+        val normalQuantity = (quantity % minQuantityForDiscount)
+
+        return discountedTotalQuantity + normalQuantity
+    }
+}
+```
+
+### CashRegister 테스트
+```kotlin
+package com.ubertob.fotf.exercises.chapter1
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import strikt.api.expectThat
+import strikt.assertions.isEqualTo
+import java.lang.reflect.Method
+import kotlin.random.Random
+
+class E02_CashRegisterTest {
+
+    fun randomInt() = Random.nextInt(from = 1, until = 100_000_000)
+    fun randomDouble() = Random.nextDouble(from = 1.0, until = 100_000_000.0)
+
+    @Test
+    fun `단일 상품에 대한 계산 메서드 테스트`() {
+        repeat(100) {
+            val foodName = "apple"
+            val price = randomDouble() / 1_000_000
+
+            val prices = mapOf(foodName to price)
+            val promotions = mapOf(foodName to "3x2")
+
+            val quantity = (randomInt() % 100) + 1
+
+            val sut = CashRegister.create(prices, promotions)
+
+            val method: Method = sut::class.java.getDeclaredMethod(
+                "calculatePrice",
+                String::class.java,
+                Int::class.java
+            )
+            method.isAccessible = true
+
+            val expectedPrice = (quantity / 3 * 2 + quantity % 3) * price
+            val actualPrice: Double = method.invoke(sut, foodName, quantity) as Double
+
+            expectThat(actualPrice).isEqualTo(expectedPrice, 1e-6)
+        }
+    }
+
+    @Test
+    fun `상품 리스트에 대한 계산 테스트`() {
+        repeat(100) {
+            val foods = listOf("apple", "banana", "cherry")
+            val prices = foods.associateWith { randomDouble() / 1_000_000 }
+
+            val promotions = foods.associateWith { food ->
+                val minSaleQuantity = randomInt()
+                val discountUnits = randomInt() - randomInt()
+                "$minSaleQuantity" + "x" + "$discountUnits"
+            }
+
+            val itemCount = randomInt() % 100
+            val items = List(itemCount) { foods.random() }
+
+            val expectedTotal = items.groupingBy { it }
+                .eachCount()
+                .entries
+                .sumOf { (foodName, quantity) ->
+                    val price = prices.getValue(foodName)
+                    val (minQuantityForDiscount, discountedQuantity) = promotions.getValue(foodName)
+                        .split("x")
+                        .map(String::toInt)
+
+                    val discountedUnit = (quantity / minQuantityForDiscount) * discountedQuantity
+                    val unit = quantity % minQuantityForDiscount
+
+                    (discountedUnit + unit) * price
+                }
+
+            val sut = CashRegister.create(prices, promotions)
+            val actualTotal = sut.calculatePrice(items)
+
+            expectThat(actualTotal).isEqualTo(expectedTotal, 1e-6)
+        }
+    }
+}
+```
+</details><details>
+  <summary>만혁</summary>
+  ## 1. 애플리케이션 준비하기
+
+
+### 1.3 테스트가 개발을 안내하게 하라
+
+테스트를 작성하려면 목표를 명확히 하고, 그 목표를 달성하기 위해 필요한 전제조건도 명확히 정해야한다
+
+이런 과정은 복잡한 시스템에 작동하는 큰 테스트에 특히 유용하다
+
+
+#### 지속 가능한 페이스로 생각하기
+
+TDD 의 또 다른 이점은 모든것을 머리속에 기억할 필요가 없다는 점이다
+
+테스트를 제 위치에 만들어 놓으면, 우리가 이 문제를 이미 정의 했음을 알게 된다
+
+따라서 무언가를 잊어버릴 염려 없이 작업을 진행하고 멈출 수 있게 된다
+
+
+#### 디자인 방향 이끌기
+
+테스트하기 어려운 코드보다 테스트 하기 쉬운 코드가 코드의 품질이 더 높다
+
+테스트 가능한 쉬운 코드를 작성하기는 어렵다
+
+코드를 쉽게 테스트할 수 있도록 보장하는 방법중 가장 쉬운 방법은 처음부터 테스트를 작성하는 것이다.
+
+
+#### 올바름 보장하기
+
+TDD 로 작성한 코드가 버그가 더 적다는 뜻이 아니다
+
+버그를 더 빨리 수정할 수 있다는 뜻!!!!!!!
+
+
+### 1.5 단위 테스트를 함수형으로 만들기
+
+테스트를 하는 방법은 두가지 유형이 있다
+
+
+#### 예제에 의한 테스트 (test by example)
+첫번째는 A의 인스턴스와 그에 예상되는 B집합을 연관시킨 일련의 예제를 제공하는 방법이다
+
+그 후 각각 A에 대해 함수를 실행하고 그 결과가 예상되는 결과에 있는 B 와 같은지 확인한다
+
+이런 접근 방법을 예제에 의한 테스트(test by example) 이라 부른다
+
+
+가능한 값의 조합이 한정적이거나 프로덕션 시스템에서 얻은 구체적인 데이터 몇몇을 재현하고 싶을때 유용하다
+
+
+
+#### 속성 기반 테스트 (property testing, property based testing)
+두번째는 A -> B 변환에 대해 성립해야만 하는 어떤 속성을 정의하고 임의로 선택한 A 타입의 값들에 대해
+
+함수를 실행시킨 후, 만들어진 모든 결과에 대해 앞에서 정한 속성이 성립하는지 검증하는것이다
+
+이런 접근 방법을 속성 기반 테스트라고 부른다
+
+#### mock을 사용하지 마라
+
+함수를 테스트하는데 집중하면 mock, stub 을 자주 쓰지 않게 된다
+
+객체 지향에선 테스트가 가변적인 상태를 감추고 있는 객체와 상호작용 하는 경우가 많다
+
+불투명한 객체를 테스트하기엔 어렵기 때문에 가짜 객체(mock or stub)를 만들어 테스트하게 된다
+
+mock, stub 은 강력하지만 사용하기 복잡하고 테스트를 유지보수하기 어렵게 만든다
+
+
+함수형의 경우 단순히 입력을 제공하고, 원하는 결과가 나오는지만 테스트하면 되기 때문에
+
+목과 스텁이 필요하지 않은 경우가 많다
+
+
+
+<details>
+    <summary>연습 문제 1.2</summary>
+
+```kotlin
+data class Product(
+    val name: String,
+    val price: Double
+)
+
+data class Promotion(
+    val name: String,
+    val strategy: String
+) {
+
+    fun decode(): DiscountRule {
+        val (buy, pay) = strategy.split("x").map { it.toInt() }
+        return DiscountRule(buy, pay)
+    }
+
+    fun toDiscountRule(): DiscountRule {
+        val (buy, pay) = this.decode()  // 기존 decode() 활용
+        return DiscountRule(buy, pay)
+    }
+}
+
+data class DiscountRule(val buy: Int, val pay: Int) {
+    companion object {
+        val NO_DISCOUNT = DiscountRule(1, 1)
+    }
+}
+
+class CashRegister(
+    val products: List<Product>,
+    val promotions: List<Promotion>
+) {
+
+    fun checkout(items: List<String>): Double {
+        val itemMap = items.groupingBy { it }.eachCount()
+
+        return itemMap.entries.sumOf { (name, quantity) ->
+            val product = products.find { it.name == name }
+            val rule = promotions.find { it.name == name }
+                ?.toDiscountRule()
+                ?: DiscountRule.NO_DISCOUNT
+
+            product
+                ?.let { calculateTotalPrice(it, quantity, rule) }
+                ?: 0.0
+        }
+    }
+
+    fun calculateDiscount(quantity: Int, rule: DiscountRule): Int {
+        val discounted = quantity / rule.buy
+        val remaining = quantity % rule.buy
+
+        return discounted * rule.pay + remaining
+    }
+
+    fun calculateTotalPrice(product: Product, quantity: Int, rule: DiscountRule): Double {
+        val discounted = calculateDiscount(quantity, rule)
+        return product.price * discounted
+    }
+
+}
+```
+
+```kotlin
+class E02_DiscountTest {
+
+    @Test
+    fun `정적 상품 계산 테스트`() {
+        val products = listOf(
+            Product("milk", 1.5),
+            Product("banana", 2.0),
+            Product("orange", 3.0)
+        )
+
+        val promotions = listOf(
+            Promotion("milk", "6x4"),
+        )
+
+        val cashRegister = CashRegister(products, promotions)
+
+        val total = cashRegister.checkout(listOf("milk", "milk", "milk","milk", "milk", "milk"))
+
+        expectThat(total).isEqualTo(6.0)
+    }
+
+
+    @Test
+    fun `동적 상품 계산 테스트`() {
+        // 1. 랜덤한 상품 목록 생성
+        val productNames = listOf("milk", "banana", "orange", "apple", "grape")
+        val products = productNames.shuffled()
+            .take(Random.nextInt(1, productNames.size))
+            .map { name ->
+                Product(name, Random.nextDouble(1.0, 5.0)) // 가격 1.0 ~ 5.0 사이 랜덤
+            }
+
+        // 2. 랜덤한 할인 전략 생성 (N > M)
+        val promotions = products.shuffled()
+            .take(Random.nextInt(1, products.size))
+            .map { product ->
+                val buy = Random.nextInt(2, 10) // 최소 2개 이상 구매해야 함
+                val pay = buy - Random.nextInt(1, buy) // 항상 N > M 유지
+                Promotion(product.name, "${buy}x${pay}")
+            }
+
+        // 3. 랜덤하게 특정 상품 여러 개 구매하도록 설정
+        val selectedProduct = products.random()
+        val quantity = Random.nextInt(5, 15) // 5~15개 랜덤 구매
+        val items = List(quantity) { selectedProduct.name }
+
+        val cashRegister = CashRegister(products, promotions)
+        val total = cashRegister.checkout(items)
+
+        // 4. 기대 가격 계산 후 검증
+        val discountRule = promotions.find { it.name == selectedProduct.name }?.decode()
+        val expectedTotal = if (discountRule != null) {
+            val (buy, pay) = discountRule
+            val discountedQuantity = (quantity / buy) * pay + (quantity % buy)
+            discountedQuantity * selectedProduct.price
+        } else {
+            quantity * selectedProduct.price
+        }
+
+        expectThat(total).isEqualTo(expectedTotal)
+    }
+}
+```
+
+</details>
+</details>

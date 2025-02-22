@@ -1,0 +1,1680 @@
+<details>
+  <summary>도은</summary>
+  > 자바스크립트에서 사용되는 다양한 종류의 고전 및 최신 디자인 패턴을 다룬다.
+
+## 7.1 생성 패턴
+
+- 생성자 패턴
+- 모듈 패턴
+- 노출 모듈 패턴
+- 싱글톤 패턴
+- 프로토타입 패턴
+- 팩토리 패턴
+
+## 7.2 생성자 패턴
+
+- 생성자는 객체가 새로 만들어진 뒤 **초기화하는 데에 사용**되는 특별한 메서드
+
+![Image](https://github.com/user-attachments/assets/384ea688-bea1-4d10-9a48-5e14cb4018f2)
+
+### 7.2.1 객체 생성
+
+- 다음은 자바스크립트에서 새로운 객체를 만들 때 사용되는 세 가지 일반적인 방법이다.
+
+```js
+// 방법 1. 리터럴 표기법을 사용하여 빈 객체 생성
+const newObject = {};
+
+// 방법 2. Object.create() 메서드를 사용하여 빈 객체 생성
+const newObject = Object.create(Object.prototype);
+
+// 방법 3. new 키워드를 사용하여 빈 객체 생성
+const newObject = new Object();
+```
+
+### 7.2.2 생성자의 기본 특징
+
+- 아래는 생성자 패턴의 간단한 예제이다.
+- 그러나 몇 가지 문제가 있다.
+  - 상속이 어려워진다는 점
+  - Car 생성자로 객체를 생성할 때마다 `toString()`과 같은 함수를 새로 정의한다는 점
+  - Car 유형의 인스턴스는 모두 동일한 함수를 공유해야 하므로 이 방법은 효과적 X
+
+```js
+class Car {
+  constructor(model, year, miles) {
+    this.model = model;
+    this.year = year;
+    this.miles = miles;
+  }
+
+  toString() {
+    return `${this.model} has done ${this.miles} miles`;
+  }
+}
+
+let civic = new Car('Honda Civic', 2009, 20000);
+let mondeo = new Car('Ford Mondeo', 2010, 5000);
+```
+
+### 7.2.3 프로토타입을 가진 생성자
+
+- 자바스크립트의 프로토타입 객체는 함수나 클래스 등 특정 객체의 모든 인스턴스 내에 공통 메서드를 쉽게 정의 가능
+- **생성자를 통해 객체를 생성하면 생성자의 프로토타입 객체에 속한 속성을 새 객체에서도 활용 가능**
+
+```js
+class Car {
+  constructor(model, year, miles) {
+    this.model = model;
+    this.year = year;
+    this.miles = miles;
+  }
+}
+
+// 프로토타입 객체의 재정의를 피하기 위해 Object.prototype 대신
+// Object.prototype.newMethod 형태를 사용하고 있음의 유의하자
+// 기존에 이미 정의된 프로토타입 객체를 유지하기 위함
+Car.prototype.toString = function () {
+  return `${this.model} has done ${this.miles} miles`;
+};
+
+// 사용법
+// 이제 모든 Car 객체는 toString() 메서드를 공유하게 된다.
+let civic = new Car('Honda Civic', 2009, 20000);
+let mondeo = new Car('Ford Mondeo', 2010, 5000);
+```
+
+_**📝 NOTE**_
+
+- ES6 클래스는 메서드를 prototype에 자동으로 추가
+
+## 7.3 모듈 패턴
+
+- 모듈은 애플리케이션 아키텍처의 핵심 구성 요소
+- 프로젝트를 구성하는 코드 단위를 체계적으로 분리 및 관리하는 데 효과적으로 활용
+
+### 7.3.1 객체 리터럴
+
+- 다음은 객체 리터럴 표기법을 사용하여 모듈을 정의한 예제이다.
+- 객체 리터럴을 사용하면 **코드를 캡슐화하여 깔끔하고 체계적으로 정리** 가능
+
+```js
+const myModule = {
+  myProperty: 'someValue',
+  // 객체 리터럴은 속성으로 값과 메서드를 모두 가질 수 있다.
+  saySomething() {
+    console.log('Where is Paul Irish debugging today?');
+  },
+  // 현재 객체의 속성 값을 사용하는 메서드
+  reportMyConfig() {
+    console.log(`Caching is: ${this.myConfig.useCaching ? `enabled` : `disabled`}`);
+  },
+  // 현재 객체의 속성 값을 덮어씌우는(override) 메서드
+  updateMyConfig(newConfig) {
+    if (typeof newConfig === 'object') {
+      this.myConfig = newConfig;
+      console.log(this.myConfig.language);
+    }
+  },
+};
+```
+
+### 7.3.2 모듈 패턴
+
+- 클래스의 **캡슐화**를 위해 처음 고안되었다.
+
+![Image](https://github.com/user-attachments/assets/c534c63a-6c3c-4e20-ba86-7333e488dc13)
+
+#### 비공개
+
+- 모듈 패턴은 클로저(closure)를 활용해 '비공개' 상태와 구성을 캡슐화
+- 모듈 패턴을 사용한다면 공개 API 만을 노출하고 나머지는 클로저 내부에 비공개로 유지할 수 있다.
+
+#### 예제
+
+- import, export를 사용하여 독립적인 모듈을 만들어 모듈 패턴을 구현해보자
+
+```js
+let counter = 0;
+
+const testModule = {
+  incrementCounter() {
+    return counter++;
+  },
+  resetCounter() {
+    console.log(`counter value prior to reset ${counter}`);
+    counter = 0;
+  },
+};
+
+// 변수명을 정하지 않고 디폴트 default로서 내보내는 방법
+export default testModule;
+
+// 모듈을 가져올 경로 설정
+import testModule from './testModule';
+testModule.incrementCounter();
+testmodule.resetCounter();
+```
+
+- counter 변수는 전역 스코프로부터 완전히 보호되어 비공개 변수로서 작동
+- 모듈 내에서 선언된 변수는 해당 모듈을 import한 모든 파일에서 공유하므로
+- foo.js, bar.js 파일에서 불러서 `incrementCounter` 한다면 그 값을 공유하게 된다.
+
+_**🤔 바인딩**_
+
+- 변수 이름에 값 또는 메모리 위치를 **연결**하는 작업
+- `import`는 모듈에서 내보낸 바인딩을 가져올 수 있게 하는 키워드
+
+_**🤔 javascript의 bind 메서드**_
+
+- `this` 값을 고정하고, 함수의 인자들을 미리 설정
+- `bind()`를 통해 바인딩을 명시적으로 설정할 수 있다.ㄴ
+
+```js
+function greet() {
+  console.log(`Hello, my name is ${this.name}`);
+}
+
+const person = {
+  name: 'Alice',
+};
+
+const greetPerson = greet.bind(person);
+greetPerson(); // "Hello, my name is Alice"
+```
+
+- 아래는 다른 에제이다.
+
+```js
+// 비공개 변수 및 함수
+const basket = [];
+
+const doSomethingPrivate = () => {
+  // ...
+};
+const doSomethingElsePrivate = () => {
+  // ...
+};
+// 다른 파일에 공개할 객체 생성
+const basketModule = {
+  addItem(values) {
+    basket.push(values);
+  },
+  getItemCount() {
+    return basket.length;
+  },
+  doSomething() {
+    doSomethingPrivate();
+  },
+  getTotal() {
+    return basket.reduce((currentItem, item) => item.price + currentSum, 0);
+  },
+};
+
+import basketModule from './basketModule';
+basketModule.addItem({
+  item: 'bread',
+  price: 0.5,
+});
+basketModule.addItem({
+  item: 'butter',
+  price: 0.3,
+});
+
+console.log(basketModule.getItemCount()); // 2
+console.log(basketModule.getTotal()); // 0.8
+```
+
+### 7.3.3 모듈 패턴의 변형
+
+- 시간이 지나면서 각자의 입맛에 맞는 모듈 패턴의 변형들이 등장하기 시작
+
+#### 믹스인(Mixin) 가져오기 변형
+
+- 외부 라이브러리 같은 전역 스코프에 있는 요소를 모듈 내부의 고차 함수에 인자로 전달할 수 있게 한다.
+- 전역 스코프 요소를 가져와 맘대로 이름을 지정하는 것이 가능
+
+```js
+// utils.js
+export const min = (arr) => Math.min(...arr);
+
+// privateMethods.js
+import { min } from './utils';
+
+export const privateMethod = () => {
+  console.log(min([10, 5, 100, 2, 1000]));
+};
+
+// myModule.js
+import { privateMethod } from './privateMethods';
+
+const myModule = () => ({
+  publicMethod() {
+    privateMethod();
+  },
+});
+export default myModule;
+
+// main.js
+import myModule from './myModule';
+
+const moduleInstance = myModule();
+moduleInstance.publicMethod();
+```
+
+#### 내보내기 변형
+
+- 이름을 지정해주지 않고 전역 스코프로 변수를 내보낸다.
+
+```js
+// module.js
+const privateVaraible = 'Hello World';
+
+const privateMethod = () => {
+  // ...
+};
+
+const module = {
+  publicProperty: 'Foobar',
+  publicMethod: () => {
+    console.log(privateVariable);
+  },
+};
+export default mdoule;
+```
+
+#### 장점
+
+> 어째서 모듈 패턴을 사용해야 할까?
+
+- 모듈 사이의 의존성을 관리
+- 전역 요소를 원하는 만큼 넘겨주어 코드의 유지보수를 용이하게 하고 독립적으로
+- `export`를 이용해 바깥으로 노출하는 모듈은 공개, 그렇지 않으면 비공개로 유지
+  - 불필요한 전역 스코프 오염을 방지하는 것이 가능
+
+#### 단점
+
+- 공개와 비공개 멤버를 서로 다르게 접근해야 한다는 것
+- 공개 여부를 바꾸고 싶다면 값이 위치한 파일로 가서 바꾸어주어야 한다.
+- 자동화 단위 테스트에서 비공개 멤버는 제외된다는 것
+- 핫 픽스가 필요한 오류를 고칠 때 복잡도를 높인다
+  - 오류가 발생한 비공개 멤버를 고치기 위해서는 해당 비공개 멤버를 사용하는 모든 공개 메서드를 살펴봐야만 한다.
+  - 🤔 ^ 이건 모든 모듈이 다 그런 거 아닌가 ,,
+
+### 7.3.4 WeakMap을 사용하는 최신 모듈 패턴
+
+- [`WeakMap`](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/WeakMap) 객체는 약한 참조를 가진 키-값의 쌍으로 이루어진 집합체
+- **키는 기본적으로 약하게 유지되어, 참조되지 않는 키는 GC의 대상**이 된다.
+
+**_🤔 WeakMap을 사용하면 뭐가 특별한가?_**
+
+1. 안전한 캡슐화 → 외부에서 접근 불가능한 private 상태 유지
+2. 자동 메모리 관리 → 인스턴스가 삭제되면 WeakMap 내부의 값도 GC의 대상이 됨
+3. this 기반으로 객체를 관리 → 특정 인스턴스에만 연관된 데이터 저장 가능
+
+즉, WeakMap을 사용하면 안전하고 효율적인 private 변수를 가질 수 있다.
+
+아래와 같이 일반 속성으로 관리할 경우 외부에서 값을 접근하고 변경하는 것이 가능하다.
+
+```js
+class Module {
+  constructor() {
+    this.counter = 0; // 내부 상태를 일반 속성으로 관리
+  }
+  incrementCounter() {
+    this.counter++;
+    return this.counter;
+  }
+  resetCounter() {
+    console.log(`Counter before reset: ${this.counter}`);
+    this.counter = 0;
+  }
+}
+
+const module1 = new Module();
+console.log(module1.incrementCounter()); // 1
+console.log(module1.incrementCounter()); // 2
+module1.resetCounter(); // Counter before reset: 2
+
+// 외부에서 직접 접근 가능!
+console.log(module1.counter); // 0
+module1.counter = 999; // 값 변경 가능
+console.log(module1.counter); // 999
+```
+
+👇 기본 모듈 정의
+
+```js
+let _counter = new WeakMap();
+
+class Module {
+  constructor() {
+    _counter.set(this, 0);
+  }
+  incrementCounter() {
+    let counter = _counter.get(this);
+    counter++;
+    _counter.set(this, counter);
+    return _counter.get(this);
+  }
+  resetCounter() {
+    console.log(`counter value prior to reset: ${_counter.get(this)}`);
+    _counter.set(this, 0);
+  }
+}
+
+const testModule = new Module();
+testModule.incrementCounter();
+testModule.resetCounter();
+```
+
+👇 공개/비공개 변수 지정
+
+```js
+const myPrivateVar = new WeakMap();
+const myPrivateMethod = new WeakMap();
+
+class myNamespace {
+  constructor() {
+    myPrivateVar.set(this, 0);
+    myPrivateMethod.set(this, (foo) => console.log(foo));
+    // 공개 변수
+    this.myPublicVar = 'foo';
+  }
+  myPublicFunction(bar) {
+    let privateVar = myPrivateVar.get(this);
+    const privateMethod = myPrivateMethod.get(this);
+    privateVar++;
+    myPrivateVar.set(this, privateVar);
+    privateMethod(bar);
+  }
+}
+```
+
+## 7.4 노출 모듈 패턴
+
+- 공개 변수나 메서드에 접근하기 위해 가져온 메인 객체의 이름을 반복해서 사용해야 한다는 점에 답답함을 느끼면서 생겨났다.
+- 그 결과 모든 함수와 변수를 비공개 스코프에 정의하고
+- 공개하고 싶은 부분만 포인터를 통해 비공개 요소에 접근할 수 있게 해주는 익명 객체를 반환하는 패턴이 생겼다.
+
+```js
+let privateVar = 'Rob Dodson';
+const publicVar = 'Hey there!';
+
+const privateFunction = () => {
+  console.log(`Name:${privateVar}`);
+};
+const publicSetName = (strName) => {
+  privateVar = strName;
+};
+const publicGetName = () => {
+  privateFunction();
+};
+
+// 비공개 함수와 속성에 접근하는 공개 포인터
+const myRevealingModule = {
+  setName: publicSetName,
+  greeting: publicVar,
+  getName: publicGetName,
+};
+export default myRevealingModule;
+
+// 사용법
+import myRevealingModule from './myRevealingModule';
+myRevealingModule.setName('Matt Gaunt');
+```
+
+- 노출 모듈 패턴을 사용하면 좀 더 구체적인 이름을 붙여 비공개 요소를 공개로 내보낼 수도 있다.
+
+### 7.4.1 장점
+
+- 코드의 일관성이 유지
+- 모듈의 가장 아래에 위치한 공개 객체를 더 알아보기 쉽게 바꾸어 가독성 향상
+
+### 7.4.2 단점
+
+- 사용처에서의 확장이 어려움
+  - 새로운 기능을 추가하거나 수정하려면 기존 모듈을 수정해야 함
+
+**_🤔 함수 호출에 의해 내보내기를 해야 할 때는 노출 모듈 패턴 사용이 불가피하지 않나?_**
+
+- ES6 모듈은 정적 구조가 제약이 있음
+  - 분기로 export하는 것이 불가능
+- 넘긴 인자에 따라, 필요한 기능 혹은 값만 노출하고 싶을 때는 노출 모듈 패턴이 유용하다고 생각
+
+```js
+const { fooA, fooB, updateFoo } = useFoo('foo');
+```
+
+## 7.5 싱글톤 패턴
+
+- **인스턴스가 오직 하나만** 존재하도록 제한하는 패턴
+- 전역에서 접근 및 공유해야 하는 단 하나의 객체가 필요할 때 유용
+- **인스턴스가 이미 존재할 경우에는 해당 인스턴스의 참조를 반환**
+- ES2015+에서는 클래스의 전역 인스턴스를 단 한 번만 생성하는 싱글톤 패턴을 구현 가능
+
+```js
+let instance;
+const privateMethod = () => {
+  console.log('I am private');
+};
+const privateVariable = "I'm also private";
+
+class MySingleton {
+  constructor() {
+    if (!instance) {
+      this.publicProperty = 'I am also public';
+      this.randomNumber = Math.random(); // **인스턴스 내에서 유지**
+      instance = this;
+    }
+    return instance;
+  }
+
+  publicMethod() {
+    console.log('The public can see me!');
+  }
+
+  getRandomNumber() {
+    return this.randomNumber; // **인스턴스 변수 사용**
+  }
+}
+
+// 사용법
+const singleA = new MySingleton();
+const singleB = new MySingleton();
+console.log(singleA === singleB); // ✅ true (같은 인스턴스)
+console.log(singleA.getRandomNumber() === singleB.getRandomNumber()); // ✅ true
+```
+
+- 싱글톤의 특징은 인스턴스에 대한 전역 접근을 허용한다는 것
+- 싱글톤 패턴의 적합성을 다음과 같이 말한다.
+
+  - 클래스의 인스턴스는 정확히 하나만 있어야 하며, 눈에 잘 보이는 곳에 위치시켜 접근을 용이하게 해야 한다.
+  - 싱글톤 인스턴스는 하나만 존재해야 하므로, 인스턴스의 상태나 기능을 확장하려면 서브클래스를 통해서만 확장해야 한다.
+
+    ```js
+    // 기본 싱글톤 클래스
+    let instance;
+
+    class MySingleton {
+      constructor() {
+        if (!instance) {
+          this.publicProperty = 'I am also public';
+          this.randomNumber = Math.random(); // 랜덤 값
+          instance = this; // 최초 인스턴스를 저장
+        }
+        return instance; // 기존 인스턴스 반환
+      }
+
+      publicMethod() {
+        console.log('The public can see me!');
+      }
+
+      getRandomNumber() {
+        return this.randomNumber;
+      }
+    }
+
+    // 서브클래싱을 통해 확장하기
+    class ExtendedSingleton extends MySingleton {
+      constructor() {
+        super(); // 부모 클래스의 생성자를 호출하여 기존 싱글톤 인스턴스를 가져옴
+        this.newProperty = 'I am a new property'; // 새로 추가한 속성
+      }
+
+      newMethod() {
+        console.log('I am a new method in the extended singleton!');
+      }
+    }
+
+    // 사용 예제
+    const instanceA = new ExtendedSingleton();
+    const instanceB = new ExtendedSingleton();
+
+    console.log(instanceA === instanceB); // true: 싱글톤이기 때문에 동일한 인스턴스를 참조
+
+    console.log(instanceA.getRandomNumber() === instanceB.getRandomNumber()); // true: 동일한 값
+
+    console.log(instanceA.newProperty); // "I am a new property"
+    instanceA.newMethod(); // "I am a new method in the extended singleton!"
+    ```
+
+싱글톤 패턴의 단점은 다음과 같다.
+
+- 테스트하기 어려움
+  - 싱글톤은 전역적으로 하나의 인스턴스를 공유하기 때문에, 테스트 환경에서 상태를 초기화하거나 독립적인 테스트를 수행하기 어려울 수 있다.
+  - 하나의 테스트에서 상태가 변경되면, 다른 테스트에도 영향을 줄 수 있다.
+- 유지보수하기 힘듦
+  - 여러 곳에서 싱글톤을 참조하면, 코드 의존성이 증가하고 유지보수가 어려워진다.
+
+**_🤔 언제 싱글톤을 피해야 할까?_**
+
+> ✅ 상태가 자주 변경되지 않는 경우에는 사용 가능
+
+- 여러 컴포넌트에서 상태 변경이 빈번한 경우 피하자
+  - 어느 컴포넌트에서 상태를 변경했는지 추적하기 어렵기 때문
+
+**_🤔 리액트로 알아보는 싱글톤 패턴_**
+
+> https://github.com/Doeunnkimm/react-playground/pull/12
+
+## 7.6 프로토타입 패턴
+
+- GOF에서는, 이미 존재하는 객체를 복제해 만든 **템플릿을 기반으로 새 객체를 생성하는 패턴**이라고 정의
+- 이 패턴에서는 프로토타입 역할을 할 전용 객체를 생성하게 된다.
+- 이렇게 만들어진 prototype 객체는 생성자를 통해 만들어진 객체의 설계도가 된다.
+
+![Image](https://github.com/user-attachments/assets/194fb84e-c043-4355-8daa-2d625a208b19)
+
+- 프로토타입 상속
+  - 클래스처럼 따로 정의되는 것이 아니라
+  - 이미 존재하는 다른 객체를 복제하여 새로운 객체를 만들어내는 것
+- ECMASCript 5 표준에 따라 프로토타입 상속은 `Object.create`를 필요로 한다.
+  - `Object.create`는 프로토타입 객체를 생성하고 특정 속성을 추가할 수도 있다.
+
+```js
+const myCar = {
+  name: 'Ford Escort',
+
+  drive() {
+    console.log("Weeee. I'm driving");
+  },
+
+  panic() {
+    console.log('Wait. How do you stop this thing?');
+  },
+};
+
+// 새로운 car를 인스턴스화하기 위해 `Object.create`를 사용
+const yourCar = Object.create(myCar);
+
+// 프로토타입이 제대로 들어왔음을 알 수 있다.
+console.log(yourCar);
+```
+
+**_🤔 그냥 복제하는 거랑 무슨 차이지?_**
+
+- 프로토타입 상속 여부가 다르다.
+- 프로토타입 체인을 유지하면서 객체를 만들고 싶다면 `Object.create`을 사용해야 한다.
+
+아래와 같이 직접 가지고 있진 않지만, 프로토타입을 상속받아 사용할 수 있게 된 것이다.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d6daf239-b850-40f4-9158-eab859c96db9" width="600" />
+</p>
+
+- 두 번째 인자를 사용하여 객체의 속성을 초기화할 수도 있다.
+
+```js
+const vehicle = {
+  getModel() {
+    console.log(`The model of this vehicle is...${this.model}`);
+  },
+};
+
+const car = Object.create(vehicle, {
+  id: {
+    value: MY_CLOBAL.nextId(),
+    enumerable: true,
+  },
+  model: {
+    value: 'Ford',
+    enumerable: true,
+  },
+});
+```
+
+- `Object.create`를 사용하지 않고 프로토타입 패턴을 구현하는 방법은 다음과 같다.
+
+```js
+class VehiclePrototype {
+  constructor(model) {
+    this.model = model;
+  }
+
+  getModel() {
+    console.log(`The model of this vehicle is... ${this.model}`);
+  }
+  clone() {}
+}
+
+class Vehicle extends VehiclePrototype {
+  constructor(model) {
+    super(model);
+  }
+  clone() {
+    return new Vehicle(this.model);
+  }
+}
+
+const car = new Vehicle('Ford Escort');
+const car2 = car.clone();
+car2.getModel();
+```
+
+**_🤔 프로토타입의 정의_**
+
+- 자바스크립트에서 **프로토타입(Prototype)**은 객체가 다른 객체로부터 속성과 메서드를 상속받는 방식을 의미
+- 객체 간 계층 구조가 필요할 때 유용
+- 반복되는 메서드를 메모리 효율적으로 관리하고 싶을 때 유용
+
+**_🤔 리액트에서는 프로토타입 패턴을 못 본 이유_**
+
+- 리액트에서는 상태 관리가 필요한데
+- 상태 관리가 가능하면서도 공유할 수 있는 `context`로도 가능
+
+## 7.7 팩토리 패턴
+
+- 객체를 생성하는 생성 패턴 중 하나
+
+![Image](https://github.com/user-attachments/assets/e0422eed-1afe-4938-b2ff-e32a9a0a5ace)
+
+- 팩토리 패턴은 동적인 요소나 애플리케이션 구조에 깊게 의지하는 등의 상황에서 객체 생성 과정이 복잡할 대 특히 유용
+
+```js
+// Types.js - 백그라운드에서 사용되는 클래스
+// 자동차를 정의하는 클래스
+class Car {
+  constructor({ doors = 4, state = 'brend new', color = 'silver' } = {}) {
+    this.doors = doors;
+    this.state = state;
+    this.color = color;
+  }
+}
+
+// 트럭을 정의하는 클래스
+class Truck {
+  constructor({ state = 'used', wheelSize = 'large', color = 'blue' } = {}) {
+    this.state = state;
+    this.wheelSize = wheelSize;
+    this.color = color;
+  }
+}
+
+// FactoryExample.js
+// 차량 팩토리를 정의
+class VehicleFactory {
+  constructor() {
+    this.vehicleClass = Car;
+  }
+
+  // 새 차량 인스턴스를 생성하는 팩토리 함수
+  createVehicle(options) {
+    const { vehicelType, ...rest } = optoons;
+
+    switch (vehicleType) {
+      case 'car':
+        this.vehicleClass = Car;
+        break;
+      case 'truck':
+        this.vehicleCalss = Truck;
+        break;
+    }
+    return new this.vehicleClass(rest);
+  }
+}
+
+// 자동차를 만드는 팩토리의 인스턴스 생성
+const carFactory = new VehicleFactory();
+const car = carFactory.createVehicle({
+  vehicleType: 'car',
+  color: 'yellow',
+  doors: 6,
+});
+```
+
+### 7.7.1 팩토리 패턴을 사용하면 좋은 상황
+
+- 객체나 컴포넌트의 생성 과정이 높은 복잡성을 가지고 있을 때
+- 상황에 맞춰 다양한 객체 인스턴스를 편리하게 생성할 수 있는 방법이 필요할 때
+- 같은 속성을 공유하는 여러 개의 작은 객체 또는 컴포넌트를 다뤄야 할 때
+- 덕 타이핑 같은 API 규칙만 충족하면 되는 다른 객체의 인스턴스와 함께 객체를 구성할 때
+
+### 7.7.2 팩토리 패턴을 사용하면 안 되는 상황
+
+> 잘못된 상황에 팩토리 패턴을 적용하면 애플리케이션의 복잡도가 크게 증가할 수 있다.
+
+- 팩토리 패턴은 객체 생성 과정을 인터페이스 뒤에 추상화하기 때문에
+  - 객체 생성 과정이 복잡할 경우, 단위 테스트의 복잡성 또한 증가시킬 수 있다.
+
+### 7.7.3 추상 팩토리 패턴
+
+- 같은 목표를 가진 각각의 팩토리들을 하나의 그룹으로 캡슐화하는 패턴
+- 객체가 어떻게 생성되는지에 대한 세부사항을 알 필요 없이 객체를 사용할 수 있게 된다.
+
+```js
+class AbstractVehicleFactory {
+  constructor() {
+    // 차량 타입을 저장하는 곳
+    this.types = {};
+  }
+  getVehicle(type, customizations) {
+    const Vehicle = this.types[type];
+    return Vehicle ? new Vehicle(customizations) : null;
+  }
+  registerVehicle(type, Vehicle) {
+    const proto = Vehicle.prototype;
+    // 차량 기능을 충족하는 클래스만 등록
+    if (proto.drive && proto.breakDown) {
+      this.types[type] = Vehicle;
+    }
+    return this;
+  }
+}
+
+const abstractVehicleFactory = new AbstractVehicleFactory();
+abstractVehicleFactory.registerVehicle('car', Car);
+abstractVehicleFactory.registerVehicle('truck', Truck);
+```
+
+## 7.8 구조 패턴
+
+- 클래스와 객체의 구성을 다룬다.
+- 상속의 개념을 통해 인터페이스와 객체를 구성하여 새로운 기능을 추가할 수 있는 것처럼
+
+다음과 같은 구조 패턴을 다룬다.
+
+- 퍼사드 패턴
+- 믹스인 패턴
+- 데코레이터 패턴
+- 플라이웨이트 패턴
+
+## 7.9 퍼사드 패턴
+
+- 실제 모습을 숨기고 겉모습만을 세상에 드러내는 것
+- **심층적인 복잡성을 숨기고, 사용하기 편리한 높은 수준의 인터페이스를 제공하는 패턴**
+- 곧, 사용성 향상
+
+```js
+const addMyEvent = (el, ev, fn) => {
+  if (el.addEventListener) {
+    el.addEventListender(ev, fn, false);
+  } else if (el.attachEvent) {
+    el.attachEvent(`on${ev}`, fn);
+  } else {
+    el[`on${ev}`] = fn;
+  }
+};
+```
+
+```
+💡 많은 사람이 사용하는 복잡한 구현을 숨긴다
+```
+
+```js
+// privateMethods.js
+const _private = {
+  i: 5,
+  get() {
+    console.log(`current value: ${this.i}`);
+  },
+  set(val) {
+    this.i = val;
+  },
+  run() {
+    console.log(`running`);
+  },
+  jump() {
+    console.log(`jumping`);
+  },
+};
+export default _private;
+
+// module.js
+import _private from './privateMethods.js';
+const module = {
+  facade({ val, run }) {
+    _private.set(val);
+    _private.get();
+    if (run) {
+      _private.run();
+    }
+  },
+};
+export default module
+
+// index.js
+import module from './module.js'
+
+// 출력: "current value: 10" and "running"
+module.facade({
+  run: true,
+  val: 10
+})
+```
+
+- `module.facade()`는 모듈 내부에서 비밀스런 동작을 실행하지만
+- 사용자는 내부에서 무슨 일이 벌어지는지 몰라도 됩니다.
+
+## 7.11 서브 클래싱
+
+- ES2015+에서 도입된 기능을 통해 기존 또는 부모 클래스를 확장할 수도, 부모 클래스의 메서드를 호출할 수도 있게 되었다.
+- 부모 클래스를 확장하는 자식 클래스를 **서브클래스**라고 한다.
+
+```
+💡 서브클래싱
+   부모 클래스 객체에서 속성을 상속받아 새로운 객체를 만드는 것
+```
+
+- 서브클래스는 부모 클래스에서 먼저 정의된 메서드를 오버라이드하는 것도 가능
+- 부모 클래스의 생성자를 호출할 수도 있다. 이를 생성자 체이닝이라고 한다.
+
+```js
+class Person {
+  constructor(firstName, lastName) {
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.gender = 'male';
+  }
+}
+
+// Person의 새 인스턴스는 이처럼 쉽게 생성된다.
+const clark = new Person('Clark', 'Kent');
+
+// Person 클래스의 서브클래스가 되는 새 클래스를 만들자
+class Superhero extends Person {
+  constructor(firstName, lastName, powers) {
+    super(firstName, lastName);
+    this.powers = powers;
+  }
+}
+```
+
+## 7.12 믹스인
+
+- 자바스크립트에서는 기능의 확장을 위해 믹스인 상속을 이용한다.
+- 새롭게 만들어지는 클래스는 부모 클래스로부터 메서드와 속성을 부여받는다.
+- 믹스인은 **최소한의 복잡성으로 객체의 기능을 빌리거나 상속할 수 있게** 해준다.
+- 자바스크립트 클래스는 **부모 클래스를 하나만 가질 수 있지만**
+  - 여러 클래스의 기능을 섞는 것으로 문제를 해결할 수 있다.
+- 부모 클래스를 받아 새로운 서브클래스를 만들어내는 믹스인 함수를 정의할 수 있다.
+
+```js
+const MyMixins = (superclass) => {
+  return class extends superclass {
+    moveUp() {
+      console.log('move up');
+    }
+    moveDown() {
+      console.log('move down');
+    }
+    stop() {
+      console.log('stop! in the name of love!');
+    }
+  };
+};
+```
+
+- 부모 클래스를 받아 확장하는 `MyMixins` 함수를 만들었다.
+
+이제 `MyMixins`를 사용하여 기존 클래스의 기능에 더불어 추가 기능을 가진 서브클래스를 생성해보자
+
+```js
+// CarAnimator 생성자와 기본 구조
+class CarAnimator {
+  moveLeft() {
+    console.log('move left');
+  }
+}
+
+class PersonAnimator {
+  moveRendomly() {
+    //...
+  }
+}
+
+class MyAnimator extends MyMixins(CarAnimator) {}
+
+cont myAnimator = new MyAnimator()
+myAnimator.moveLeft()
+myAnimator.moveDown()
+myAnimator.stop()
+```
+
+### 7.12.1 장점과 단점
+
+```
+💡 믹스인은 함수의 중복을 줄이고 재사용성을 높인다.
+```
+
+- 장점
+  - 믹스인을 통해 **기능을 공유하여 중복을 피하고** 고유 기능을 구현하는 데에 집중 가능
+- 단점
+  - 몇몇의 개발자들은 클래스나 객체의 프로토타입에 기능을 주입한느 것을 나쁜 방법이라고
+  - 프로토타입 오염과 함수의 출처에 대한 불확실성을 초래하기 때문
+  - **믹스인은 객체나 클래스의 프로토타입을 수정해서 기능을 추가하는 방식**
+
+## 7.13 데코레이터 패턴
+
+- **코드 재사용**을 목표로 하는 구조 패턴
+- 믹스인과 마찬가지로 객체 서브클래싱의 다른 방법
+- 데코레이터는 기존 클래스에 **동적으로 기능을 추가하기 위해** 사용
+- 데코레이터를 사용하면 **기존 시스템의 내부 코드를 힘겹게 바꾸지 않고도 기능을 추가할 수 있게** 된다.
+- 객체의 생성을 신경 쓰지 않는 대신, **기능의 확장**에 좀 더 초점
+
+👇 생성자에 **데코레이터를 붙여** 새로운 기능 추가하거
+
+```js
+// Vehicle 생성자
+class Vehicle {
+  constructor(vehicleType) {
+    // 일부 합리적인 기본값
+    this.vehicleType = vehicleType || 'car';
+    this.mode = 'default';
+    this.license = '00000-000';
+  }
+}
+
+// 기본 Vehicle에 대한 테스트 인스턴스
+const testInstance = new Vehicle('car');
+console.log(testInstance); // vehicle: car, mode:default, license: 00000-000
+
+// 데코레이터될 새로운 차량 인스턴스를 생성
+const truck = new Vehicle('truck');
+truck.setModel = function (modelName) {
+  this.mode = modelName;
+};
+truck.setColor = function (color) {
+  this.color = color;
+};
+
+truck.setModel('CAT');
+truck.setColor('blue');
+
+console.log(truck); // vehicle:truck, model:CAT, color:blue
+
+// "vehicle"이 변경되지 않았음을 보여준다
+const secondInstance = new Vehicle('car');
+console.log(secondInstance); // vehicle:car, mode:default, license: 0000-000
+```
+
+- `truck`은 `Vehicle` 클래스의 인스턴스
+- `setColor`와 `setModel` 메서드를 **데코레이터로 추가**
+
+👇 여러 데코레이터로 객체의 기능 확장하기
+
+```js
+// 데코레이터를 사용할 생성자
+class MacMook {
+  constructor() {
+    this.cost = 997;
+    this.screenSize = 11.6;
+  }
+  getCost() {
+    return this.cost;
+  }
+  getScreenSize() {
+    return this.screenSize;
+  }
+}
+
+// 데코레이터 1
+class Memory extends MacBook {
+  constructor(macBook) {
+    super();
+    this.macBook = macBook;
+  }
+  getCost() {
+    return this.macBook.getCost() + 75;
+  }
+}
+
+// 데코레이터2
+class Engraving extends MacBook {
+  constructor(macBook) {
+    super();
+    this.macBook = macBook;
+  }
+  getCost() {
+    return this.macBook.getCose() + 200;
+  }
+}
+
+// 메인 객체 초기화
+let mb = new MacBook();
+// 데코레이터 초기화
+mb = new Memory(mb);
+mb = new Memory(mb);
+```
+
+- 맥북의 업그레이드에 필요한 추가 비용을 반환하기 위해 `MacBook` 부모 클래스 객체의 `.getCost()` 힘수를 **데코레이터로 오버라이드**
+
+**_🤔 데코레이터 === 오버라이드 === 확장 ?_**
+
+- 오버라이드는 완전히 재정의하는 것
+- 데코레이터는 기존 기능을 감싸서 기능 추가
+- 확장은 기존 기능을 늘리는 것
+
+![Image](https://github.com/user-attachments/assets/e0ed2d92-3b94-421c-94c1-cf8fc282a670)
+
+## 7.14 의사 클래스 데코레이터
+
+- 데코레이터의 변형 버전
+
+### 7.14.1 인터페이스
+
+```
+💡 인터페이스
+   객체가 가져야 할 메서드를 정의하는 방법
+   → 메서드가 가지는 매개변수
+```
+
+👇 덕 타이핑을 사용해 자바스크립트의 인터페이스를 구현
+
+```js
+// 인터페이스의 이름과 노출할 스켈레톤 메서드를 받아들이는 Interface 생성자를 사용하여 인터페이스 생성
+
+const reminder = new Interface('List', ['summary', 'placeholder']);
+const properties = {
+  name: 'Remember to buy the milk',
+  date: '05/06/2040',
+  actions: {
+    summary() {
+      return `Remember to buy the milk, we are almost out!`;
+    },
+    placeholder() {
+      return 'Ordering milk from your local grocery store';
+    },
+  },
+};
+
+// 이제 이러한 속성과 메서드를 구현하는 생성자 생성
+class Todo {
+  constructor({ actions, name }) {
+    // `actions` 객체가 `reminder` 인터페이스의 요구사항을 충족하는지 확인
+    // 충족하지 않다면 내부에서 에러를 throw하거나 할 것..
+    Interface.ensureImpements(actions, reminder);
+    this.name = name;
+    this.methods = actions;
+  }
+}
+
+//  Todo 생성자의 새 인스턴스 생성
+const todoItem = new Todo(properties);
+```
+
+**_🤔 TypeScript를 사용하면 위 패턴은 그닥..?_**
+
+- `Interface.ensureImpements()` 같은 패턴을 쓰는 이유는 인터페이스를 강제하기 위해서
+- 런타임 오류를 줄이고, 협업 시 규칙을 명확하게 만들 수 있음
+- 하지만 실제로는 `TypeScript` 같은 정적 타입 시스템을 쓰는 게 훨씬 좋은 방법
+
+### 7.14.2 추상 데코레이터
+
+- 컴포넌트의 구조를 유지하면서도 기능을 확장
+- 같은 인터페이스를 사용하기 때문에 서로 호환성을 높이는 방법
+
+```js
+const MacBook = new Interface('MacBook', ['addEngraving', 'addParallels', 'add4GBRam', 'add8GBRam', 'addCase']);
+
+// MacBook Pro는 다음과 같이 표현될 수 있다.
+class MacBookPro {
+  // MacBook 구현
+}
+
+// 내부적으로 같은 구조를 사용하기 때문에 ES2015+의 `Object.prototype`을 사용하여 새로운 메서드 추가 가능
+MacBookPro.prototype = {
+  addEngraving() {},
+  addParallels() {},
+  ...
+};
+```
+
+- 추상 데코레이터 클래스는 `MacBook` 인터페이스를 구현하기 위해 필요한 기본 메서드를 정의
+  - 나머지 옵션은 서브클래스
+
+```js
+// MacBook 추상 데코레이터 클래스
+class MacBookDecorator {
+  constructor(macbook) {
+    Interface.ensureImpements(macbook, MacBook);
+    this.macbook = macbook;
+  }
+  addEngraving() {
+    return this.macbook.addEngraving();
+  }
+  ...
+}
+```
+
+- 정의했던 `MacBook` 인터페이스를 사용하면 각 메서드는 컴포넌트에서 같은 일므의 메서드를 호출하면 된다.
+
+```js
+// 이제 MacBookDecorator를 사용해 CaseDecorator를 확장
+class CaseDecorator extends MacBookDecorator {
+  constructor(macbook) {
+    super(macbook);
+  }
+  addCase() {
+    return `${this.macbook.addCase()}Adding case to macbook`;
+  }
+  getPrice() {
+    return this.macbook.getPrice() + 45;
+  }
+}
+```
+
+- 데코레이터는 객체를 동적으로 확장 가능
+- 개별 서브클래스를 관리하는 것보다 객체를 감싸는 데코레이터를 만드는 게 더 쉬울 때도 존재
+
+## 7.15 장점과 단점
+
+- 장점
+  - 베이스 객체가 변경될 걱정 없이 사용 가능
+- 단점
+  - 네임스페이스에 작고 비슷한 객체를 추가하기 때문에
+    - 잘 관리하지 않는다면 애플리케이션의 구조를 무척 복잡하게 만들 수도
+  - 이 패턴에 익숙하지 않는 다른 개발자가 패턴의 사용 목적을 파악하기 어렵게 되어 관리 어려움
+
+**_🤔 리액트에서 데코레이터 패턴 사용하기_**
+
+> HOC 패턴
+
+- HOC 패턴도 기존 기능을 수정하지 않고 확장된 기능을 추가한 컴포넌트를 반환해준다는 점에서 비슷하다.
+- 기능을 감싸고 간소화하는 역할을 한다는 점에서 퍼사드 패턴도 있는 것 같다.
+
+## 7.16 플라이웨이트 패턴
+
+- 반복되고 느리고 비효율적으로 데이터를 공유하는 코드를 최적화하는 전통적인 구조적 해결 방법이다.
+- **연관된 객체끼리 데이터를 공유하게 하면서 메모리를 최적화하는 목적**
+
+```
+💡 플라이웨이트 패턴의 목적: 메모리 공간의 경량화
+   → 공통으로 사용되는 부분만을 하나의 외부 객체로 내보내는 것으로 공유 방식 사용
+```
+
+- 각 데이터를 저장하기보다는 하나의 의존 외부 데이터에 모아서 저장 가능
+
+### 7.16.1 사용법
+
+1. 데이터 레이어에서 메모리에 저장된 수많은 비슷한 객체 사이로 데이터를 공유
+2. DOM 레이어에서는 비슷한 동작을 하는 이벤트 핸들러를 모든 자식 요소에 등록하기보다는 부모 요소 같은 중앙 이벤트 관리자에게 맡기는 방법
+
+### 7.16.2 데이터 공유
+
+플리이웨이트 패턴에는 **두 가지 개념**이 있다.
+
+1. 내재적 상태
+   - 객체의 내부 메서드에 필요한 것
+   - 없으면 절대로 동작 X
+2. 외재적 상태
+   - 제거되어 외부에 저장될 수 있는 것
+
+```
+💡 같은 내재적 정보를 가진 객체를 팩토리 메서드를 사용해 만들어진
+   하나의 공유된 객체로 대체 가능 → 저장된 내부 데이터의 양을 상당히 줄일 수 있다.
+```
+
+- 외재적 정보를 다룰 때에는 따로 관리자를 사용한다.
+- 관리자는 다양한 방법으로 구현할 수 있는데
+  - 플라이웨이트 객체와 내재적 상태를 보관하는 중앙 데이터베이스를 관리자로 사용하는 것
+
+**_🤔 와 말이 너무 어려움 help.. GPT..._**
+
+> 플라이웨이트 패턴을 이해하기 위한 예시
+
+- 예제: 게임에서 나무 객체를 생성하는 경우
+  - 게임을 만들 때, 수천 개의 나무를 배치한다고 생각해보자
+  - 각각의 나무가 메모리에 개별적으로 저장된다면 메모리 사용량이 엄청날 것
+  - 나무는 대부분 같은 속성(모양, 색상 등)을 공유한다.
+  - 그렇다면, 같은 속성을 공유하고 필요한 데이터만 개별적으로 관리하면 메모리를 절약할 수 있을 것이다.
+- 내재적 상태(Intrinsic State) → "공유할 수 있는 부분"
+  - 여러 객체가 공통으로 가지는 정보
+  - 변경되지 않음 → 공유 가능
+  - 예시: 나무의 모양, 색상, 텍스처 등
+  - 하나의 객체만 만들어두고 여러 개가 공유함
+- 외재적 상태(Extrinsic State) → "각 객체마다 다른 부분"
+  - 객체별로 달라지는 정보
+  - 공유할 수 없기 때문에, 외부에서 별도로 저장 및 관리
+  - 예시: 나무의 좌표 (x, y)
+
+#### 'implements' 덕 펀칭하기
+
+- 덕 펀칭(Duck punching)은 **런타임 소스를 수정할 필요 없이** 언어나 솔루션의 기능을 확장할 수 있게 해준다.
+- `Function.prototype.implementsFor`는 객체 생성자에 적용하며 부모 클래스(함수) 또는 객체를 받아들여
+  - 일반적인 상속(함수일 떼) 또는 가상 상송(객체일 때)을 이용해 상속 받는다.
+
+```js
+// 인터페이스의 구현을 시뮬레이션하기 위한 유틸리티 클래스
+class InterfaceImplementation {
+  static implemenetsFor(superclassOrInterface) {
+    if (superclassOrInterface instanceof Function) {
+      this.prototype = Object.create(superclassOrInterface.prototype);
+      this.prototype.constructor = this;
+      this.prototype.parent = superclassOrInterface.prototype;
+    } else {
+      this.prototype = Object.create(supercalssOrInterface);
+      this.prototype.constructor = this;
+      this.prototype.parent = superclassOrInterface;
+    }
+    return this;
+  }
+}
+```
+
+- `implements` 키워드의 부재를 보완
+- 함수가 인터페이스를 상속할 수 있도록 만들어준다.
+
+```js
+// CoffeeOrder 인터페이스
+const CoffeOrder = {
+  setveCoffee(context) {},
+  getFlavor() {},
+};
+
+class CoffeeFlavor extends InterfaceImplementation {
+  constructor(newFlaver) {
+    super();
+    this.flavor = newFlavor;
+  }
+  getFlavor() {
+    return this.flavor;
+  }
+  serveCoffee(context) {
+    // 커피 제공 로그
+    console.log(`Serving Coffee flavor ${this.flavor} to table ${context.getTable()}`);
+  }
+}
+
+// CoffeeOrder 인터페이스 구현
+CoffeeFlavor.implementsFor(CoffeeOrder);
+const CoffeeOrderContext = (tableNumber) => ({
+  getTable() {
+    return tableNumber;
+  },
+});
+
+class CoffeFlavorFactory {
+  constructor() {
+    this.flavors = {};
+    this.length = 0;
+  }
+  getCoffeFlavor(flavorName) {
+    let flavor = this.flavors[flavorName];
+    if (!flavor) {
+      flavor = new CoffeeFlavor(flavorName);
+      this.flavors[flavorName] = flavor;
+      this.length++;
+    }
+    return flavor;
+  }
+  getTotalCoffeeFlavorsMade() {
+    return this.length;
+  }
+}
+
+// 사용 예시
+const testFlyweight = () => {
+  const flavors = [];
+  const tables = [];
+  let ordersMade = 0;
+  const flavorFactory = new CoffeeFlavorFactory();
+
+  function takeOrders(flavorIn, table) {
+    flavors.push(flavorFactory.getCoffeeFlavor(flavorIn));
+    tales.push(CoffeeOrderContext(table));
+    ordersMade++;
+  }
+
+  // 주문 처리
+  takeOrders('Cappuccino', 2);
+  // ...
+
+  // 주문 제공
+  for (let i = 0; i < ordersMade; i++) flavors[i].serveCoffee(tables[i]);
+
+  console.log(`total CoffeeFlavor objects made: ${flavorFactory.getTotalCoffeeFlavorsMade()}`);
+};
+
+testFlyweight();
+```
+
+**_🤔 와! 어렵다_**
+
+GPT야.. 이해하기 쉬운 예제 plz..
+
+- fontFactory 가 이미 생성된 폰트 객체를 관리해서 중복 생성을 방지함.
+- `font1`과 `font2`는 동일한 객체를 공유하지만, `font3`는 다른 속성을 가지므로 새로운 객체를 생성함.
+
+```js
+// Flyweight (공유되는 폰트 객체)
+class Font {
+  constructor(name, size, color) {
+    this.name = name; // 폰트 이름
+    this.size = size; // 폰트 크기
+    this.color = color; // 폰트 색상
+  }
+}
+
+// Flyweight Factory (폰트 객체를 관리하는 팩토리)
+class FontFactory {
+  constructor() {
+    this.fonts = {}; // 이미 생성된 폰트를 저장할 객체
+  }
+
+  getFont(name, size, color) {
+    const key = `${name}-${size}-${color}`; // 고유한 키 생성
+
+    if (!this.fonts[key]) {
+      this.fonts[key] = new Font(name, size, color);
+    }
+
+    return this.fonts[key]; // 기존 객체를 반환하거나 새로 생성
+  }
+}
+
+// 클라이언트 코드
+const factory = new FontFactory();
+
+const font1 = factory.getFont('Arial', 12, 'black');
+const font2 = factory.getFont('Arial', 12, 'black');
+const font3 = factory.getFont('Arial', 14, 'blue');
+
+console.log(font1 === font2); // true (재사용됨)
+console.log(font1 === font3); // false (새로운 객체)
+```
+
+### 7.16.4 플라이웨이트로 변환하기
+
+도서관 책을 관리하는 시스템을 구현할 때 플라이웨이트를 써보자
+
+```js
+class Book {
+  constructor(
+    id,
+    title,
+    author,
+    genre,
+    pageCount,
+    publisherID,
+    ISBN,
+    checkoutDate,
+    checkoutMemebr,
+    dueReturnDate,
+    availability,
+  ) {
+    this.id = id;
+    // ...
+  }
+  getTitle() {
+    return this.title;
+  }
+  getAuthor() {
+    return this.author;
+  }
+  getISBN() {
+    return this.ISBN;
+  }
+  // ...
+  updateCheckoutStatus(bookId, newStatus, checkoutDate, checkoutMember, newReturnDate) {
+    this.id = bookId;
+    this.availability = checkoutDate;
+    this.checkoutMember = checkoutMember;
+    this.dueReturnDate = newReturnDate;
+  }
+  extendCheckoutPeriod(bookId, newReturnDate) {
+    this.id = bookId;
+    this.dueReturnDate = newReturnDate;
+  }
+  isPastDue(bookId) {
+    const currentDate = new Date();
+    return currentDate.getTime() > Date.parse(this.dueReturnDate);
+  }
+}
+```
+
+- 위 시스템은 도서관이 확장되며 많은 책의 다양한 버전과 사본이 추가되면서 관리 시스템이 느려질 것
+- 수천 개의 책 객체를 다루는 건 메모리에 부담이 되기 때문에
+
+👇 플라이웨이트로 최적화한 버전
+
+```js
+class Book {
+  /**
+   * ⭐️ checkoutDate, checkoutMemebr, dueReturnDate, availability과 같은 외부 상태를 나타내는 인자 제거
+   * 변하지 않는 정보로만 객체를 생성한다.
+   *
+   * 만약 이전 코드에서 "해리포터" 책 100권을 관리한다고 하면 각각 객체가 필요 (왜나하면 책 하나하나에 대해 대출 가능한지... 누가 대출했는지... 정보를 들고 있기 때문에)
+   */
+  constructor({ title, author, genre, pageCount, publisherID, ISBN }) {
+    this.title;
+    this.author = author;
+    // ...
+  }
+}
+```
+
+- 외부 상태를 나타내는 부분이 제거
+- 도서 대출에 대한 책임은 관리자로 이동
+- 객체 데이터가 분리되었기 때문에 인스턴스화를 위한 팩토리를 사용할 수 있게 되었다.
+
+### 7.16.5 기본 팩토리
+
+- 기본적인 팩토리를 정의해보자
+- 시스템 내부에서 특정 제목의 책이 이미 생성되었는지 확인한다.
+
+**_👀 팩토리 패턴 기억해보기_**
+
+> [이거 아주 예시 맛집이다](https://jusungpark.tistory.com/14)
+
+- **객체 생성을 캡슐화**
+
+```js
+// Book 팩토리의 싱글톤
+const existingBooks = {};
+
+class BookFactory {
+  // 👇 객체 생성을 캡슐화 (팩토리 패턴 적용)
+  createBook({ title, author, genre, pageCount, publisherID, ISBN }) {
+    const existingBook = existingBooks[ISBN];
+    if (existingBook != null) {
+      return existingBook;
+    } else {
+      // 존재하지 않을 경우, 새로운 책 인스턴스 생성 후 저장
+      const book = new Book({ title, author, genre, pageCount, publisherID, ISBN });
+      existingBook[ISBN] = book; // 책 추가
+      return book;
+    }
+  }
+}
+```
+
+### 7.16.6 외부 상태 관리하기
+
+- 이제 `Book` 객체에서 제거했던 외부 상태를 어딘가에 저장해야 하는데...
+- 관리자를 두고, 정보를 모두 저장하며 플라이웨이트 패턴을 통해 `Book` 클래스를 최적화해보자
+
+```js
+// Book 레코드 관리자 싱글톤
+const bookRecordDatabase = {};
+
+class BookRecordManager {
+  // 도서관 시스템에 새로운 도서 추가
+  addBookRecord({
+    id,
+    title,
+    author,
+    genre,
+    pageCount,
+    publisherID,
+    ISBN,
+    checkoutDate,
+    checkoutMember,
+    dueReturnDate,
+    availability,
+  }) {
+    const bookFactory = new BookFactory(); // createBook 메서드 가지고 있음
+    const book = bookFactory.createBook({ title, author, genre, pageCount, publisherID, ISBN });
+    bookRecordDatabase[id] = {
+      checkoutMember,
+      checkoutDate,
+      dueReturnDate,
+      availability,
+      book,
+    };
+  }
+  updateCheckoutStatus({ bookID, newStatus, checkoutDate, checkoutMember, newReturnDate }) {
+    const record = bookRecordDatabase[bookID];
+    record.availability = newStatus;
+    record.checkoutDate = checkoutDate;
+    record.checkoutMember = checkoutMember;
+    record.dueReturnDate = newReturnDate;
+  }
+  extendCheckoutPeriod(bookID, newReturnDate) {
+    bookRecordDatabase[bookID].dueReturnDate = newReturnDate;
+  }
+  isPastDue(bookID) {
+    const currentDate = newDate();
+    return currentDate.getTime() > Date.parse(bookRecordDatabase[bookID].dueReturnDate);
+  }
+}
+```
+
+- `Book` 클래스에서 추출된 모든 데이터는 `BookManager` 싱글톤의 속성(`BookDatabase`)에 저장
+
+### 7.16.7 플라이웨이트 패턴과 DOM 객체
+
+- DOM은 **이벤트 캡쳐링**과 **이벤트 버블링** 두 가지 방식의 `이벤트 감지`를 지원한다.
+- 플라이웨이트는 **이벤트 핸들링 과정을 최적화**할 수 있다.
+
+### 7.16.9 예시: 중앙 집중식 이벤트 핸들링
+
+- 하위 여러 요소에 하나하나 클릭 이벤트를 바인딩하는 대신
+- 최상위 컨테이너에 플라이웨이트를 부착하여 하위 요소로부터 전달되는 이벤트를 감지할 수 있다.
+
+## 7.17 행위 패턴
+
+- 객체 간의 의사소통을 돕는 패턴
+
+```
+💡 행위 패턴의 목적
+   시스템 내 서로 다른 객체 간의 의사소통 방식을 개선하고 간소화
+```
+
+- 관찰자 패턴
+- 중재자 패턴
+- 커맨트 패턴
+
+## 7.18 관찰자 패턴
+
+- 객체가 변경될 때 다른 객체들에게 변경되었음을 알릴 수 있게 하는 패턴
+- 누가 자신을 구독하는지 알 필요 없이 알림을 보낸다.
+
+```js
+class ObserverList {
+  constructor() {
+    this.observerList = [];
+  }
+  add(obj) {
+    return this.observerList.push(obj);
+  }
+  count() {
+    return this.observerList.length;
+  }
+  get(index) {
+    if (index > -1 && index < this.observerList.length) {
+      return this.observerList[index];
+    }
+  }
+  indexOf(obj, startIndex) {
+    let i = startIndex;
+
+    while (i < this.observerList.length) {
+      if (this.observerList[i] === obj) {
+        return i;
+      }
+      i++;
+    }
+    return -1;
+  }
+  removeAt(index) {
+    this.observerList.splice(index, 1);
+  }
+}
+```
+
+다음으로 주체가 관찰자 목록을 추가하고 제거하고 알리는 기능을 구현해 보자
+
+```js
+class Subject {
+  constructor() {
+    this.observers = new ObserverList();
+  }
+  addObserver(observer) {
+    this.observers.add(observer);
+  }
+  removeObserver(observer) {
+    this.observers.removeAt(this.observers.indexOf(observer, 0));
+  }
+  notify(context) {
+    const observerCount = this.observers.count();
+    for (let i = 0; i < observerCount; i++) {
+      this.observers.get(i).update(context);
+    }
+  }
+}
+```
+
+### 7.18.4 발행/구독 패턴 구현하기
+
+- 발행/구독 패턴은 자바스크립트 생태계와 잘 어울린다.
+- ECMAScript의 구현체가 본질적으로 **이벤트 기반**이기 때문
+
+```
+💡 브라우저 환경에서는 DOM을 스크립트를 위한 주요 상호작용 API로써 사용
+   → 이벤트 기반의 구조
+```
+
+## 7.19 중재자 패턴
+
+- 하나의 객체가 이벤트 발생 시 다른 여러 객체들에게 알림을 보낼 수 있다.
+- 하나의 객체가 다른 객체에서 발생한 특정 유형의 이벤트에 대해 알림을 받을 수 있다.
+- 시스템의 구성 요소들 사이데 직접적인 관계가 너무 많은 것 같다면
+  - 중앙 통제 포인트를 두어서 구성요소들이 간접적으로 소통할 수 있도록
+- 중재자 패턴은 구성 요소 간의 관리함으로써 직접 참조를 없애고 느슨한 결합을 가능하게 한다.
+  - 시스템의 결합도를 낮추고 구성 요소의 재사용성을 높여준다.
+
+## 7.20 커맨드 패턴
+
+- 메서드 호출, 요청 또는 작업을 단일 객체로 캡슐화하여 추후에 실행할 수 있도록 돕는다.
+- 이를 통해 실행 시점을 유연하게 조정하고 호출을 매개변수화할 수도 있다.
+- **명령을 실행하는 객체와 명령을 호출하는 객체 간의 결합을 느슨**하게 하여 구체적인 클래스(객체)의 변경에 대한 유연성을 향상
+
+```
+💡 커맨드 패턴의 기본 원칙
+   - 명령을 내리는 객체와 명령을 실행하는 객체의 책임을 분리한다.
+```
+
+👇 자동차 구매 서비스를 커맨트 패턴으로 구현
+
+```js
+const CarManager = {
+  // 정보 조회
+  requestInfo(model, id) {
+    return `The information for ${model} with ID ${id} is foobar`;
+  },
+  // 자동차 구매
+  buyVehicle(mode, id) {
+    return `You have successfully purchased Item ${id}, a ${model}`;
+  },
+  // 시승 신청
+  arrageViewing(model, id) {
+    return `You have booked a viewing of ${mode} ( ${id} )`;
+  },
+};
+```
+
+- `CarManager` 객체는 자동차 정보 조회, 구매, 시승 신청의 명령을 실행하는 커맨드 객체
+- `CarManager` 객체 내부의 핵심 API가 변경된다고 하면
+  - 메서드를 직접 호출하는 애플리케이션 내 모든 객체를 수정해야 하는 문제가 발생
+  - 강한 결합 때문
+
+👇 커맨드 패턴의 이점을 살리기 위해 확장
+
+```js
+CarManager.execute = function (name) {
+  return carManager[name] && carManager[name].apply(carManager, [].slice.call(arguments, 1));
+};
+```
+
+</details>

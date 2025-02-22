@@ -1,0 +1,427 @@
+> ch7에서 나온 패턴들을 예제 위주로 살펴봅니다.
+
+## 모듈 패턴
+
+TL;DR
+
+- 캡슐화
+- 외부에서 접근할 수 있는 공개 메서드만 제공
+- 내부 상태를 보호하면서 필요한 기능만 외부에 노출하는 것이 가능
+- 내부에서 사용할 것들은 내보내지 않고, 내보낼 것만 `export` 하거나 `return` 하는 것을 떠올릴 수 있다.
+- JS에서는 모듈에서 일부만 `export`, React에서는 커스텀 훅에서 선택적으로 상태나 관련 메서드 혹은 업데이트 함수만을 `return` 하는 것이 대표적인 듯
+
+  ```
+  💡 캡슐화
+  데이터(상태)와 그 데이터를 조작하는 메서드를 하나의 단위로 묶고,
+  외부에서 직접 접근할 수 없도록 제한하는 것
+
+  → 불필요한 정보는 숨기고 필요한 정보만 외부에 노출하는 것이 핵심
+  ```
+
+👇 JavaScript 클래스 활용
+
+- 만들어 놓을 기능(메서드)들이 내부에서 관리되는 필드를 기준으로 돌아간다면
+- 그리고 이 필드가 외부에 공개될 필요가 없다면, 클래스 + 모듈 패턴 조합을 사용할 듯
+
+아래는 최근에 실제로 작성한 코드다. (알고보니 모듈 패턴이였던 것..?)
+
+```ts
+import { cookies } from 'next/headers';
+
+const isProduction = process.env.NODE_ENV === 'production';
+const ACCESS_TOKEN = 'access_token';
+
+export class CookieModule {
+  private cookieStore: ReturnType<typeof cookies>;
+
+  constructor() {
+    this.cookieStore = cookies();
+  }
+
+  getAccessToken() {
+    return this.cookieStore.get(ACCESS_TOKEN)?.value;
+  }
+
+  setAccessToken(token: string) {
+    this.cookieStore.set({
+      name: ACCESS_TOKEN,
+      value: token,
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+    });
+  }
+}
+```
+
+👇 JavaScript에서 export
+
+- 내보내기를 원하는 변수나 함수만을 export하고
+- 해당 모듈에서 사용할 것들은 export하지 않는 것
+
+```ts
+// 내부에서만 사용하는 함수 -> export하지 않는다. (공개 X)
+const logOperation = (operation: string, result: number) => {
+  console.log(`Operation: ${operation}, Result: ${result}`);
+};
+
+export const add = (a: number, b: number) => {
+  const result = a + b;
+  logOperation('Addition', result);
+  return result;
+};
+
+export const subtract = (a: number, b: number) => {
+  const result = a - b;
+  logOperation('Subtraction', result);
+  return result;
+};
+```
+
+👇 React에서 커스텀 훅
+
+- 커스텀 훅을 구현할 때 노출할 상태나 업데이트 함수만을 선택적으로 `return`으로 내보내기 처리
+- 내부에서 사용하는 정보들은 노출하지 않음
+
+```ts
+export const useCounter = (initialValue = 0) => {
+  const [counter, setCounter] = useState(initialValue);
+
+  const increment = () => setCount(count + 1);
+  const decrement = () => setCount(count - 1);
+  const reset = () => setCount(initialValue);
+
+  return { count, increment, decrement, reset };
+};
+```
+
+## 싱글톤 패턴
+
+TL;DR
+
+- 인스턴스 딱 하나만 존재, 모두가 공유해서 쓰기
+
+🤔 `import`해서 쓰는 것으로 어느정도는 대체할 수 있지 않을까?
+
+- 사실 싱글톤으로 구현하지 않아도
+- 인스턴스를 하나 만들고, 이 인스턴스의 참조값을 `export/import` 해서 사용하면
+- 싱글톤을 따로 구현하지 않아도, 계속해서 동일한 참조값으로 사용할 수 있다.
+- 겉으로 보았을 때는 인스턴스를 계속 생성하는 것처럼 보이지만 내부에서 존재하는 인스턴스를 리턴해서 처리해주는 것이므로
+- 오히려, 참조값을 `import` 하는 것이 좀 더 자연스럽게 느껴졌다.
+
+👇 Why is the singleton such a favorite design pattern among front-end developers?
+
+> https://www.quora.com/Why-is-the-singleton-such-a-favorite-design-pattern-among-front-end-developers
+
+- 패턴이란 게 반복되는 문제와 주제에 적용할 수 있는 재사용 가능한 템플릿이라고 생각한다.
+- 억지로 싱글톤을 적용하려고 하는 게 아니라, 필수적으로 싱글톤 패턴이 필요할 때 사용하면 되겠다.
+
+## 프로토타입 패턴
+
+TL;DR
+
+- 여러 객체들이 같은 프로퍼티를 가져야 하는 경우 유용
+- 중복되는 프로퍼티들이 존재할 경우 매번 생성해주는 것이 아니라 프로토타입을 통해 인스턴스들이 활용할 수 있도록
+
+👇 ES6 클래스를 사용하면, 메서드가 prototype으로 추가
+
+<p align="center">
+  <img width={400} src="https://github.com/user-attachments/assets/15f9037e-8df6-4178-bd1d-078c952de134" />
+</p>
+
+클래스의 `prototype` 프로퍼티 혹은 인스턴스의 `__proto__` 프로퍼티를 통해 `Prototype` 객체를 확인할 수 있다.
+
+```ts
+console.log(Dog.prototype);
+// constructor: ƒ Dog(name, breed) bark: ƒ bark()
+
+console.log(dog1.__proto__);
+// constructor: ƒ Dog(name, breed) bark: ƒ bark()
+```
+
+<img src="https://patterns-dev-kr.github.io/_astro/prototype01.CktbhN9T_1N3YTE.webp" />
+
+🤔 ES6 클래스를 사용하는 것 자체가 프로토타입 패턴을 사용하는 것으로 느껴졌다
+
+아래는 GPT의 대답
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/01c98a20-b7a1-4944-a24c-ff649bdbc34d" width={500} />
+</p>
+
+## 팩토리 패턴
+
+TL;DR
+
+- 함수 호출의 결과로 객체를 만든다.
+- 동일한 프로퍼티(구조)를 가진 객체를 생성할 때 유용
+
+👇 인자를 받아 객체를 생성해주는 함수
+
+```js
+const createUser = ({ firstName, lastName, email }) => ({
+  firstName,
+  lastName,
+  email,
+  fullName() {
+    return `${this.firstName} ${this.lastName}`;
+  },
+});
+
+const user1 = createUser({
+  firstName: 'John',
+  lastName: 'Doe',
+  email: 'john@doe.com',
+});
+
+const user2 = createUser({
+  firstName: 'Jane',
+  lastName: 'Doe',
+  email: 'jane@doe.com',
+});
+```
+
+👇 객체를 리턴하는 함수보다 **클래스를 사용하는 것이 메모리 측면에서 좋다**고 한다
+
+- **클래스를 사용하면 메서드는 `prototype`에 저장되어 모든 인스턴스가 공유할 수 있어서**
+- 팩토리 패턴을 구현해야 할 일은 꽤 자주 있다고 생각하는데, 이럴 때 클래스를 사용해보자 👀
+
+```ts
+const createUser = (name) => {
+  return {
+    name,
+    sayHello() {
+      console.log(`Hello, my name is ${this.name}`);
+    },
+  };
+};
+
+const user1 = createUser('Alice');
+const user2 = createUser('Bob');
+
+console.log(user1.sayHello === user2.sayHello); // false (메모리 낭비 발생)
+```
+
+```ts
+class User {
+  constructor(name) {
+    this.name = name;
+  }
+
+  sayHello() {
+    console.log(`Hello, my name is ${this.name}`);
+  }
+}
+
+const user1 = new User('Alice');
+const user2 = new User('Bob');
+
+console.log(user1.sayHello === user2.sayHello); // true (메모리 절약)
+```
+
+## 퍼사드 패턴
+
+TL;DR
+
+- 복잡한 로직을 재정리 → 높은 레벨의 인터페이스를 구성
+- 단순한 창구 역할
+
+```
+💡 높은 레벨의 인터페이스
+   단순하다. 구현을 많이 감춘다. 그래서 내부 구현의 세세한 커스텀은 어렵지만 사용은 무척 쉽다.
+```
+
+👇 React에서의 퍼사드 패턴
+
+- 커스텀 훅으로 내부 구현을 숨기고, 필요한 것만 노출하여 사용하는 것
+- API로만 노출된 컴포넌트를 만들 때
+
+👇 낮은 레벨의 인터페이스에 대한 불편함
+
+- 회사에서 다루는 디자인 시스템 라이브러리의 인터페이스는 꽤 낮은 레벨이다.
+- 내부 요소를 모두 노출하여 조합과 확장 그리고 커스텀이 매우 자유롭다.
+- 반면, 복잡한 컴포넌트의 경우 인터페이스가 세세하고 많고 복잡해서 익히기 어렵다는 단점도 존재
+  - 실제로도 이런 문의들이 종종 들어와서
+  - 최근에 회사에서는 **높은 레벨의 인터페이스로 재구성된 라이브러리를 제공**하기로 했다. 이름은 Flat ,,
+
+## 믹스인 패턴
+
+TL;DR
+
+- 여러 클래스에서 공통된 기능을 추가해주고 싶을 때
+- 상속을 사용하는 것이 아님
+  - 상속은 부모 클래스의 모든 기능을 받아야 하는데
+  - 믹스인은 **기능 자체를 주입해주는 형태**
+
+👇 클래스 예제
+
+```js
+function withTimestamp(target) {
+  target.prototype.getTimestamp = function () {
+    return new Date().toISOString();
+  };
+}
+
+class Order {
+  id: number;
+
+  constructor(id: number) {
+    this.id = id;
+  }
+}
+
+const EnhancedOrder = withTimestamp(Order);
+const order = new EnhancedOrder(123);
+
+console.log(order.getTimestamp()); // ✅ 2025-02-19T12:34:56.789Z
+```
+
+👇 클래스와 TypeScript
+
+- 클래스도 타입 세이프티하게 쓰고 싶다는 생각을 갑자기 했다.
+
+```ts
+class Order {
+  id: number;
+  status: string;
+
+  constructor(id: number, status: string) {
+    this.id = id;
+    this.status = status;
+  }
+
+  getStatus() {
+    return this.status;
+  }
+}
+
+// Order 클래스 자체의 타입을 가져옴 (생성자 타입)
+type OrderConstructor = typeof Order;
+// Order 클래스의 인스턴스 타입을 가져옴 -> 변수에 할당해서 인스턴스 타입을 고정할 수 있는.. 그렇게 쓸 수 있을 듯
+type OrderInstance = InstanceType<typeof Order>;
+// Order의 인스턴스에서 가능한 키들을 가져옴 (필드, 메서드)
+type OrderKeys = keyof Order; // "id" | "status" | "getStatus" 👈 string으로 가져옴 ;;
+```
+
+## 데코레이터 패턴
+
+TL;DR
+
+- A라는 클래스의 인스턴스를 B라는 인스턴스를 생성할 때 생성자로 전달하는 패턴
+- 원본 객체를 수정하지 않고, 전달받은 인스턴스를 기준으로 기능을 확장해서 사용할 수 있다.
+
+👇 클래스 예제
+
+```js
+class Coffee {
+  cost() {
+    return 5;
+  }
+}
+
+// 데코레이터 패턴: 기존 객체를 감싸서 확장
+class MilkDecorator {
+  constructor(coffee) {
+    this.coffee = coffee;
+  }
+
+  cost() {
+    return this.coffee.cost() + 2;
+  }
+}
+
+const coffee = new Coffee();
+const milkCoffee = new MilkDecorator(coffee);
+
+console.log(coffee.cost()); // 5 (원본 객체는 변하지 않음)
+console.log(milkCoffee.cost()); // 7 (새로운 기능이 추가된 객체)
+```
+
+🤔 타입 세이프티하게 사용하는 게 중요할 거 같다
+
+- 그게 아니라면 런타임 오류가 잦을 듯
+
+해보았는데, 아래와 같이 `InstanceType<typeof Class>`를 활용하면 쉽게 긁어올 수 있었다.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0ebf8675-85e9-4e5f-aca5-135a82c5fbb0" width={400} />
+</p>
+
+## 관찰자 패턴
+
+TL;DR
+
+- 특정 객체를 구독할 수 있다.
+- 객체에서 이벤트가 발생할 때마다 **옵저버에게 이벤트를 전파**
+
+👇 구독 가능한 객체를 구현
+
+```js
+class Observable {
+  constructor() {
+    this.observers = []; // 전파받을 옵저버를 담을 배열
+  }
+
+  subscribe(func) {
+    this.observers.push(func);
+  }
+
+  unsubscribe(func) {
+    this.observers = this.observers.filter((observer) => observer !== func);
+  }
+
+  notify(data) {
+    this.observers.forEach((observer) => observer(data));
+  }
+}
+```
+
+👇 이벤트 핸들러 호출 → observable가 전파 예제
+
+> https://codesandbox.io/p/sandbox/observer-pattern-1-md8k5?file=%2Fsrc%2FApp.js%3A13%2C1&from-embed
+
+```jsx
+import React from 'react';
+import { Button, Switch, FormControlLabel } from '@material-ui/core';
+import { ToastContainer, toast } from 'react-toastify';
+import observable from './Observable';
+
+function handleClick() {
+  observable.notify('User clicked button!');
+}
+
+function handleToggle() {
+  observable.notify('User toggled switch!');
+}
+
+function logger(data) {
+  console.log(`${Date.now()} ${data}`);
+}
+
+function toastify(data) {
+  toast(data, {
+    position: toast.POSITION.BOTTOM_RIGHT,
+    closeButton: false,
+    autoClose: 2000,
+  });
+}
+
+observable.subscribe(logger);
+observable.subscribe(toastify);
+
+export default function App() {
+  return (
+    <div className="App">
+      <Button variant="contained" onClick={handleClick}>
+        Click me!
+      </Button>
+      <FormControlLabel control={<Switch name="" onChange={handleToggle} />} label="Toggle me!" />
+      <ToastContainer />
+    </div>
+  );
+}
+```
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/99f66a4a-d1c4-457a-8035-092e374bf99b" width={500} />
+</p>

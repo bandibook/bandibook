@@ -1,2 +1,192 @@
 ## 2. 함수로 HTTP 다루기
 
+
+### 연습문제 2.1
+```kotlin
+class E01_AndThenTest {
+    // g(x) * f(x) = g(f(x))
+    // f andThen g = g(f(x))
+    infix fun <A, B, C> FUN<A, B>.andThen(other: FUN<B, C>): FUN<A, C> = { a: A -> other(this(a)) }
+}
+
+typealias FUN<A, B> = (A) -> B
+```
+
+### 연습문제 2.2
+
+```kotlin
+class ManStack<T>(
+    private val elements: List<T> = listOf()
+) {
+
+
+    fun push(c: T): ManStack<T> {
+        return ManStack(elements.plus(c))
+    }
+
+    fun pop(): Pair<T, ManStack<T>> {
+        val last = elements.last()
+        val popped = elements.dropLast(1)
+        return Pair(last, ManStack(popped))
+    }
+
+    fun size(): Int = elements.size
+}
+
+
+class E02_FunStackTest {
+
+    @Test
+    fun `push into the stack`() {
+        val stack1 = ManStack<Char>()
+        val stack2 = stack1.push('A')
+
+        expectThat(stack1.size()).isEqualTo(0)
+        expectThat(stack2.size()).isEqualTo(1)
+    }
+
+    @Test
+    fun `push and pop`() {
+        val (q, stack) = ManStack<Char>().push('Q').pop()
+
+        expectThat(stack.size()).isEqualTo(0)
+        expectThat(q).isEqualTo('Q')
+    }
+
+    @Test
+    fun `push push pop`() {
+        val (b, stack) = ManStack<Char>()
+            .push('A')
+            .push('B')
+            .pop()
+
+        expectThat(stack.size()).isEqualTo(1)
+        expectThat(b).isEqualTo('B')
+    }
+}
+```
+
+
+### 연습문제 2.3
+
+
+```kotlin
+// v1
+class RpnCalc {
+    companion object {
+        fun calc(exp: String): Double {
+            val exps = exp.split(" ").toList()
+
+            var stack = ManStack<Double>()
+            exps.forEach {
+                when (it) {
+                    "+" -> {
+                        val (element2, popped2) = stack.pop()
+                        val (element1, popped1) = popped2.pop()
+                        val result =  element1 + element2
+                        stack = popped1.push(result)
+                    }
+                    "-" -> {
+                        val (element2, popped2) = stack.pop()
+                        val (element1, popped1) = popped2.pop()
+                        val result = element1 - element2
+                        stack = popped1.push(result)
+                    }
+                    "*" -> {
+                        val (element2, popped2) = stack.pop()
+                        val (element1, popped1) = popped2.pop()
+                        val result = element1 * element2
+                        stack = popped1.push(result)
+                    }
+                    "/" -> {
+                        val (element2, popped2) = stack.pop()
+                        val (element1, popped1) = popped2.pop()
+                        val result = element1 / element2
+                        stack = popped1.push(result)
+                    }
+                    else -> {
+                        stack = stack.push(it.toDouble())
+                    }
+                }
+            }
+            return stack.pop().first
+        }
+    }
+}
+```
+
+
+```kotlin
+// v2
+class RpnCalc {
+    companion object {
+        fun calc(exp: String): Double {
+            val result = exp.split(" ")
+                .fold(ManStack<Double>()) { stack, it -> perform(stack, it) }
+            return result.pop().first
+        }
+        private fun isOperation(x: String): Boolean {
+            val ops = setOf("+", "-", "/", "*")
+            return ops.contains(x)
+        }
+
+        private fun perform(stack: ManStack<Double>, operation: String): ManStack<Double> {
+            return if (isOperation(operation)) {
+                val (y, stack1) = stack.pop()
+                val (x, stack2) = stack1.pop()
+                val res = when (operation) {
+                    "+" -> plus(x, y)
+                    "-" -> minus(x, y)
+                    "/" -> divide(x, y)
+                    "*" -> multiply(x, y)
+                    else -> throw IllegalArgumentException("Unknown operation")
+                }
+                stack2.push(res)
+            } else {
+                stack.push(operation.toDouble())
+            }
+        }
+        
+        private fun plus(x: Double, y: Double): Double = x + y
+        private fun minus(x: Double, y: Double): Double = x - y
+        private fun divide(x: Double, y: Double): Double = x / y
+        private fun multiply(x: Double, y: Double): Double = x * y
+    }
+}
+```
+
+```kotlin
+
+// v3
+class RpnCalc {
+    companion object {
+        fun calc(exp: String): Double =
+            exp.split(" ")
+                .fold(ManStack<Double>()) { stack, token -> perform(stack, token) }
+                .pop().first
+
+        private val operations: Map<String, (Double, Double) -> Double> = mapOf(
+            "+" to { x, y -> x + y },
+            "-" to { x, y -> x - y },
+            "*" to { x, y -> x * y },
+            "/" to { x, y -> x / y }
+        )
+
+        private fun perform(stack: ManStack<Double>, token: String): ManStack<Double> =
+            operations[token]?.let { op ->
+                val (y, stack1) = stack.pop()
+                val (x, stack2) = stack1.pop()
+                stack2.push(op(x, y))
+            } ?: stack.push(token.toDouble())
+    }
+}
+```
+
+
+
+
+머리 부셔지는줄 알았다
+
+
+계산기 만드는데 2시간쯤 걸린듯......
+

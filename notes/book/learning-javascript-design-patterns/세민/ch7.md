@@ -260,3 +260,91 @@ channel2.uploadNewVideo("옵저버 패턴 vs PubSub 패턴");
 | **사용 예시** | UI 이벤트 핸들링, 모델-뷰 패턴 등 | 메시징 시스템, 이벤트 드리븐 아키텍처 등 |
 
 PubSub에서 Event Bus 만 갈아 끼우면 여러 맥락의 구독도 가능하겠네요. (ex: 유튜브, 트위터, 인스타그램을 각각의 Event Bus로 바라보기)
+
+## 7.19 중재자 패턴
+
+중재자 패턴과 PubSub 패턴 모두 이벤트를 활용한다는 점은 동일하다고 하는군요. 단, 중재자 패턴이 워크플로를 처리하기 위해 이벤트를 활용하는 것일뿐 반드시 다뤄야하는 요소는 아닙니다.
+
+- 독립적인 변화는 이벤트 집합 패턴을 사용한다.
+- 상호 연관성을 갖는 변화는 중재자 패턴을 사용한다.
+
+## 7.19.7 중재자 패턴 vs 퍼사드 패턴
+
+- 중재자는 중앙 집중화하므로 다방향성
+- 퍼사드는 시스템 내 다른 모듈 import 하므로 단방향성
+
+```ts
+// 중재자 패턴 예시: 채팅방
+class ChatRoom {
+  showMessage(user, message) {
+    console.log(`[${new Date().toLocaleTimeString()}] ${user.getName()}: ${message}`);
+  }
+}
+
+class User {
+  constructor(name, chatRoom) {
+    this.name = name;
+    this.chatRoom = chatRoom;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  sendMessage(message) {
+    this.chatRoom.showMessage(this, message);
+  }
+}
+
+const chatRoom = new ChatRoom();
+const user1 = new User("Alice", chatRoom);
+const user2 = new User("Bob", chatRoom);
+
+user1.sendMessage("Hello Bob!");
+user2.sendMessage("Hi Alice!");
+```
+
+```ts
+// 퍼사드 패턴 예시: 컴퓨터 전원
+class CPU {
+  boot() {
+    console.log("CPU 부팅...");
+  }
+  execute() {
+    console.log("프로그램 실행...");
+  }
+}
+
+class Memory {
+  load() {
+    console.log("메모리 로드...");
+  }
+}
+
+class HardDrive {
+  read() {
+    console.log("하드디스크 읽기...");
+  }
+}
+
+class ComputerFacade {
+  constructor() {
+    this.cpu = new CPU();
+    this.memory = new Memory();
+    this.hardDrive = new HardDrive();
+  }
+
+  start() {
+    console.log("컴퓨터 시작...");
+    this.cpu.boot();
+    this.memory.load();
+    this.hardDrive.read();
+    this.cpu.execute();
+    console.log("컴퓨터가 켜졌습니다.");
+  }
+}
+
+// 사용 예시
+const computer = new ComputerFacade();
+computer.start();
+```

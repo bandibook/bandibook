@@ -1,0 +1,468 @@
+## 3. 도메인 정의 및 테스트
+
+
+#### 부정적 사례 테스트
+
+```kt
+@Test
+fun `Only woners can see their lists`() {
+    val listName = "shopping"
+    startTheApplication("frank", listName, emptyList())
+    expectThrows<AssertionFailedError> {
+        getToDoList("bob", listName)
+    }
+}
+```
+
+frank 가 생성한 목록으로 앱을 실행시킨 후, bob 로 접근을 시도하는 경우 예외를 던지는 테스트이고
+
+다행히도 이 테스트는 통과한다
+
+표준 테스트 주기는 실패하는 테스트로 시작하지만, 
+
+때로는 테스트에 포함되지 않은 유즈케이스에 대한 테스트를 추가해야할 때가 있다.
+
+그 테스트가 우연이 작동한다고 해도 미래에는 개질 수 있기 때문이다.
+
+#### 시나리오 액터
+
+먼저 테스트 자체에서 불필요한 세부 정보를 제거한다.
+
+이후 시나리오의 액터를 추상화한다.
+
+```kt
+interface ScenarioActor {
+    val name: String
+}
+
+class ToDoListOwner(override val name: String) : ScenarioActor {
+		
+    fun canSeeTheList(listName: String, items: List<String>) {
+        val expectedList = createList(listName, items)
+        val list = getToDoList(name, listName)
+        expectThat(list).isEqualTo(expectedList)
+    }
+    
+    private fun getToDoList(user: String, listName: String): ToDoList {
+        // 테스트에서 액터로 옮겨졌다.
+    }
+}
+
+private fun createList(listName: String, items: List<String>) =
+    ToDoList(ListName(listName), items.map(::ToDoItem))
+```
+
+
+```kt
+@Test
+fun `List owners can see their lists`() {
+    val listName = "shopping"
+    val foodToBuy = listOf("carrots", "apples", "milk")
+    val frank = ToDoListOwner("Frank")
+
+    startTheApplication(frank.name, createList(listName, foodToBuy))
+    frank.canSeeTheList(listName, foodToBuy)
+}
+```
+
+액터를 사용해 테스트를 작성하면 어떤 일이 벌어지는지 결과가 조금 더 명확해 진다.
+
+
+
+`startTheApplication`은 결과적으로 메인 효과, 즉 시작된 애플리케이션을 반환하지 않는다
+
+대신 액터는 애플리케이션이 실제로 시작될 것이라 가정한다
+
+
+우리가 원하는 것은 메서드가 애플리케이션의 컨텍스트 외부에서 호출되면 테스트가 컴파일 되지 않고,
+
+액터가 올바른 메서드를 호출하고 있는지 확실히 확인하는 것이다.
+
+
+이를 위해 애플리케이션의 추상화 역할을 할 클래스를 추출해 볼 수 있다.
+
+
+
+#### 애플리케이션 파사드 
+
+```kt
+
+lass ApplicationForAT(val client: HttpHandler, val server: AutoCloseable) {
+
+    override fun getToDoList(user: String, listName: String): ToDoList {
+        val response = client(Request(Method.GET, "/todo/$user/$listName"))
+
+        return if (response.status == Status.OK)
+            parseResponse(response.bodyString())
+        else
+            fail(response.toMessage())
+    }
+
+    fun runScenario(steps: (ApplicationForAT) -> Unit) {
+        server.use {
+            steps.onEach { step -> step(this) }
+        }
+    }
+    
+    // 나머지 메서드들
+}
+
+```
+
+ApplicatioinForAT 라는 클래스를 만들고, 그 안으로 getToDoList 메소드를 옮긴다
+
+```kt
+fun startTheApplication(lists: Map<User, List<ToDoList>>): ApplicationForAT {
+    val port = 8081 // 메인에서 사용한 포트와 다름
+    val server = Zettai(lists).asServer(Jetty(port))
+    server.start()
+
+    val client = ClientFilters
+        .SetBaseUriFrom(Uri.of("http://localhost:$port/"))
+        .then(JettyClient())
+
+    return ApplicationForAT(client, server)
+}
+```
+
+```kt
+class SeeATodoListAT {
+
+    val frank = ToDoListOwner("Frank")
+    val shoppingItems = listOf("carrots", "apples", "milk")
+    val frankList = createList("shopping", shoppingItems)
+    val bob = ToDoListOwner("Bob")
+    val gardenItems = listOf("fix the fence", "mowing the lawn")
+    val bobList = createList("gardening", gardenItems)
+
+    val lists = mapOf(
+        frank.asUser() to listOf(frankList),
+        bob.asUser() to listOf(bobList)
+    )
+
+
+    fun ToDoListOwner.asUser(): User = User(name)
+
+
+    @Test
+    fun `List owners can see their lists`() {
+
+        val app = startTheApplication(lists)
+        app.runScenario {
+            frank.canSeeTheList("shopping", shoppingItems, it),
+            bob.canSeeTheList("gardening", gardenItems, it)
+        }
+    }
+
+    @Test
+    fun `Only owners can see their lists`() {
+
+        val app = startTheApplication(lists)
+        app.runScenario {
+            frank.cannotSeeTheList("gardening", it),
+            bob.cannotSeeTheList("shopping", it)
+        }
+    }
+}
+```
+
+사용자 동작이 무엇인지 명확해지고 실행할 애플리케이션의 파사드가 필요하다는 사실을 알 수 있다.
+
+
+다음 단계는 액터 메서드 끝 부분에 있는 애플리케이션 파사드에 대한 참조를 
+
+함수를 데이터 처럼 취급해 개선해 본다
+
+
+
+
+#### 함수로 표현한 단계
+
+
+```kt
+typealias Step = Actions.() -> Unit
+
+interface Actions {
+    fun getToDoList(user: String, listName: String): ToDoList
+}
+
+class ApplicationForAT(val client: HttpHandler, val server: AutoCloseable) : Actions {
+    override fun getToDoList(user: String, listName: String): ToDoList {
+        // ...
+    }
+}
+
+@Test
+fun `List owners can see their lists`() {
+    val app = startTheApplication(lists)
+    app.runScenario(
+        frank.canSeeTheList("shopping", shoppingItems),
+        bob.canSeeTheList("gardening", gardenItems)
+    )
+}
+
+@Test
+fun `Only owners can see their lists`() {
+    val app = startTheApplication(lists)
+    app.runScenario(
+        frank.cannotSeeTheList("gardening"),
+        bob.cannotSeeTheList("shopping")
+    )
+}
+```
+
+
+Step 은 Action 을 수신 객체로 받아 Unit 을 반환하는 함수 타입이다
+
+결국 `it` 인자를 지울 수 있게 된다.
+
+
+
+### 3.2 고차함수 사용하기
+순수 함수에 인자로 고차 함수를 전달 한 뒤, 순수 함수 내에서 전달 받은 고차 함수를 실행할 때
+고차 함수가 순수하지 않다면 그 함수는 순수 함수일까?
+
+답은 순수 함수가 아니다
+
+고차 함수 또한 순수해야 순수 함수가 유지 된다.
+
+순수 함수의 핵심 조건은 다음과 같다
+1.	동일한 입력에 대해 항상 같은 결과를 반환해야 함.
+2.	부수 효과(Side Effect)가 없어야 함.
+
+
+
+
+```kt
+fun sumAndLog(a: Int, b: Int, log: (Int) -> Unit): Int = (a + b).also(log)
+```
+
+고차 함수가 순수하지 않아도 `sumAndLog` 함수 자체는 순수 함수이다.
+
+
+
+### 3.3 인프라에서 도메인 분리하기
+
+비즈니스 로직과 비즈니스 로직이 아닌 것을 어떻게 구별하나?
+
+가장 큰 차이점은 언어의 수준이다. 비즈니스 로직은 직렬화 형식, 네트워크 프로토콜 등의 기술 용어를 사용하지 않고도
+
+비즈니스 담당자와 논의 할 수 잇어야한다.
+
+
+
+도메인을 다른 도메인과 분리해 순수하게 유지하려면 
+
+인터페이스를 사용해 모든 도메인 로직을 감싸는 방법이 있다.
+
+이 접근 방식을 `포트와 어댑터` 라고 하며 객체 지향 패러다임에 기반하고 있지만
+
+함수형 프로그래밍에서도 매우 잘 작동한다
+
+
+도메인을 감싼 인터페이스는 애플리케이션의 중앙에 위치하기에 허브처럼 작동하며
+
+자전거 바퀴의 바큇살(스포크) 처럼 작동하는 여러기능으로 외부와 연결된다.
+
+
+도메인은 허부 내부에 머무르며 특정 함수를 통해서만 나머지 애플리케이션과 통신한다.
+
+
+허브는 순수 함수적이며, 주위의 스포크를 통해서만 외부 컴포넌트와 통신할 수 있다.
+
+
+#### 허브를 제타이에 연결하기
+
+
+앞서 만든 메소드들중 `fetchListContent` 만 허브이고 나머진 스포크이다
+
+```kt
+@Test
+fun `get list by user and name`() {
+    val hub = ZettaiHub(listMap)
+    val myList = hub.getList(user, list.listName)
+    expectThat(myList).isEqualTo(list)
+}
+
+interface ZettaiHub {
+    fun getList(user: User, listName: ListName): ToDoList?
+}
+```
+
+허브 인터페이스를 구현할 때는 다음 두가지를 반드시 염두 해야 한다.
+
+1. 허브 내부는 함수적으로 순수하게 유지되어야 하며, 부수 효과나 외부 상호작용이 없어야 한다.
+2. 허브의 기능을 완성하려면 필요한 외부 기능은 외부에서 제공되어야 한다.
+
+
+ToDoList 의 허브를 구현 해보자, 이 허브는 생성자에서 할 일 목록의 맵을 가져온다
+```kt
+class ToDoListHub(val lists: Map<User, List<ToDoList>>) : ZettaiHub {
+    override fun getList(user: User, listName: ListName): ToDoList? {
+        return lists[user]
+            ?.firstOrNull { it.listName == listName }
+    }
+}
+```
+
+이후 맵 대신 허브를 Zettai 클래스 생성자에 전달하면 된다.
+
+```kt
+data class Zettai(val hub: ZettaiHub): HttpHandler {
+
+    fun fetchListContent(listId: Pair<User, ListName>): ToDoList = 
+        hub.getList(listId.first, listId.second)
+        ?: error("list unknown")
+}
+```
+
+주의 할 점은 인수 테스트의 Actions 인터페이스에도 정확히 똑같은 시그니처를 가진 메소드가 있는데
+
+이는 우연이 아닌 테스트를 모데인에 가깝기 유지하면 액터의 액션이 허브의 메소드와 매우 유사해진다.
+
+
+### 3.4 도메인에서 테스트 구동하기
+
+애플리케이션이 복잡해지면 이해하기 어렵고 유지보수하기 어려운 인수 테스트가 생겨나기 쉽다.
+
+우리가 정말 테스트 하려는 것이 사용자 상호작용에 대한 불필요한 세부 사항 뒤에 숨어있기 때문이다.
+
+느리고 변경하기 어려운 인수 테스트 작업에 지쳐 도메인 주도 테스트(Domain Driven Test) 를 생각해냈다.
+
+
+DDT 의 혁신은 어댑터 계층과 독립적으로 해당 도메인 언어만을 사용해 end to end 테스트를 작성할 수 있는 기능에 있다.
+
+
+등드읃읃...
+
+
+
+이번 장을 읽어보니 인수 테스트가 생각보다 너무 복잡하다고 느껴졌다
+
+그냥 단위 테스트만 열심히해도 중간은 간다고 생각을 해왔는데 
+
+이 생각에 조금 더 무게가 실리기 시작함ㅎ
+
+그래도 테스트를 개선하면서 가독성이 올라가는게 보여 신기하기도 했고
+
+Given, When, Then 구조 외에도 다양한 테스트 방식이 있다는것을 체감했다
+
+반면에 가독성이 필요한 테스트 코드는 너무 불필요하게 커진 테스트가 아닐까 한다
+
+
+
+## 연습 문제 3.1
+
+```kt
+class Cashier {
+    private val prices = mutableMapOf<Item, Double>()
+    private val customerTotal = mutableMapOf<String, Double>()
+
+    fun putAll(offers: Map<Item, Double>) {
+        prices.putAll(offers)
+        customerTotal.clear()
+    }
+
+    fun totalFor(actorName: String): Double =
+        customerTotal[actorName] ?: 0.0
+
+    fun addItem(actorName: String, qty: Int, item: Item) {
+        customerTotal[actorName] = totalFor(actorName) + qty * price(item)
+    }
+
+    private fun price(item: Item) = prices[item] ?: 0.0
+}
+
+class CustomerActor(override val name: String) : DdtActor<CashierActions>() {
+
+    fun `can add #qty #item`(qty: Int, item: Item) = step(qty, item.name) {
+        addItem(name, qty, item)
+    }
+
+    fun `check total is #total`(total: Double) = step(total) {
+        expectThat(totalFor(name)).isEqualTo(total)
+    }
+}
+
+class DomainActions : CashierActions {
+    private val cashier = Cashier()
+
+    override val protocol: DdtProtocol
+        get() = DomainOnly
+
+
+    override fun setupPrices(prices: Map<Item, Double>) {
+        cashier.putAll(prices)
+    }
+
+    override fun totalFor(actorName: String): Double {
+        return cashier.totalFor(actorName)
+    }
+
+    override fun addItem(actorName: String, qty: Int, item: Item) {
+        cashier.addItem(actorName, qty, item)
+    }
+
+    override fun prepare(): DomainSetUp {
+        return Ready
+    }
+}
+```
+
+
+
+### 연습 문제 3.2
+```kt
+fun setup3x2(item: Item) {
+    offers3x2.add(item)
+}
+
+fun addItem(actorName: String, qty: Int, item: Item) {
+    customerTotal[actorName] = totalFor(actorName) + qty * price(item) - discount(qty, item)
+}
+
+private fun discount(qty: Int, item: Item): Double =
+    if (item in offers3x2) (qty / 3) * price(item)    
+    else 0.0
+```
+
+### 연습 문제 3.3
+
+```kt
+fun buildCharAtPos(s: String): (Int) -> Char = { it -> s[it] }
+```
+
+### 연습 문제 3.4
+```kt
+data class StringTag(val text: String)
+
+infix fun String.tag(value: String): Pair<String, StringTag> = value to StringTag(value)
+fun renderTemplate(template: String, data: Map<String, StringTag>): String {
+    return data.entries.fold(template) { acc, (key, value) ->
+        acc.replace("{$key}", value.text)
+    }
+}
+```
+
+
+기본적인 틀은 test double 방식의 Fake 처럼 인터페이스에 행위를 지정하고
+
+그걸 구현한 구현체를 두 벌을 만드는 느낌
+
+정확히는 CashierActions 인터페이스 하나와 구현체인 DomainActions 하나지만
+
+Cashier 도 구현체라고 볼 수 있을거 같다
+
+
+CashierActions 을 테스트코드에 두지않고 실제 코드상에 올려 행위를 지정해도 좋을듯
+
+-> 지금 내가 업무에 적용하는 방식
+
+반대로 인터페이스를 테스트에만 두니 코드를 따라가기 편한게 좋아보이긴함
+
+업무에 적용된 코드를 이런 방식으로 바꿔도 좋을것 같다는 생각이 들었다
+
+
+너무 어려워서 아직도 헷갈린다!!!!!!!!!
+
+

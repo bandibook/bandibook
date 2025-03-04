@@ -1,0 +1,113 @@
+[객체에서 함수로 - 3장 도메인 정의 및 테스트](https://egg528.tistory.com/19)
+
+
+## 연습문제 3.1
+```kotlin
+class Cashier {
+    private val prices = mutableMapOf<Item, Double>()
+    private val carts = mutableMapOf<String, Double>()
+
+    fun setPrices(prices: Map<Item, Double>) {
+        this.prices.putAll(prices)
+    }
+
+    fun totalFor(actorName: String): Double {
+        return carts.getOrDefault(actorName, 0.0)
+    }
+
+    fun addItem(actorName: String, qty: Int, item: Item) {
+        val price = prices.getValue(item)
+
+        carts.put(
+            actorName,
+            carts.getOrDefault(actorName, 0.0) + (qty * price)
+        )
+    }
+}
+
+val allActions = setOf(DomainActions)
+
+object DomainActions : CashierActions {
+    private var cashier = Cashier()
+
+    override val protocol: DdtProtocol
+        get() = DomainOnly
+
+    override fun prepare(): DomainSetUp = Ready
+
+    override fun setupPrices(prices: Map<Item, Double>) {
+        cashier.setPrices(prices)
+    }
+
+    override fun totalFor(actorName: String): Double {
+        return cashier.totalFor(actorName)
+    }
+
+    override fun addItem(actorName: String, qty: Int, item: Item) {
+        cashier.addItem(actorName, qty, item)
+    }
+}
+
+data class CustomerActor(override val name: String) : DdtActor<CashierActions>() {
+    fun `can add #qty #item`(qty: Int, item: Item) = step(qty, item.name) {
+        addItem(name, qty, item)
+    }
+
+    fun `check total is #total`(total: Double) = step(total) {
+        expectThat(totalFor(name)).isEqualTo(total)
+    }
+}
+```
+
+## 연습문제 3.2
+```kotlin
+package com.ubertob.fotf.exercises.chapter3
+
+class Cashier {
+    private val prices = mutableMapOf<Item, Double>()
+    private val carts = mutableMapOf<String, MutableMap<Item, Int>>()
+    private val discountedItems = mutableSetOf<Item>()
+
+    fun setSaleItem(item: Item) {
+        discountedItems.add(item)
+    }
+
+    fun setPrices(prices: Map<Item, Double>) {
+        this.prices.putAll(prices)
+    }
+
+    fun totalFor(actorName: String): Double {
+        val cart = carts[actorName] ?: return 0.0
+
+        return cart.entries.fold(0.0) { acc, (item, quantity) ->
+            val price = prices.getOrDefault(item, 0.0)
+            if (!discountedItems.contains(item)) {
+                acc + (quantity * price)
+            } else {
+                acc + ((quantity % 3) * price) + ((quantity / 3) * 2 * price)
+            }
+        }
+    }
+
+    fun addItem(actorName: String, qty: Int, item: Item) {
+        val cart = carts.getOrPut(actorName) { mutableMapOf() }
+        cart[item] = cart.getOrDefault(item, 0) + qty
+    }
+}
+```
+
+## 연습문제 3-3
+```kotlin
+private fun buildCharAtPos(text: String): (Int) -> Char =
+{ idx ->  text[idx] }
+```
+
+## 연습문제 3-4
+```kotlin
+infix fun String.tag(value: String): Pair<String, StringTag> = Pair(this, StringTag(value))
+
+fun renderTemplate(template: String, data: Map<String, StringTag>): String =
+  data.entries.fold(template) { acc, (key, value) ->
+      acc.replace("{$key}", value.text)
+}
+```

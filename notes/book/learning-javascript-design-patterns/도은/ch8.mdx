@@ -10,39 +10,71 @@
 ```
 
 - 모델(Model)
-  - 도메인 관련 데이터
-  - UI에 대해서는 관여 X
+  - 데이터와 비즈니스 로직을 관리
+  - 데이터를 저장하거나 가공하는 역할
 - 뷰(View)
-  - 모델의 현재 상태를 표현
-  - 화면에 보여지는 부분만 담당
+  - UI를 담당하는 부분
+  - 데이터를 받아서 화면에 렌더링하는 역할
+  - 뷰 자체에서는 데이터를 변경 X, 입력을 받아 컨트롤러에 전달
 - 컨트롤러(Controller)
-  - 키보드 입력이나 클릭 같은 사용자의 상호작용을 처리
-  - 뷰에 무엇을 보여줄지, 사용자 입력을 어떻게 처리할지 등을 결정하는 역할
+  - 사용자의 입력을 처리하고 모델과 뷰를 연결하는 역할
+  - 뷰에서 받은 사용자 입력을 모델에 전달하고, 변경된 데이터를 다시 뷰에 업데이트
 
-![Image](https://github.com/user-attachments/assets/c5b230ae-cc25-48f5-91c1-9c02f0b473c8)
+**_🤔 React 애플리케이션에서 MVC 패턴을 적용해본다면_**
 
-### MVC 패턴을 곁들인 TODO List
+- Model → 관심사 분리된 비즈니스 로직 (훅, 상태 관리 함수, API 호출 등)
+- View → React 컴포넌트 (UI 렌더링)
+- Model → 이벤트 핸들러 함수 (사용자 입력 처리, 상태 업데이트 등)
+  - 주로 이벤트 핸들러 함수에서 사용자 입력으로 Model에 전달해 처리
 
-리액트에서 MVC 패턴을 적용해 보자면
+라고 느껴졌다.
 
-- Model: 상태 관리
-- View: 렌더링
-- Controller: 상태 업데이트
+## MVP 패턴
 
-👇 Model
+- UI(View)와 비즈니스 로직(Model)을 더 강하게 분리하기 위해 등장한 패턴
+- Presenter는 **UI 로직을 담당**
+  - View는 오직 UI만 관리, Presenter는 UI를 어떻게 표현할지를 결정
+  - Presenter는 비즈니스 로직을 포함 X
+- Presenter는 View와 직접 소통하지만, Model은 View와 직접 통신하지 않는다.
+- 일반적으로 View와 1:1 관계를 가진다.
+- View와 Model은 서로 알 필요가 없다.
 
-```js
+## MVVM 패턴
+
+- View와 Model을 분리하면서도, 더 나은 **양방향 데이터 바인딩**을 제공하는 구조
+- Model: 상태 및 비즈니스 로직을 담당
+- View: 사용자에게 보여지는 UI를 담당
+  - 사용자 입력을 ViewModel에게 전달, ViewModel의 상태를 반영하여 UI를 갱신
+- ViewModel: 데이터 변환기의 역할을 하는 특수한 컨트롤러
+  - Model로부터 데이터를 가져와서 View에 표시할 수 있는 형태로 변환
+  - ViewModel은 View와 Model을 연결하지만, View를 직접적으로 수정 X
 
 ```
-
-👇 View
-
-```js
-
+💡 양방향 데이터 바인딩
+   - View와 ViewModel 간에 데이터가 자동으로 동기화
+   - View에서 사용자가 입력한 데이터는 ViewModel에 자동으로 반영, ViewModel의 데이터가 변경되면 View가 자동으로 업데이트
 ```
 
-👇 Controller
+## MVC vs MVP vs MVVM
 
-```js
+- MVP와 MVVM은 모두 MVC에서 파생된 패턴
+- 이 파생 패턴들 사이의 핵심 차이점은 **각 계층이 다른 계층에 대해 갖는 의존성과 서로 얼마나 강하게 연결**되어 있는지에
 
+```
+💡 MVC에서는 View가 아키텍처의 최상단에 위치하고 그 옆에는 Controller가 있다
+```
+
+- Model은 Controller 아래에 있다.
+- View는 Controller에 대해 알고 있고, Controller는 Model에 대해 알고 있다.
+- 이 구조에서 View는 Model에 직접 접근할 수 있다.
+
+```
+💡 MVP에서는 Controller의 역할이 Presenter로 대체된다
+```
+
+- Presenter는 View와 동일한 계층에 존재
+- View와 Model 양쪽에서 발생하는 이벤트를 수신하고 이들 간의 동작을 조정
+
+```
+💡 MVVM은 ViewModel이 View를 참조할 필요가 없다. View는 ViewModel의 속성을 바인딩하여 표현할 수 있다.
 ```

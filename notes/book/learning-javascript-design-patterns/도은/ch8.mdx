@@ -78,3 +78,141 @@
 ```
 💡 MVVM은 ViewModel이 View를 참조할 필요가 없다. View는 ViewModel의 속성을 바인딩하여 표현할 수 있다.
 ```
+
+## 와! 억지로 패턴을 쑤셔넣어보려니까 쉽지 않다.
+
+- GPT한테 MVC, MVP, MVVM을 각각 적용한 리액트 TODO List 예제를 내놓으라니까
+- 억지 코드같이 보이는 것들만 내놓았다.
+- 잘 타일러서 차이점이 두드러지게 볼려고 해도 계속 억지같이 느껴졌다..
+
+패턴을 억지로 보기보다는 이러한 MV\* 패턴들은 크게 보면
+
+- 비즈니스 로직 (제일 복잡한)
+- 비즈니스 로직을 추상화한 핸들러
+- View 로직
+
+을 분리로 느꼈다. 위 MV\* 패턴을 파보기 전에는 View 로직에 이벤트 핸들러가 많이 포함되어 있어 View 컴포넌트가 비대해지는 걸 많이 느끼곤 했다.
+
+👇 AS-IS
+
+```tsx
+const TransferMoneyInputScreen = () => {
+  const [amount, setAmount] = useState<number>(0);
+  const { isOverLimit, message } = useValidateTransferAmount(amount);
+  const isDisableTransfer = amount === 0 || isOverLimit;
+
+  return (
+    <div css={contentCss}>
+      <Popover open={isOverLimit}>
+        <Popover.Trigger>
+          <ReceiverInfoWithInput
+            name="김경철"
+            bankImageUrl="https://t1.daumcdn.net/kakaopay/assignment/frontend/assets/shinhan.png"
+            bankName="신한"
+            accountNumber="110-1234-5678"
+            amount={amount}
+            setAmount={setAmount}
+            state={!isOverLimit ? 'default' : 'error'}
+          />
+        </Popover.Trigger>
+        <Popover.Content arrow theme="red">
+          {message}
+        </Popover.Content>
+      </Popover>
+      <MyInfo />
+
+      <SafeAreaBottom>
+        <AmountButtons disabled={isOverLimit} setAmount={setAmount} />
+        <AmountKeypad disabled={isOverLimit} setAmount={setAmount} />
+        <Button theme="yellow" disabled={isDisableTransfer}>
+          확인
+        </Button>
+      </SafeAreaBottom>
+    </div>
+  );
+};
+
+export default TransferMoneyInputScreen;
+```
+
+👇 TO-BE
+
+- 단순 View로직만 가지고 있는 컴포넌트와 비즈니스 로직이 들어가야 하는 컴포넌트를 좀 더 쪼갰다.
+- 작은 View들의 조합을 하나의 View로 만들어 Controller에서 다룰 경우
+  - 내부 특정 컴포넌트에서만 필요한 데이터를 위해 상위 View에서 불필요하게 상태를 관리하고 props drilling이 발생하는 문제가 생길 수 있다.
+  - 또한, 컴파운드 패턴을 사용하여 View의 형태나 데이터 흐름을 좀 더 명확하고 직관적으로 파악할 수 있게 한다. 이는 뚜렷한 구조와 함께 관리가 수월하도록 한다.
+- 흩어져있던 핸들러 함수들을 Controller에서 일괄로 확인할 수 있어 유지보수면에서도 더 용이하다고 생각들었다.
+
+```tsx
+const TransferMoneyViewContainer = (props: TransferMoneyViewProps) => {
+  const { children } = props;
+  return <div css={containerCss}>{children}</div>;
+};
+
+const ReceiverInfoView = (props: ReceiverInfoViewProps) => {
+  const { name, bankInfo, accountNumber, amount } = props;
+  return ...
+};
+
+const InputView = forwardRef<HTMLInputElement, InputViewProps>((props, ref) => {
+  const { state, ...restProps } = props;
+  return ...
+})
+
+const MyAccountInfoView = (props: MyAccountInfoViewProps) => {
+  const { bankName, NumberTail, balance } = props;
+  return ...
+};
+
+
+const AmountPadsView = (props: AmountPadsViewProps) => {
+  const { state, onAction } = props;
+  return ...
+};
+
+const TransferMoneyView = {
+  Container: TransferMoneyViewContainer,
+  MyAccountInfo: MyAccountInfoView,
+  ReceiverInfo: ReceiverInfoView,
+  Input: InputView,
+  AmountPads: AmountPadsView,
+};
+
+const TransferViewController = () => {
+  const [amount, setAmount] = useState(0);
+  const receiverInfo = useReceiverInfo();
+  const myAccountInfo = useMyAccountInfo();
+
+  const { data: limits } = useGetLimits() // 이미 처리까지 select끼지 마친
+  const { isOverLimit } = useValidateTransferAmount(amount, [...limits])
+
+  const handleAmountAction = (actionType: 'change' | 'append' | 'delete') => {
+     case 'change':
+      return (value: string) => setAmount(Number(value));
+
+    case 'append':
+      return (digit: string) => {
+        setAmount((prev) => Number(prev.toString() + digit));
+      };
+
+    case 'delete':
+      return () => {
+        setAmount((prev) => {
+          const newValue = prev.toString().slice(0, -1);
+          return newValue ? Number(newValue) : 0;
+        });
+      };
+  }
+
+  return (
+    <TransferMoneyView.Container>
+      <TransferMoneyView.ReceiverInfo {...receiverInfo} />
+      <TransferMoneyView.Input state={!isOverLimit} value={amount} onChange={e => handleAmountAction('change')(e.target.value)} />
+      <TransferMoneyView.MyAccountInfo {...myAccountInfo} />
+      <SafeAreaBottom>
+        <TransferMoneyView.AmountPads state={!isOverLimit} onAction={handleAmountAction} />
+      </SafeAreaBottom>
+    </TransferMoneyView.Container>
+  );
+};
+```

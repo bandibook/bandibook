@@ -263,3 +263,71 @@ function makeRequestWithRetry(url) {
   return makeRequest().catch(retry);
 }
 ```
+
+## async/await 패턴
+
+- 프로미스를 기반으로 구축
+- 비동기 코드 작업을 보다 쉽고 간결하게 만들어준다.
+
+### 비동기 함수 조합
+
+- 여러 비동기 함수를 조합
+- 순차적으로 실행되야 하는 경우에도 유용
+
+```js
+async function makeRequest(url) {
+  const response = await fetch(url);
+  const data = await response.json();
+  return data;
+}
+
+async function processData(data) {
+  // 데이터 처리
+  return processedData;
+}
+
+async function main() {
+  const data = await makeRequest('http://example.com');
+  const processedData = await processData(data);
+  console.log(processedData);
+}
+```
+
+### 비동기 반복
+
+- `for-await-of` 반복문을 사용하여 비동기 반복 가능 객체를 순회
+
+```js
+async function* createAsyncIterable() {
+  yield 1;
+  yield 2;
+  yield 3;
+}
+
+async function main() {
+  for await (const value of createAsyncIterable()) {
+    console.log(value);
+  }
+}
+```
+
+**_🤔 for-await-of 반복문?_**
+
+- 비동기 이터러블을 순회하기 위한 반복문
+- `for of`랑 비슷한데, 비동기 작업을 처리 가능
+
+### 비동기 에러 처리
+
+- `try-catch` 블록을 사용하여 비동기 함수 실행 도중 발생할 수 있는 에러를 처리
+
+```js
+async function main() {
+  try {
+    const data = await makeRequest('http://example.com');
+    const processedData = await processData(data);
+    console.log(processedData);
+  } catch (error) {
+    console.error(error);
+  }
+}
+```

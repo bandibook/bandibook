@@ -1,0 +1,551 @@
+<details>
+<summary>도은</summary>
+> MVC, MVP, MVVM을 살펴본다.<br/><br/>이 패턴들은 과거에 데스크톱 애플리케이션과 서버 사이드 애플리케이션의 구조화에 주로 사용되어 왔지만, 현재는 자바스크립트 환경에도 적용되어 사용되고 있다.
+
+## MVC 패턴
+
+- 애플리케이션의 구조를 개선하기 위해
+- **관심사의 분리를 활용**
+
+```
+💡 비즈니스 데이터(모델), UI(뷰), 로직과 사용자 입력을 관리(컨트롤러)로 나눈다.
+```
+
+- 모델(Model)
+  - 데이터와 비즈니스 로직을 관리
+  - 데이터를 저장하거나 가공하는 역할
+- 뷰(View)
+  - UI를 담당하는 부분
+  - 데이터를 받아서 화면에 렌더링하는 역할
+  - 뷰 자체에서는 데이터를 변경 X, 입력을 받아 컨트롤러에 전달
+- 컨트롤러(Controller)
+  - 사용자의 입력을 처리하고 모델과 뷰를 연결하는 역할
+  - 뷰에서 받은 사용자 입력을 모델에 전달하고, 변경된 데이터를 다시 뷰에 업데이트
+
+**_🤔 React 애플리케이션에서 MVC 패턴을 적용해본다면_**
+
+- Model → 관심사 분리된 비즈니스 로직 (훅, 상태 관리 함수, API 호출 등)
+- View → React 컴포넌트 (UI 렌더링)
+- Model → 이벤트 핸들러 함수 (사용자 입력 처리, 상태 업데이트 등)
+  - 주로 이벤트 핸들러 함수에서 사용자 입력으로 Model에 전달해 처리
+
+라고 느껴졌다.
+
+## MVP 패턴
+
+- UI(View)와 비즈니스 로직(Model)을 더 강하게 분리하기 위해 등장한 패턴
+- Presenter는 **UI 로직을 담당**
+  - View는 오직 UI만 관리, Presenter는 UI를 어떻게 표현할지를 결정
+  - Presenter는 비즈니스 로직을 포함 X
+- Presenter는 View와 직접 소통하지만, Model은 View와 직접 통신하지 않는다.
+- 일반적으로 View와 1:1 관계를 가진다.
+- View와 Model은 서로 알 필요가 없다.
+
+## MVVM 패턴
+
+- View와 Model을 분리하면서도, 더 나은 **양방향 데이터 바인딩**을 제공하는 구조
+- Model: 상태 및 비즈니스 로직을 담당
+- View: 사용자에게 보여지는 UI를 담당
+  - 사용자 입력을 ViewModel에게 전달, ViewModel의 상태를 반영하여 UI를 갱신
+- ViewModel: 데이터 변환기의 역할을 하는 특수한 컨트롤러
+  - Model로부터 데이터를 가져와서 View에 표시할 수 있는 형태로 변환
+  - ViewModel은 View와 Model을 연결하지만, View를 직접적으로 수정 X
+
+```
+💡 양방향 데이터 바인딩
+   - View와 ViewModel 간에 데이터가 자동으로 동기화
+   - View에서 사용자가 입력한 데이터는 ViewModel에 자동으로 반영, ViewModel의 데이터가 변경되면 View가 자동으로 업데이트
+```
+
+## MVC vs MVP vs MVVM
+
+- MVP와 MVVM은 모두 MVC에서 파생된 패턴
+- 이 파생 패턴들 사이의 핵심 차이점은 **각 계층이 다른 계층에 대해 갖는 의존성과 서로 얼마나 강하게 연결**되어 있는지에
+
+```
+💡 MVC에서는 View가 아키텍처의 최상단에 위치하고 그 옆에는 Controller가 있다
+```
+
+- Model은 Controller 아래에 있다.
+- View는 Controller에 대해 알고 있고, Controller는 Model에 대해 알고 있다.
+- 이 구조에서 View는 Model에 직접 접근할 수 있다.
+
+```
+💡 MVP에서는 Controller의 역할이 Presenter로 대체된다
+```
+
+- Presenter는 View와 동일한 계층에 존재
+- View와 Model 양쪽에서 발생하는 이벤트를 수신하고 이들 간의 동작을 조정
+
+```
+💡 MVVM은 ViewModel이 View를 참조할 필요가 없다. View는 ViewModel의 속성을 바인딩하여 표현할 수 있다.
+```
+
+## 와! 억지로 패턴을 쑤셔넣어보려니까 쉽지 않다.
+
+- GPT한테 MVC, MVP, MVVM을 각각 적용한 리액트 TODO List 예제를 내놓으라니까
+- 억지 코드같이 보이는 것들만 내놓았다.
+- 잘 타일러서 차이점이 두드러지게 볼려고 해도 계속 억지같이 느껴졌다..
+
+패턴을 억지로 보기보다는 이러한 MV\* 패턴들은 크게 보면
+
+- 비즈니스 로직 (제일 복잡한)
+- 비즈니스 로직을 추상화한 핸들러
+- View 로직
+
+을 분리로 느꼈다. 위 MV\* 패턴을 파보기 전에는 View 로직에 이벤트 핸들러가 많이 포함되어 있어 View 컴포넌트가 비대해지는 걸 많이 느끼곤 했다.
+
+👇 AS-IS
+
+```tsx
+const TransferMoneyInputScreen = () => {
+  const [amount, setAmount] = useState<number>(0);
+  const { isOverLimit, message } = useValidateTransferAmount(amount);
+  const isDisableTransfer = amount === 0 || isOverLimit;
+
+  return (
+    <div css={contentCss}>
+      <Popover open={isOverLimit}>
+        <Popover.Trigger>
+          <ReceiverInfoWithInput
+            name="김경철"
+            bankImageUrl="https://t1.daumcdn.net/kakaopay/assignment/frontend/assets/shinhan.png"
+            bankName="신한"
+            accountNumber="110-1234-5678"
+            amount={amount}
+            setAmount={setAmount}
+            state={!isOverLimit ? 'default' : 'error'}
+          />
+        </Popover.Trigger>
+        <Popover.Content arrow theme="red">
+          {message}
+        </Popover.Content>
+      </Popover>
+      <MyInfo />
+
+      <SafeAreaBottom>
+        <AmountButtons disabled={isOverLimit} setAmount={setAmount} />
+        <AmountKeypad disabled={isOverLimit} setAmount={setAmount} />
+        <Button theme="yellow" disabled={isDisableTransfer}>
+          확인
+        </Button>
+      </SafeAreaBottom>
+    </div>
+  );
+};
+
+export default TransferMoneyInputScreen;
+```
+
+👇 TO-BE
+
+- 단순 View로직만 가지고 있는 컴포넌트와 비즈니스 로직이 들어가야 하는 컴포넌트를 좀 더 쪼갰다.
+- 작은 View들의 조합을 하나의 View로 만들어 Controller에서 다룰 경우
+  - 내부 특정 컴포넌트에서만 필요한 데이터를 위해 상위 View에서 불필요하게 상태를 관리하고 props drilling이 발생하는 문제가 생길 수 있다.
+  - 또한, 컴파운드 패턴을 사용하여 View의 형태나 데이터 흐름을 좀 더 명확하고 직관적으로 파악할 수 있게 한다. 이는 뚜렷한 구조와 함께 관리가 수월하도록 한다.
+- 흩어져있던 핸들러 함수들을 Controller에서 일괄로 확인할 수 있어 유지보수면에서도 더 용이하다고 생각들었다.
+
+```tsx
+const TransferMoneyViewContainer = (props: TransferMoneyViewProps) => {
+  const { children } = props;
+  return <div css={containerCss}>{children}</div>;
+};
+
+const ReceiverInfoView = (props: ReceiverInfoViewProps) => {
+  const { name, bankInfo, accountNumber, amount } = props;
+  return ...
+};
+
+const InputView = forwardRef<HTMLInputElement, InputViewProps>((props, ref) => {
+  const { state, ...restProps } = props;
+  return ...
+})
+
+const MyAccountInfoView = (props: MyAccountInfoViewProps) => {
+  const { bankName, NumberTail, balance } = props;
+  return ...
+};
+
+
+const AmountPadsView = (props: AmountPadsViewProps) => {
+  const { state, onAction } = props;
+  return ...
+};
+
+const TransferMoneyView = {
+  Container: TransferMoneyViewContainer,
+  MyAccountInfo: MyAccountInfoView,
+  ReceiverInfo: ReceiverInfoView,
+  Input: InputView,
+  AmountPads: AmountPadsView,
+};
+
+const TransferViewController = () => {
+  const [amount, setAmount] = useState(0);
+  const receiverInfo = useReceiverInfo();
+  const myAccountInfo = useMyAccountInfo();
+
+  const { data: limits } = useGetLimits() // 이미 처리까지 select끼지 마친
+  const { isOverLimit } = useValidateTransferAmount(amount, [...limits])
+
+  const handleAmountAction = (actionType: 'change' | 'append' | 'delete') => {
+     case 'change':
+      return (value: string) => setAmount(Number(value));
+
+    case 'append':
+      return (digit: string) => {
+        setAmount((prev) => Number(prev.toString() + digit));
+      };
+
+    case 'delete':
+      return () => {
+        setAmount((prev) => {
+          const newValue = prev.toString().slice(0, -1);
+          return newValue ? Number(newValue) : 0;
+        });
+      };
+  }
+
+  return (
+    <TransferMoneyView.Container>
+      <TransferMoneyView.ReceiverInfo {...receiverInfo} />
+      <TransferMoneyView.Input state={!isOverLimit} value={amount} onChange={e => handleAmountAction('change')(e.target.value)} />
+      <TransferMoneyView.MyAccountInfo {...myAccountInfo} />
+      <SafeAreaBottom>
+        <TransferMoneyView.AmountPads state={!isOverLimit} onAction={handleAmountAction} />
+      </SafeAreaBottom>
+    </TransferMoneyView.Container>
+  );
+};
+```
+
+</details>
+
+<details>
+<summary>세민</summary>
+## 패턴의 종류
+
+### MVC 패턴
+
+- Model: 도메인 관련 데이터를 다루며 View와 Controller 에 대해서는 관여하지 않음
+- View: 모델의 현재 상태를 표현
+- Controller: View와 Model의 상호작용 로직을 처리
+
+#### 레이싱카 게임을 MVC 패턴으로 구현
+
+- Model: Car.js
+  - Car 이라는 하나의 객체로서 차의 움직임 (move) 을 책임진다.
+
+```js
+const { GAME } = require('../constant/constants');
+const common = require('../utils/common');
+
+class Car {
+  #name;
+  #distance;
+
+  constructor(name) {
+    this.#name = name;
+    this.#distance = 0;
+  }
+
+  move() {
+    const randomNumber = common.generateRandomNumberInRange(GAME.MOVE_CONDITION.min, GAME.MOVE_CONDITION.max);
+    if (randomNumber >= GAME.MOVE_CONDITION.satisfaction) this.#distance += 1;
+  }
+
+  getName() {
+    return this.#name;
+  }
+
+  getDistance() {
+    return this.#distance;
+  }
+}
+
+module.exports = Car;
+```
+
+- View: InputView.js
+  - readline 모듈을 통해서 console 입력 받기
+
+```js
+const readlinePromises = require('node:readline/promises');
+const rl = readlinePromises.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+const InputView = {
+  async readline(text) {
+    const input = await rl.question(text);
+    return input;
+  },
+};
+
+module.exports = InputView;
+```
+
+- View: OutputView.js
+  - console output
+
+```js
+const OutputView = {
+  print(text) {
+    console.log(text);
+  },
+};
+
+module.exports = OutputView;
+```
+
+- Controller: RacingGame.js
+  - view, model 상호작용 로직
+
+```js
+const InputView = require('../view/InputView');
+const OutputView = require('../view/OutputView');
+const Car = require('../domain/Car');
+const { GAME, INPUT, OUTPUT } = require('../constant/constants');
+const { validateCarNames, validateWinningDistance } = require('../validation/input.js');
+const { toInt } = require('../utils/common');
+
+class RacingGame {
+  #cars;
+  #winningDistance;
+  #histories;
+
+  constructor() {
+    this.#cars = [];
+    this.#winningDistance = 0;
+    this.#histories = [];
+  }
+
+  play() {
+    OutputView.print(OUTPUT.startGame);
+    this.setCars();
+  }
+
+  async setCars() {
+    const input = await InputView.readline(INPUT.carName);
+    const carNames = input.split(GAME.nameDivider);
+    if (!validateCarNames(carNames)) return this.setCars();
+    this.makeCars(carNames);
+  }
+
+  async makeCars(carNames) {
+    carNames.forEach((carName) => {
+      this.#cars.push(new Car(carName));
+    });
+    this.setWinningDistance();
+  }
+
+  async setWinningDistance() {
+    this.#winningDistance = toInt(await InputView.readline(INPUT.winningDistance));
+    if (!validateWinningDistance(this.#winningDistance)) return this.setWinningDistance();
+    this.moveCars();
+  }
+
+  moveCars() {
+    this.#cars.forEach((car) => car.move());
+    this.#histories.push(this.#cars.map((car) => ({ name: car.getName(), distance: car.getDistance() })));
+    if (!this.#cars.some((car) => car.getDistance() >= this.#winningDistance)) {
+      this.moveCars();
+      return;
+    }
+    this.#showResult();
+  }
+
+  #showResult() {
+    OutputView.print(OUTPUT.resultMent);
+    this.#histories.forEach((history) => {
+      history.forEach((car) => {
+        OutputView.print(OUTPUT.result(car));
+      });
+      OutputView.print('');
+    });
+    this.showWinners();
+  }
+
+  showWinners() {
+    const winners = this.#cars.filter((car) => car.isFinish(this.#winningDistance));
+    OutputView.print(OUTPUT.winner(winners));
+  }
+}
+module.exports = RacingGame;
+```
+
+---
+
+### MVP 패턴
+
+- Presenter: UI와 비즈니스 로직을 중재
+
+#### 전환 이유 (장점)
+
+- 테스트 용이성: Presenter는 UI와 독립된 순수 로직으로 구현되므로, 단위 테스트를 통한 검증이 쉬움
+- 유연성 및 모듈화: View 인터페이스를 추상화함으로써 다양한 UI 구현(예: 웹, 모바일) 간에 코드를 재사용하거나 교체하기 편리
+- 단순한 View 구현: View는 단순히 데이터를 표현하는 역할만 수행하므로, 복잡한 로직이 줄어들고 UI 변경에 따른 영향을 최소화
+
+#### MVC와의 차이점
+
+- 의미론적인 수준이여서, MVC에 존재하는 근본적인 문제들이 존재할 가능성이 크다.
+
+---
+
+### MVVM 패턴
+
+- ViewModel: Model과 View 사이의 인터페이스 역할 (데이터를 바인딩)
+  - DOM(View) -> DOM Listeners (ViewModel) -> JS Logic(Model) -> Directives(ViewModel) -> DOM(View) 와 같은 순서
+
+대표적으로 Vue 가 VM을 이용한 양방향 데이터 바인딩을 수행한 프레임워크이다.
+
+#### 전환 이유 (장점)
+
+- 양방향 데이터 바인딩: View와 ViewModel 간 자동 동기화가 이루어져, 코드에서 직접 UI 업데이트를 관리할 필요가 없습니다. 이로 인해 개발 생산성이 향상되고, UI 업데이트 로직이 단순해짐
+- 명령(Command) 및 이벤트 처리: 단순히 데이터를 보관하는 역할을 넘어 사용자의 행동(예: 버튼 클릭)과 관련된 명령(Command)들을 구현하여, View와 연동할 수 있게 함
+
+#### 레이싱카 게임을 MVVM 패턴으로 구현
+
+`Model과 View는 MVC와 동일함.`
+
+- ViewModel
+
+```js
+const EventEmitter = require('events');
+const Car = require('../domain/Car');
+const { GAME } = require('../constant/constants');
+const { validateCarNames, validateWinningDistance } = require('../validation/input.js');
+const { toInt } = require('../utils/common');
+
+class RacingGameViewModel extends EventEmitter {
+  #cars;
+  #winningDistance;
+  #histories;
+
+  constructor() {
+    super();
+    this.#cars = [];
+    this.#winningDistance = 0;
+    this.#histories = [];
+  }
+
+  setCars(carNames) {
+    if (!validateCarNames(carNames)) {
+      this.emit('error', '잘못된 자동차 이름입니다. 다시 입력해주세요.');
+      return;
+    }
+    carNames.forEach((name) => {
+      this.#cars.push(new Car(name));
+    });
+    this.emit('carsSet');
+  }
+
+  setWinningDistance(distance) {
+    const intDistance = toInt(distance);
+    if (!validateWinningDistance(intDistance)) {
+      this.emit('error', '잘못된 우승 거리입니다. 다시 입력해주세요.');
+      return;
+    }
+    this.#winningDistance = intDistance;
+    this.emit('winningDistanceSet');
+  }
+
+  moveCars() {
+    const moveRound = () => {
+      this.#cars.forEach((car) => car.move());
+      const currentRound = this.#cars.map((car) => ({
+        name: car.getName(),
+        distance: car.getDistance(),
+      }));
+      this.#histories.push(currentRound);
+      this.emit('roundCompleted', currentRound);
+
+      if (this.#cars.some((car) => car.getDistance() >= this.#winningDistance)) {
+        this.emit('raceCompleted', this.#cars, this.#histories);
+      } else {
+        setImmediate(moveRound);
+      }
+    };
+
+    moveRound();
+  }
+
+  getWinningDistance() {
+    return this.#winningDistance;
+  }
+}
+
+module.exports = RacingGameViewModel;
+```
+
+```js
+const InputView = require('../view/InputView');
+const OutputView = require('../view/OutputView');
+const RacingGameViewModel = require('../viewmodel/RacingGameViewModel');
+const { INPUT, OUTPUT, GAME } = require('../constant/constants');
+
+class RacingGameView {
+  constructor() {
+    this.viewModel = new RacingGameViewModel();
+
+    this.viewModel.on('error', (message) => {
+      OutputView.print(message);
+      this.start();
+    });
+
+    this.viewModel.on('carsSet', () => {
+      this.askWinningDistance();
+    });
+
+    this.viewModel.on('winningDistanceSet', () => {
+      this.viewModel.moveCars();
+    });
+
+    this.viewModel.on('roundCompleted', (roundData) => {
+      roundData.forEach((carData) => {
+        OutputView.print(OUTPUT.result(carData));
+      });
+      OutputView.print('');
+    });
+
+    this.viewModel.on('raceCompleted', (cars, histories) => {
+      OutputView.print(OUTPUT.resultMent);
+      histories.forEach((round) => {
+        round.forEach((carData) => {
+          OutputView.print(OUTPUT.result(carData));
+        });
+        OutputView.print('');
+      });
+      this.showWinners(cars);
+    });
+  }
+
+  async start() {
+    OutputView.print(OUTPUT.startGame);
+    await this.askCarNames();
+  }
+
+  async askCarNames() {
+    const input = await InputView.readline(INPUT.carName);
+    const carNames = input.split(GAME.nameDivider);
+    this.viewModel.setCars(carNames);
+  }
+
+  async askWinningDistance() {
+    const input = await InputView.readline(INPUT.winningDistance);
+    this.viewModel.setWinningDistance(input);
+  }
+
+  showWinners(cars) {
+    const winningDistance = this.viewModel.getWinningDistance();
+    const winners = cars.filter((car) => car.getDistance() >= winningDistance);
+    OutputView.print(OUTPUT.winner(winners));
+    process.exit(0);
+  }
+}
+
+module.exports = RacingGameView;
+```
+
+</details>

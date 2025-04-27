@@ -1,0 +1,218 @@
+> MVC, MVP, MVVM을 살펴본다.<br/><br/>이 패턴들은 과거에 데스크톱 애플리케이션과 서버 사이드 애플리케이션의 구조화에 주로 사용되어 왔지만, 현재는 자바스크립트 환경에도 적용되어 사용되고 있다.
+
+## MVC 패턴
+
+- 애플리케이션의 구조를 개선하기 위해
+- **관심사의 분리를 활용**
+
+```
+💡 비즈니스 데이터(모델), UI(뷰), 로직과 사용자 입력을 관리(컨트롤러)로 나눈다.
+```
+
+- 모델(Model)
+  - 데이터와 비즈니스 로직을 관리
+  - 데이터를 저장하거나 가공하는 역할
+- 뷰(View)
+  - UI를 담당하는 부분
+  - 데이터를 받아서 화면에 렌더링하는 역할
+  - 뷰 자체에서는 데이터를 변경 X, 입력을 받아 컨트롤러에 전달
+- 컨트롤러(Controller)
+  - 사용자의 입력을 처리하고 모델과 뷰를 연결하는 역할
+  - 뷰에서 받은 사용자 입력을 모델에 전달하고, 변경된 데이터를 다시 뷰에 업데이트
+
+**_🤔 React 애플리케이션에서 MVC 패턴을 적용해본다면_**
+
+- Model → 관심사 분리된 비즈니스 로직 (훅, 상태 관리 함수, API 호출 등)
+- View → React 컴포넌트 (UI 렌더링)
+- Model → 이벤트 핸들러 함수 (사용자 입력 처리, 상태 업데이트 등)
+  - 주로 이벤트 핸들러 함수에서 사용자 입력으로 Model에 전달해 처리
+
+라고 느껴졌다.
+
+## MVP 패턴
+
+- UI(View)와 비즈니스 로직(Model)을 더 강하게 분리하기 위해 등장한 패턴
+- Presenter는 **UI 로직을 담당**
+  - View는 오직 UI만 관리, Presenter는 UI를 어떻게 표현할지를 결정
+  - Presenter는 비즈니스 로직을 포함 X
+- Presenter는 View와 직접 소통하지만, Model은 View와 직접 통신하지 않는다.
+- 일반적으로 View와 1:1 관계를 가진다.
+- View와 Model은 서로 알 필요가 없다.
+
+## MVVM 패턴
+
+- View와 Model을 분리하면서도, 더 나은 **양방향 데이터 바인딩**을 제공하는 구조
+- Model: 상태 및 비즈니스 로직을 담당
+- View: 사용자에게 보여지는 UI를 담당
+  - 사용자 입력을 ViewModel에게 전달, ViewModel의 상태를 반영하여 UI를 갱신
+- ViewModel: 데이터 변환기의 역할을 하는 특수한 컨트롤러
+  - Model로부터 데이터를 가져와서 View에 표시할 수 있는 형태로 변환
+  - ViewModel은 View와 Model을 연결하지만, View를 직접적으로 수정 X
+
+```
+💡 양방향 데이터 바인딩
+   - View와 ViewModel 간에 데이터가 자동으로 동기화
+   - View에서 사용자가 입력한 데이터는 ViewModel에 자동으로 반영, ViewModel의 데이터가 변경되면 View가 자동으로 업데이트
+```
+
+## MVC vs MVP vs MVVM
+
+- MVP와 MVVM은 모두 MVC에서 파생된 패턴
+- 이 파생 패턴들 사이의 핵심 차이점은 **각 계층이 다른 계층에 대해 갖는 의존성과 서로 얼마나 강하게 연결**되어 있는지에
+
+```
+💡 MVC에서는 View가 아키텍처의 최상단에 위치하고 그 옆에는 Controller가 있다
+```
+
+- Model은 Controller 아래에 있다.
+- View는 Controller에 대해 알고 있고, Controller는 Model에 대해 알고 있다.
+- 이 구조에서 View는 Model에 직접 접근할 수 있다.
+
+```
+💡 MVP에서는 Controller의 역할이 Presenter로 대체된다
+```
+
+- Presenter는 View와 동일한 계층에 존재
+- View와 Model 양쪽에서 발생하는 이벤트를 수신하고 이들 간의 동작을 조정
+
+```
+💡 MVVM은 ViewModel이 View를 참조할 필요가 없다. View는 ViewModel의 속성을 바인딩하여 표현할 수 있다.
+```
+
+## 와! 억지로 패턴을 쑤셔넣어보려니까 쉽지 않다.
+
+- GPT한테 MVC, MVP, MVVM을 각각 적용한 리액트 TODO List 예제를 내놓으라니까
+- 억지 코드같이 보이는 것들만 내놓았다.
+- 잘 타일러서 차이점이 두드러지게 볼려고 해도 계속 억지같이 느껴졌다..
+
+패턴을 억지로 보기보다는 이러한 MV\* 패턴들은 크게 보면
+
+- 비즈니스 로직 (제일 복잡한)
+- 비즈니스 로직을 추상화한 핸들러
+- View 로직
+
+을 분리로 느꼈다. 위 MV\* 패턴을 파보기 전에는 View 로직에 이벤트 핸들러가 많이 포함되어 있어 View 컴포넌트가 비대해지는 걸 많이 느끼곤 했다.
+
+👇 AS-IS
+
+```tsx
+const TransferMoneyInputScreen = () => {
+  const [amount, setAmount] = useState<number>(0);
+  const { isOverLimit, message } = useValidateTransferAmount(amount);
+  const isDisableTransfer = amount === 0 || isOverLimit;
+
+  return (
+    <div css={contentCss}>
+      <Popover open={isOverLimit}>
+        <Popover.Trigger>
+          <ReceiverInfoWithInput
+            name="김경철"
+            bankImageUrl="https://t1.daumcdn.net/kakaopay/assignment/frontend/assets/shinhan.png"
+            bankName="신한"
+            accountNumber="110-1234-5678"
+            amount={amount}
+            setAmount={setAmount}
+            state={!isOverLimit ? 'default' : 'error'}
+          />
+        </Popover.Trigger>
+        <Popover.Content arrow theme="red">
+          {message}
+        </Popover.Content>
+      </Popover>
+      <MyInfo />
+
+      <SafeAreaBottom>
+        <AmountButtons disabled={isOverLimit} setAmount={setAmount} />
+        <AmountKeypad disabled={isOverLimit} setAmount={setAmount} />
+        <Button theme="yellow" disabled={isDisableTransfer}>
+          확인
+        </Button>
+      </SafeAreaBottom>
+    </div>
+  );
+};
+
+export default TransferMoneyInputScreen;
+```
+
+👇 TO-BE
+
+- 단순 View로직만 가지고 있는 컴포넌트와 비즈니스 로직이 들어가야 하는 컴포넌트를 좀 더 쪼갰다.
+- 작은 View들의 조합을 하나의 View로 만들어 Controller에서 다룰 경우
+  - 내부 특정 컴포넌트에서만 필요한 데이터를 위해 상위 View에서 불필요하게 상태를 관리하고 props drilling이 발생하는 문제가 생길 수 있다.
+  - 또한, 컴파운드 패턴을 사용하여 View의 형태나 데이터 흐름을 좀 더 명확하고 직관적으로 파악할 수 있게 한다. 이는 뚜렷한 구조와 함께 관리가 수월하도록 한다.
+- 흩어져있던 핸들러 함수들을 Controller에서 일괄로 확인할 수 있어 유지보수면에서도 더 용이하다고 생각들었다.
+
+```tsx
+const TransferMoneyViewContainer = (props: TransferMoneyViewProps) => {
+  const { children } = props;
+  return <div css={containerCss}>{children}</div>;
+};
+
+const ReceiverInfoView = (props: ReceiverInfoViewProps) => {
+  const { name, bankInfo, accountNumber, amount } = props;
+  return ...
+};
+
+const InputView = forwardRef<HTMLInputElement, InputViewProps>((props, ref) => {
+  const { state, ...restProps } = props;
+  return ...
+})
+
+const MyAccountInfoView = (props: MyAccountInfoViewProps) => {
+  const { bankName, NumberTail, balance } = props;
+  return ...
+};
+
+
+const AmountPadsView = (props: AmountPadsViewProps) => {
+  const { state, onAction } = props;
+  return ...
+};
+
+const TransferMoneyView = {
+  Container: TransferMoneyViewContainer,
+  MyAccountInfo: MyAccountInfoView,
+  ReceiverInfo: ReceiverInfoView,
+  Input: InputView,
+  AmountPads: AmountPadsView,
+};
+
+const TransferViewController = () => {
+  const [amount, setAmount] = useState(0);
+  const receiverInfo = useReceiverInfo();
+  const myAccountInfo = useMyAccountInfo();
+
+  const { data: limits } = useGetLimits() // 이미 처리까지 select끼지 마친
+  const { isOverLimit } = useValidateTransferAmount(amount, [...limits])
+
+  const handleAmountAction = (actionType: 'change' | 'append' | 'delete') => {
+     case 'change':
+      return (value: string) => setAmount(Number(value));
+
+    case 'append':
+      return (digit: string) => {
+        setAmount((prev) => Number(prev.toString() + digit));
+      };
+
+    case 'delete':
+      return () => {
+        setAmount((prev) => {
+          const newValue = prev.toString().slice(0, -1);
+          return newValue ? Number(newValue) : 0;
+        });
+      };
+  }
+
+  return (
+    <TransferMoneyView.Container>
+      <TransferMoneyView.ReceiverInfo {...receiverInfo} />
+      <TransferMoneyView.Input state={!isOverLimit} value={amount} onChange={e => handleAmountAction('change')(e.target.value)} />
+      <TransferMoneyView.MyAccountInfo {...myAccountInfo} />
+      <SafeAreaBottom>
+        <TransferMoneyView.AmountPads state={!isOverLimit} onAction={handleAmountAction} />
+      </SafeAreaBottom>
+    </TransferMoneyView.Container>
+  );
+};
+```

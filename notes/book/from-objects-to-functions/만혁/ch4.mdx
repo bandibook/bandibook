@@ -1,0 +1,111 @@
+
+# 연습문제 4.1
+
+```kt
+class DiscardUnlessTest {
+
+    @Test
+    fun `discard unless`() {
+        val itemInProgress = ToDoItem(
+            "doing something",
+            status = ToDoStatus.InProgress
+        )
+        val itemBlocked = ToDoItem(
+            "must do something",
+            status = ToDoStatus.Blocked
+        )
+
+        expectThat(
+            itemInProgress.discardUnless { status == ToDoStatus.InProgress }
+        ).isEqualTo(itemInProgress)
+
+        expectThat(
+            itemBlocked.discardUnless { status == ToDoStatus.InProgress }
+        ).isEqualTo(null)
+    }
+}
+
+fun <T> T.discardUnless(predicate: T.() -> Boolean): T? = if (predicate(this)) this else null
+
+
+
+data class ToDoItem(
+    val name: String,
+    val status: ToDoStatus
+) {
+}
+enum class ToDoStatus {
+    InProgress,
+    Blocked
+}
+```
+
+
+# 연습문제 4.2
+
+```kt
+class AndUnlessNullTest {
+
+    @Test
+    fun `and unless null`() {
+
+        val processUnlessNull = ::extractListData andUnlessNull
+                ::fetchListContent andUnlessNull
+                ::renderHtml andUnlessNull
+                ::createResponse
+
+        fun fetchList(request: Request): Response = processUnlessNull(request)
+            ?: Response(404, "Not found")
+
+        val req = Request("GET", URI("http://example.com/zettai/uberto/mylist"), "")
+        val resp = fetchList(req)
+
+        expectThat(resp) {
+            get { status }.isEqualTo(200)
+        }
+    }
+}
+
+typealias FUN<A, B> = (A) -> B
+infix fun <A : Any, B : Any, C : Any> FUN<A, B?>.andUnlessNull(other: FUN<B, C?>): FUN<A, C?> {
+    return { a ->
+        val b = this(a)
+        if (b == null) {
+            null
+        } else {
+            other(b)
+        }
+    }
+}
+
+```
+
+
+# 연습문제 4.4
+```kt
+class EmailTemplateTest {
+
+    @Test
+    fun `email template test`() {
+        val mh = Person("mh", "han")
+
+        val templateText = "Hi, "
+        val emailTemplate = EmailTemplate(templateText)
+        expectThat(emailTemplate(mh)).isEqualTo("Hi, mh")
+    }
+}
+
+
+data class Person(
+    val firstName: String,
+    val familyName: String
+)
+
+data class EmailTemplate(private val template: String) : (Person) -> String {
+    override fun invoke(aPerson: Person): String {
+        return """
+            $template, ${aPerson.firstName}
+        """.trimIndent()
+    }
+}
+```

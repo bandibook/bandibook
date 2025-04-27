@@ -1,0 +1,35 @@
+## 연습문제 4.1
+```kotlin
+fun <T> T.discardUnless(predicate: T.() -> Boolean): T? = if (predicate()) this else null
+```
+
+## 연습문제 4.2
+```kotlin
+infix fun <A : Any, B : Any, C : Any> FUN<A, B?>.andUnlessNull(other: FUN<B, C?>): FUN<A, C?> = { a -> this(a)?.let(other) }
+```
+
+## 연습문제 4.3
+```kotlin
+fun <A, B, C> ((A, B) -> C).curry(): (A) -> (B) -> C = { a -> { b -> this(a, b) } }
+
+// 정답 확인
+infix fun <A, B> ((A) -> B).`+++`(a: A): B = this(a)
+```
+
+## 연습문제 4.4
+```kotlin
+data class Person(
+    val firstName: String,
+    val familyName: String
+) {
+    fun toStringTagMap(): Map<String, StringTag> =
+        mapOf(
+            "firstName" to StringTag(firstName),
+            "familyName" to StringTag(familyName)
+        )
+}
+
+data class EmailTemplate(private val template: String) : (Person) -> String {
+    override fun invoke(aPerson: Person): String = renderTemplate(template, aPerson.toStringTagMap())
+}
+```

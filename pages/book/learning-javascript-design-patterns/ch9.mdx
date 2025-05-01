@@ -1,0 +1,501 @@
+<details>
+<summary>도은</summary>
+> 비동기 프로그래밍 패턴에 대해 알아보자.
+
+## 비동기 프로그래밍
+
+- 동기 코드는 순서대로 한 문장씩 실행
+- 비동기 코드는 **논블로킹 방식**으로 실행
+  - 기다리지 않고 백그라운드에서 해당 비동기 코드를 실행
+- 비동기(async, await), 프로미스(promise)와 같은 자바스크립트 언어의 기능은 비동기 코드를 더 쉽게 작성할 수 있도록 해준다.
+  - 마치 **동기 흐름처럼** 작성할 수 있다.
+
+**_🤔 비동기 코드를 동기 흐름처럼 작성하면 뭐가 좋을까?_**
+
+- 우선, 비동기 코드를 동기 흐름처럼 작성하지 않는다고 한다면 `콜백`으로 처리한다는 것을 생각할 수 있다.
+
+👇 콜백으로 비동기 처리
+
+```js
+function getData(callback, errorCallback) {
+  setTimeout(() => {
+    try {
+      // 실제 코드
+      const data = '데이터 도착!';
+      // 예외 상황이 없으면 정상 콜백 호출
+      callback(data);
+    } catch (error) {
+      // 에러가 발생하면 에러 콜백 호출
+      errorCallback(error);
+    }
+  }, 1000);
+}
+
+// 사용 예
+getData(
+  (result) => {
+    console.log('✅ 성공:', result);
+  },
+  (error) => {
+    console.error('❌ 에러 발생:', error.message);
+  },
+);
+```
+
+👇 위 코드를 async/await. Promise로 처리한다면
+
+```js
+// 1️⃣ Promise
+function getData() {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        // 예외 없이 정상 처리
+        const data = '데이터 도착!';
+        resolve(data);
+
+        // 만약 예외를 발생시키고 싶다면 아래 주석을 풀어봐
+        // throw new Error('데이터를 가져오는데 실패했어요!');
+      } catch (error) {
+        reject(error);
+      }
+    }, 1000);
+  });
+}
+
+getData()
+  .then((result) => {
+    console.log('✅ 성공:', result);
+  })
+  .catch((error) => {
+    console.error('❌ 에러 발생:', error.message);
+  });
+
+// 2️⃣ async/await
+function getData() {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        const data = '데이터 도착!';
+        resolve(data);
+
+        // throw new Error('데이터를 가져오는데 실패했어요!');
+      } catch (error) {
+        reject(error);
+      }
+    }, 1000);
+  });
+}
+
+async function run() {
+  try {
+    const result = await getData();
+    console.log('✅ 성공:', result);
+  } catch (error) {
+    console.error('❌ 에러 발생:', error.message);
+  }
+}
+
+run();
+```
+
+**개인적인 생각..**
+
+- Promise와 async/await 방식에 너무 익숙해져서 그런 건지 잘 모르겠지만
+  - 콜백 함수 형태는 저게 비동기 처리를 위한 함수인지 파악하기 어려울 것 같다고 생각했다.
+  - 네이밍이라도 getSyncData.. 이런 식으로 해줘야 그나마 알 수 있을 듯?
+- 반면 Promise, async/await 코드는 이 비동기 함수 작업이 `끝나고 나서` 할 작업임을 읽기 쉬웠다.
+- Promise, async/await를 이후 처리에 대해 뭐가 될지와는 무관하게
+  - 성공했다면 resolve, 실패했다면 reject를 사용해주면 되니
+  - 결과를 사용하는 쪽에서는 복잡한 내부 구현을 몰라도 일관된 방식으로 다룰 수 있어서 편하다.
+
+## 프로미스 패턴
+
+- 프로미스는 비동기 작업의 **결과를 나타내는 객체**
+  - 대기(pending), 완료(fulfilled), 거부(rejected)의 세 가지 상태를 가질 수 있다.
+
+### 프로미스 체이닝
+
+- 여러 개의 프로미스를 함께 연결하여 복잡한 비동기 로직 다루는 것 가능
+
+```js
+function makeRequest(url) {
+  return new Promise((resolve, reject) => {
+    fetch(url)
+      .then((response) => response.json())
+      .then((data) => resolve(data))
+      .catch((error) => reject(error));
+  });
+}
+
+function processData(data) {
+  // process data
+  return processedData;
+}
+
+makeRequest('https://example.com')
+  .then((data) => processData(data))
+  .then((processedData) => console.log(processedData))
+  .catch((error) => console.error(error));
+```
+
+### 프로미스 병렬 처리
+
+- `Promise.all` 메서드를 사용하여 여러 프로미스를 동시에 실행
+
+```js
+Promise.all([makeRequest('http://example.com/1'), makeRequest('http://example.com/2')]).then(([data1, data2]) => {
+  console.log(data1, data2);
+});
+```
+
+### 프로미스 순차 실행
+
+- `Promise.resolve` 메서드를 사용하여 프로미스를 순차적으로 실행
+  - 중간에 실패하게 되면 catch문으로 바로 빠진다.
+
+```js
+Promise.resolve()
+  .then(() => makeRequest1())
+  .then(() => makeRequest2())
+  .then(() => makeRequest3())
+  .then(() => {
+    // 모든 요청 완료
+  });
+```
+
+### 프로미스 메모이제이션
+
+- 캐시를 사용하여 프로미스 함수 호출의 결과 값을 저장한다.
+- 중복된 요청을 방지
+
+```js
+const cache = new Map();
+
+function memoizedMakeRequest(url) {
+  if (cache.has(url)) {
+    return cache.get(url);
+  }
+  return new Promise((resolve, reject) => {
+    fetch(url)
+      .then((response) => response.json())
+      .then((data) => {
+        cache.set(url, data);
+        resolve(data);
+      })
+      .catch((error) => reject(error));
+  });
+}
+```
+
+- 데이터를 갱신해야할 때가 있기도 할텐데
+
+```js
+function memoizedMakeRequest(url, { forceRefresh = false } = {}) {
+  if (!forceRefresh && cache.has(url)) {
+    return Promise.resolve(cache.get(url));
+  }
+
+  return fetch(url)
+    .then((response) => response.json())
+    .then((data) => {
+      cache.set(url, data);
+      return data;
+    });
+}
+
+// 캐시 사용
+memoizedMakeRequest('/api/user');
+
+// 강제로 다시 요청
+memoizedMakeRequest('/api/user', { forceRefresh: true });
+```
+
+### 프로미스 파이프라인
+
+- 함수형 프로그래밍 기법을 활용하여 비동기 처리의 파이프라인을 생성
+- 중간 로직을 유닛 테스트 하기도 쉽고
+- 로운 변환 로직을 추가하거나 빼기에도 유연하다.
+
+```js
+function transform1(data) {
+  // 데이터 변환
+  return transformedData;
+}
+
+function transform2(data) {
+  // 데이터 변환
+  return transformedData;
+}
+
+makeRequest('http://example.com')
+  .then((data) => pipeline(data))
+  .then(transform1)
+  .then(transform2)
+  .then((transformedData) => console.log(transformedData))
+  .catch((error) => console.error(error));
+```
+
+### 프로미스 재시도
+
+- 실패했을 때 다시 시도
+
+```js
+function makeRequestWithRetry(url) {
+  let attempts = 0;
+
+  const makeRequest = () => {
+    return new Promise((resolve, reject) => {
+      fetch(url)
+        .then((response) => response.json())
+        .then((data) => resolve(data))
+        .catch((error) => reject(error));
+    });
+  };
+
+  const retry = (error) => {
+    attempts++;
+    if (attempts >= 3) {
+      throw new Error('Request failed after 3 attempts');
+    }
+    console.log(`Retrying request: attempt ${attempts}`);
+    return makeRequest();
+  };
+
+  return makeRequest().catch(retry);
+}
+```
+
+## async/await 패턴
+
+- 프로미스를 기반으로 구축
+- 비동기 코드 작업을 보다 쉽고 간결하게 만들어준다.
+
+### 비동기 함수 조합
+
+- 여러 비동기 함수를 조합
+- 순차적으로 실행되야 하는 경우에도 유용
+
+```js
+async function makeRequest(url) {
+  const response = await fetch(url);
+  const data = await response.json();
+  return data;
+}
+
+async function processData(data) {
+  // 데이터 처리
+  return processedData;
+}
+
+async function main() {
+  const data = await makeRequest('http://example.com');
+  const processedData = await processData(data);
+  console.log(processedData);
+}
+```
+
+### 비동기 반복
+
+- `for-await-of` 반복문을 사용하여 비동기 반복 가능 객체를 순회
+
+```js
+async function* createAsyncIterable() {
+  yield 1;
+  yield 2;
+  yield 3;
+}
+
+async function main() {
+  for await (const value of createAsyncIterable()) {
+    console.log(value);
+  }
+}
+```
+
+**_🤔 for-await-of 반복문?_**
+
+- 비동기 이터러블을 순회하기 위한 반복문
+- `for of`랑 비슷한데, 비동기 작업을 처리 가능
+
+### 비동기 에러 처리
+
+- `try-catch` 블록을 사용하여 비동기 함수 실행 도중 발생할 수 있는 에러를 처리
+
+```js
+async function main() {
+  try {
+    const data = await makeRequest('http://example.com');
+    const processedData = await processData(data);
+    console.log(processedData);
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>세민</summary>
+## 1. 자바스크립트 환경
+
+자바스크립트는 **싱글 스레드 기반의 언어** 이다. 브라우저와 Node.js 모두 단일 스레드에서 동작하기 때문에, 네트워크 요청, 파일 입출력, 대규모 데이터 처리 등 시간이 오래 걸리는 작업이 있을 때 이를 **비동기적으로** 처리하지 않으면 전체 애플리케이션이 멈춘다.
+
+## 2. 콜백 패턴
+
+### 2.1 콜백 함수
+
+콜백 함수는 `특정 작업이 끝난 뒤 호출되는 함수`를 말한다.
+
+```js
+setTimeout(function () {
+  console.log('3초 후 실행!');
+}, 3000);
+```
+
+### 2.2 콜백 지옥
+
+콜백 안에서 또 다른 비동기 콜백을 부르면, 코드가 점점 “옆으로” 길어지고 가독성이 떨어진다.
+
+```js
+login(user, function(err, info) {
+  if (err) { ... }
+  getProfile(info.id, function(err, profile) {
+    if (err) { ... }
+    updateUI(profile);
+  });
+});
+```
+
+**문제점**
+
+- 들여쓰기가 깊어진다.
+- 에러 핸들링이 중첩 구조로 반복된다.
+
+---
+
+## 3. Promise 패턴
+
+### 3.1 Promise
+
+Promise는 **아직 끝나지 않은 비동기 작업**을 감싸는 객체이다.
+
+3가지 상태:
+
+- Pending(대기),
+- Fulfilled(성공),
+- Rejected(실패)
+
+```js
+const promise = fetch('api/data');
+promise.then(res => res.json()).catch(err => ...);
+```
+
+**장점**
+
+- then/catch로 직렬 처리와 에러 분리를 깔끔하게 할 수 있다.
+- 여러 비동기 작업을 “체인” 형태로 이어 쓸 수 있다.
+
+### 3.2 Promise 체이닝
+
+```js
+login(user)
+  .then((info) => getProfile(info.id))
+  .then((profile) => updateUI(profile))
+  .catch((err) => handleError(err));
+```
+
+- 들여쓰기가 유지되는 then 체이닝 지옥이 발생한다.
+- 에러 핸들링을 한 군데로 모일 수 있다.
+
+### 3.3 ⭐ Promise.all / Promise.race
+
+#### Promise.all
+
+여러 비동기 작업을 병렬로 실행:
+
+```js
+Promise.all([api1(), api2(), api3()])
+  .then(([res1, res2, res3]) => { ... });
+```
+
+- 여러 API를 병렬적으로 요청한다.
+
+#### Promise.race
+
+가장 먼저 종료(fulfilled 또는 rejected)되는 Promise의 결과(값 또는 에러)를 반환
+
+```js
+function fetchWithTimeout(url, options = {}, timeout = 5000) {
+  const fetchPromise = fetch(url, options);
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeout));
+
+  return Promise.race([fetchPromise, timeoutPromise]);
+}
+```
+
+```js
+fetchWithTimeout('https://jsonplaceholder.typicode.com/todos/1', {}, 2000)
+  .then((res) => res.json())
+  .then((data) => {
+    console.log('성공:', data);
+  })
+  .catch((err) => {
+    console.error('실패:', err.message); // 2초 안에 응답 없으면 'Request timed out'
+  });
+```
+
+---
+
+## 4. async/await 패턴
+
+### 4.1 async/await
+
+Promise 패턴은 좋지만 여전히 then/catch의 “계단식” 체이닝이 발생한다.
+**async/await**는 이러한 Promise 기반 비동기 코드를 **동기 코드**처럼 흐를 수 있게 해준다.
+
+```js
+async function showProfile(user) {
+  try {
+    const info = await login(user);
+    const profile = await getProfile(info.id);
+    updateUI(profile);
+  } catch (err) {
+    handleError(err);
+  }
+}
+```
+
+- 가독성 향상.
+- try/catch 문으로 에러도 동기 코드처럼 처리.
+
+---
+
+## 5. 비동기 제어 흐름 패턴
+
+### 5.1 시퀀셜(순차) vs. 패러럴(병렬) 실행
+
+비동기 작업은 서로 의존성이 있으면 순차로, 독립적이면 병렬로 처리하는 것이 효율적이다.
+
+- **순차 실행**: for...of + await
+- **병렬 실행**: Promise.all
+
+```js
+for (const url of urls) {
+  const response = await fetch(url);
+}
+```
+
+(사실상 위 두 개 말고는 써본적이 없는.. 🤔)
+
+## 6. 궁금한 점
+
+### 8.2 Promise와 async/await 선택 기준
+
+- 코드가 짧고 한 번만 쓰이는 곳엔 Promise 체이닝이 더 가독성 높을 때도 있다.
+- 하지만 실제 비즈니스 로직, 특히 여러 단계의 API 요청과 조건 분기가 뒤섞이면 async/await가 훨씬 낫다고 생각함.
+
+혹시 Promise랑 async/await를 혼용해서 쓰는지? 언제는 00 을 쓴다. 이런 기준이 있는지?
+
+</details>

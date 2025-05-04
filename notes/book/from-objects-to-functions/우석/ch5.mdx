@@ -1,0 +1,80 @@
+## 연습문제 5.1
+```kotlin
+tailrec fun collatzR(acc: List<Int>, x: Int): List<Int> {
+    return if ( x == 1) {
+        acc + x
+    } else if (x % 2 == 0) {
+        collatzR(acc + x, x / 2)
+    } else {
+        collatzR(acc + x, x * 3 + 1)
+    }
+}
+fun Int.collatz() = collatzR(listOf(), this)
+
+```
+
+## 연습문제 5.2
+```kotlin
+@Test
+fun `fold elevator events`() {
+
+    val values = listOf(Up, Up, Down, Up, Down, Down, Up, Up, Up, Down)
+
+    val tot = values.fold(Elevator(0)) { acc, command ->
+        when (command) {
+            Up -> Elevator(acc.floor + 1)
+            Down -> Elevator(acc.floor - 1)
+        }
+    }
+
+    expectThat(tot).isEqualTo(Elevator(2))
+
+}
+```
+
+## 연습문제 5.3
+```kotlin
+fun compactJson(json: String): String =
+    json.fold(OutQuotes(""), ::compactor).jsonCompacted
+
+
+fun compactor(prev: JsonCompactor, c: Char): JsonCompactor =
+    prev.compact(c)
+
+
+sealed class JsonCompactor {
+    abstract val jsonCompacted: String
+    abstract fun compact(c: Char): JsonCompactor
+}
+
+data class InQuotes(override val jsonCompacted: String) : JsonCompactor() {
+    override fun compact(c: Char): JsonCompactor {
+        return when (c) {
+            '"' -> OutQuotes(jsonCompacted + c)
+            '\\' -> Escaped(jsonCompacted + c)
+            else -> InQuotes(jsonCompacted + c)
+        }
+    }
+}
+
+data class OutQuotes(override val jsonCompacted: String) : JsonCompactor() {
+    override fun compact(c: Char): JsonCompactor {
+        return when {
+            c.isWhitespace() -> this
+            c == '"' -> InQuotes(jsonCompacted + c)
+            else -> OutQuotes(jsonCompacted + c)
+        }
+    }
+}
+
+data class Escaped(override val jsonCompacted: String) : JsonCompactor() {
+    override fun compact(c: Char): JsonCompactor = InQuotes(jsonCompacted + c)
+}
+```
+
+## 연습문제 5.4
+```kotlin
+data class Monoid<T: Any>(val neutral: T, val combine: (T, T) -> T) {
+    fun List<T>.fold(): T = fold(neutral, combine)
+}
+```

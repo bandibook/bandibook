@@ -7,7 +7,7 @@ export interface MembersInfo {
 export const membersInfo: Record<string, Array<MembersInfo>> = {
   bandibook: [
     {
-      username: 'Doeunnkimm',
+      username: 'Doeunnkimm!!!!!!',
       profileUrl: 'https://avatars.githubusercontent.com/u/112946860?v=4',
       github: 'https://github.com/Doeunnkimm',
     },

@@ -153,5 +153,27 @@ console.log(myApp.utils.getValue()); // 25
 - 하나의 문자열 인자를 받아서 파싱한 뒤에 필요한 객체를 기반 네임스페이스에 자동으로 추가하는 방법
 
 ```js
+// 최상ㅟ 네임스페이스에 객체 리터ㄹ을 할당한다.
+const myApp = {};
 
+// 문자열 형식의 네임스페이스를 파싱하고 자동으로 중첩 네임스페이스를 생성해주는 간편한 함수
+function extend(ns, ns_string) {
+  const parts = ns_string.split('.');
+  let pl;
+
+  pl = parts.length;
+
+  for (let i = 0; i < pl; i++) {
+    // 프로퍼티가 존재하지 않을 경우에만 생성
+    if (typeof ns[parts[i]] === 'undefined') {
+      parent[parts[i]] = {};
+    }
+    parent = parent[parts[i]];
+  }
+  return parent;
+}
+
+// 사용법: myApp에 깊게 중첩된 네임스페이스를 확장
+const mod = extend(myApp, 'modules.module2');
+console.loog(mod == myApp.modules.module2); // true
 ```

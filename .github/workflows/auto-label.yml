@@ -13,7 +13,7 @@ jobs:
 
       - name: Get PR title
         id: pr_title
-        run: echo "title=$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")" >> $GITHUB_OUTPUT
+        run: echo "title=$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")" >> $GITHUB_OUTPUT
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -23,13 +23,9 @@ jobs:
       - name: Install dependencies
         run: pip install requests scikit-learn numpy
 
-      - name: Suggest and apply label
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_TITLE: ${{ steps.pr_title.outputs.title }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+      - name: Create Python script
         run: |
+          cat << 'EOF' > script.py
           import os
           import requests
           import numpy as np
@@ -37,45 +33,51 @@ jobs:
           from sklearn.metrics.pairwise import cosine_similarity
           import subprocess
 
-          owner, repo = os.getenv("REPO").split("/")
+          owner, repo = os.getenv('REPO').split('/')
           headers = {
-              "Authorization": f"Bearer {os.getenv('GH_TOKEN')}",
-              "Accept": "application/vnd.github+json"
+              'Authorization': f'Bearer {os.getenv("GH_TOKEN")}',
+              'Accept': 'application/vnd.github+json'
           }
 
-          # 1. 전체 라벨 목록 가져오기
-          label_api = f"https://api.github.com/repos/{owner}/{repo}/labels"
+          label_api = f'https://api.github.com/repos/{owner}/{repo}/labels'
           labels = []
           page = 1
           while True:
-              r = requests.get(f"{label_api}?page={page}", headers=headers)
+              r = requests.get(f'{label_api}?page={page}', headers=headers)
               data = r.json()
               if not data:
                   break
-              labels += [l["name"] for l in data]
+              labels += [l['name'] for l in data]
               page += 1
 
-          pr_title = os.getenv("PR_TITLE")
+          pr_title = os.getenv('PR_TITLE')
           if not labels:
-              print("No labels found.")
+              print('No labels found.')
               exit(0)
 
-          # 2. 유사도 계산
           vectorizer = TfidfVectorizer().fit(labels + [pr_title])
           vectors = vectorizer.transform(labels + [pr_title])
           sims = cosine_similarity(vectors[-1], vectors[:-1])[0]
 
           max_sim = np.max(sims)
           best_label = labels[np.argmax(sims)]
-          print(f"Best match: {best_label} (score: {max_sim:.3f})")
+          print(f'Best match: {best_label} (score: {max_sim:.3f})')
 
-          # 3. 기준 넘으면 라벨 부착
           if max_sim >= 0.3:
-              print(f"Applying label: {best_label}")
+              print(f'Applying label: {best_label}')
               subprocess.run([
-                  "gh", "pr", "edit", os.getenv("PR_NUMBER"),
-                  "--repo", os.getenv("REPO"),
-                  "--add-label", best_label
+                  'gh', 'pr', 'edit', os.getenv('PR_NUMBER'),
+                  '--repo', os.getenv('REPO'),
+                  '--add-label', best_label
               ], check=True)
           else:
-              print("No sufficiently similar label found. Skipping.")
+              print('No sufficiently similar label found. Skipping.')
+          EOF
+
+      - name: Run Python script
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ steps.pr_title.outputs.title }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python script.py

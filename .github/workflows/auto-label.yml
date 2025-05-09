@@ -90,15 +90,12 @@ jobs:
           print(f"PR Title: {pr_title}")
           print(f"Available Labels: {labels}")
 
-          # 전처리된 텍스트로 변환
-          processed_labels = [preprocess_text(label) for label in labels]
+          # PR 제목 전처리
           processed_title = preprocess_text(pr_title)
-
           print(f"Processed PR Title: {processed_title}")
-          print(f"Processed Labels: {processed_labels}")
 
-          # 각 라벨과의 유사도 계산
-          similarities = [string_similarity(processed_title, label) for label in processed_labels]
+          # 각 라벨과의 유사도 계산 (원본 라벨과 처리된 PR 제목 비교)
+          similarities = [string_similarity(processed_title, label) for label in labels]
 
           # 상위 3개 라벨 선택
           top_indices = np.argsort(similarities)[-3:][::-1]

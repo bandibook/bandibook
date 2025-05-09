@@ -45,12 +45,26 @@ jobs:
           from konlpy.tag import Okt
 
           def preprocess_text(text):
+              # 대괄호 제거
+              text = re.sub(r'[\[\]]', '', text)
               # 한글 형태소 분석
               okt = Okt()
               # 명사만 추출
               nouns = okt.nouns(text)
               # 공백으로 구분된 문자열로 변환
               return ' '.join(nouns)
+
+          def create_comment(message):
+              owner, repo = os.getenv('REPO').split('/')
+              pr_number = os.getenv('PR_NUMBER')
+              headers = {
+                  'Authorization': f'Bearer {os.getenv("GH_TOKEN")}',
+                  'Accept': 'application/vnd.github+json'
+              }
+              comment_url = f'https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments'
+              data = {'body': message}
+              response = requests.post(comment_url, headers=headers, json=data)
+              return response.status_code == 201
 
           owner, repo = os.getenv('REPO').split('/')
           headers = {
@@ -72,6 +86,7 @@ jobs:
           pr_title = os.getenv('PR_TITLE')
           if not labels:
               print('No labels found.')
+              create_comment("⚠️ 사용 가능한 라벨이 없습니다.")
               exit(0)
 
           print(f"PR Title: {pr_title}")
@@ -107,10 +122,16 @@ jobs:
                       '--add-label', best_label
                   ], check=True, capture_output=True, text=True)
                   print("Label applied successfully")
+                  create_comment(f"🎉 라벨 '{best_label}'이(가) 자동으로 적용되었어요.")
               except subprocess.CalledProcessError as e:
                   print(f"Error applying label: {e.stderr}")
+                  create_comment("😰 라벨 적용 중 오류가 발생했습니다.")
           else:
               print('\nNo sufficiently similar label found. Skipping.')
+              comment = "⚠️ 유사한 라벨을 찾을 수 없어요. 다음 중에서 직접 라벨을 선택해주세요:\n\n"
+              for label, score in top_labels:
+                  comment += f"- {label} (유사도: {score:.3f})\n"
+              create_comment(comment)
           EOF
 
       - name: Run Python script

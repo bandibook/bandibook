@@ -43,8 +43,10 @@ jobs:
           from difflib import SequenceMatcher
 
           def preprocess_text(text):
-              # 대괄호 제거
-              text = re.sub(r'[\[\]]', '', text)
+              # 대괄호 안의 내용만 추출
+              match = re.search(r'\[(.*?)\]', text)
+              if match:
+                  return match.group(1).strip()
               return text.strip()
 
           def string_similarity(a, b):
@@ -131,7 +133,7 @@ jobs:
 
       - name: Run Python script
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           PR_TITLE: ${{ steps.pr_title.outputs.title }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

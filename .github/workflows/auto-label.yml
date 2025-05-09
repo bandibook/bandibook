@@ -20,8 +20,17 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install gh -y
+
       - name: Install dependencies
-        run: pip install requests scikit-learn numpy
+        run: pip install requests scikit-learn numpy konlpy
 
       - name: Create Python script
         run: |
@@ -32,6 +41,16 @@ jobs:
           from sklearn.feature_extraction.text import TfidfVectorizer
           from sklearn.metrics.pairwise import cosine_similarity
           import subprocess
+          import re
+          from konlpy.tag import Okt
+
+          def preprocess_text(text):
+              # 한글 형태소 분석
+              okt = Okt()
+              # 명사만 추출
+              nouns = okt.nouns(text)
+              # 공백으로 구분된 문자열로 변환
+              return ' '.join(nouns)
 
           owner, repo = os.getenv('REPO').split('/')
           headers = {
@@ -55,23 +74,43 @@ jobs:
               print('No labels found.')
               exit(0)
 
-          vectorizer = TfidfVectorizer().fit(labels + [pr_title])
-          vectors = vectorizer.transform(labels + [pr_title])
+          print(f"PR Title: {pr_title}")
+          print(f"Available Labels: {labels}")
+
+          # 전처리된 텍스트로 변환
+          processed_labels = [preprocess_text(label) for label in labels]
+          processed_title = preprocess_text(pr_title)
+
+          print(f"Processed PR Title: {processed_title}")
+          print(f"Processed Labels: {processed_labels}")
+
+          vectorizer = TfidfVectorizer().fit(processed_labels + [processed_title])
+          vectors = vectorizer.transform(processed_labels + [processed_title])
           sims = cosine_similarity(vectors[-1], vectors[:-1])[0]
 
-          max_sim = np.max(sims)
-          best_label = labels[np.argmax(sims)]
-          print(f'Best match: {best_label} (score: {max_sim:.3f})')
+          # 상위 3개 라벨 선택
+          top_indices = np.argsort(sims)[-3:][::-1]
+          top_labels = [(labels[i], sims[i]) for i in top_indices]
 
-          if max_sim >= 0.3:
-              print(f'Applying label: {best_label}')
-              subprocess.run([
-                  'gh', 'pr', 'edit', os.getenv('PR_NUMBER'),
-                  '--repo', os.getenv('REPO'),
-                  '--add-label', best_label
-              ], check=True)
+          print("\nTop matching labels:")
+          for label, score in top_labels:
+              print(f"- {label} (score: {score:.3f})")
+
+          # 임계값을 0.1로 낮춤 (한글 매칭의 경우 더 낮은 임계값이 필요할 수 있음)
+          if top_labels[0][1] >= 0.1:
+              best_label = top_labels[0][0]
+              print(f'\nApplying label: {best_label}')
+              try:
+                  subprocess.run([
+                      'gh', 'pr', 'edit', os.getenv('PR_NUMBER'),
+                      '--repo', os.getenv('REPO'),
+                      '--add-label', best_label
+                  ], check=True, capture_output=True, text=True)
+                  print("Label applied successfully")
+              except subprocess.CalledProcessError as e:
+                  print(f"Error applying label: {e.stderr}")
           else:
-              print('No sufficiently similar label found. Skipping.')
+              print('\nNo sufficiently similar label found. Skipping.')
           EOF
 
       - name: Run Python script

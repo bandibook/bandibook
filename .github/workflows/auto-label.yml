@@ -47,12 +47,7 @@ jobs:
           def preprocess_text(text):
               # 대괄호 제거
               text = re.sub(r'[\[\]]', '', text)
-              # 한글 형태소 분석
-              okt = Okt()
-              # 명사만 추출
-              nouns = okt.nouns(text)
-              # 공백으로 구분된 문자열로 변환
-              return ' '.join(nouns)
+              return text.strip()
 
           def create_comment(message):
               owner, repo = os.getenv('REPO').split('/')
@@ -86,7 +81,7 @@ jobs:
           pr_title = os.getenv('PR_TITLE')
           if not labels:
               print('No labels found.')
-              create_comment("⚠️ 사용 가능한 라벨이 없습니다.")
+              create_comment("⚠️ 사용 가능한 라벨이 없어요.")
               exit(0)
 
           print(f"PR Title: {pr_title}")

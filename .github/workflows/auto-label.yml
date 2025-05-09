@@ -38,16 +38,17 @@ jobs:
           import os
           import requests
           import numpy as np
-          from sklearn.feature_extraction.text import TfidfVectorizer
-          from sklearn.metrics.pairwise import cosine_similarity
           import subprocess
           import re
-          from konlpy.tag import Okt
+          from difflib import SequenceMatcher
 
           def preprocess_text(text):
               # 대괄호 제거
               text = re.sub(r'[\[\]]', '', text)
               return text.strip()
+
+          def string_similarity(a, b):
+              return SequenceMatcher(None, a, b).ratio()
 
           def create_comment(message):
               owner, repo = os.getenv('REPO').split('/')
@@ -94,13 +95,12 @@ jobs:
           print(f"Processed PR Title: {processed_title}")
           print(f"Processed Labels: {processed_labels}")
 
-          vectorizer = TfidfVectorizer().fit(processed_labels + [processed_title])
-          vectors = vectorizer.transform(processed_labels + [processed_title])
-          sims = cosine_similarity(vectors[-1], vectors[:-1])[0]
+          # 각 라벨과의 유사도 계산
+          similarities = [string_similarity(processed_title, label) for label in processed_labels]
 
           # 상위 3개 라벨 선택
-          top_indices = np.argsort(sims)[-3:][::-1]
-          top_labels = [(labels[i], sims[i]) for i in top_indices]
+          top_indices = np.argsort(similarities)[-3:][::-1]
+          top_labels = [(labels[i], similarities[i]) for i in top_indices]
 
           print("\nTop matching labels:")
           for label, score in top_labels:

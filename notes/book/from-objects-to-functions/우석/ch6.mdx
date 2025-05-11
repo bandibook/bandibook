@@ -1,0 +1,175 @@
+# 연습문제 결과
+```kotlin
+
+sealed class ElevatorCommand {
+    abstract val floor: Int
+
+    data class Call(override val floor: Int) : ElevatorCommand()
+    data class Select(override val floor: Int) : ElevatorCommand()
+    data class Fix(override val floor: Int) : ElevatorCommand()
+}
+
+sealed class ElevatorState {
+    abstract val startFloor: Int
+
+    data class Moving(val toFloor: Int) : ElevatorState() {
+        override val startFloor get() = toFloor
+    }
+
+    data class Stopped(val floor: Int) : ElevatorState() {
+        override val startFloor get() = floor
+    }
+
+    data class Broken(val floor: Int) : ElevatorState() {
+        override val startFloor get() = floor
+    }
+}
+
+sealed class ElevatorEvent {
+    data class ButtonPressed(val floor: Int) : ElevatorEvent()
+    data class ElevatorMoved(val fromFloor: Int, val toFloor: Int) : ElevatorEvent()
+    data class Broken(val floor: Int) : ElevatorEvent()
+    data class Fixed(val floor: Int) : ElevatorEvent()
+}
+
+
+
+fun foldElevatorEvents(events: List<ElevatorEvent>): ElevatorState =
+    events.fold(ElevatorState.Stopped(0) as ElevatorState) { state, event ->
+        when (event) {
+            is ElevatorEvent.Broken ->
+                ElevatorState.Broken(state.startFloor)
+            is ElevatorEvent.ButtonPressed ->
+                if (state is ElevatorState.Broken) state
+                else if (event.floor != state.startFloor) ElevatorState.Moving(event.floor)
+                else ElevatorState.Stopped(event.floor)
+            is ElevatorEvent.ElevatorMoved ->
+                if (state is ElevatorState.Broken) state
+                else ElevatorState.Stopped(event.toFloor)
+            is ElevatorEvent.Fixed -> ElevatorState.Stopped(event.floor)
+        }
+    }
+
+fun handleElevatorCommand(state: ElevatorState, command: ElevatorCommand): List<ElevatorEvent> =
+    when (command) {
+        is ElevatorCommand.Call, is ElevatorCommand.Select ->
+            if (state is ElevatorState.Broken) listOf(ElevatorEvent.Broken(state.startFloor))
+            else if (command.floor != state.startFloor) listOf(
+                ElevatorEvent.ButtonPressed(command.floor),
+                ElevatorEvent.ElevatorMoved(state.startFloor, command.floor)
+            )
+            else emptyList()
+        is ElevatorCommand.Fix ->
+            if (state is ElevatorState.Broken) listOf(ElevatorEvent.Fixed(state.startFloor))
+            else emptyList()
+    }
+```
+
+
+## 연습문제 6.1
+```kotlin
+@Test
+fun `initially with no events it is stopped at floor 0`() {
+    val state = foldElevatorEvents(emptyList())
+    expectThat(state).isEqualTo(ElevatorState.Stopped(floor = 0))
+}
+
+@Test
+fun `ButtonPressed for a different floor yields Moving state`() {
+    val events = listOf(
+        ElevatorEvent.ButtonPressed(floor = 3)
+    )
+    val state = foldElevatorEvents(events)
+    expectThat(state).isEqualTo(ElevatorState.Moving(toFloor = 3))
+}
+
+@Test
+fun `ButtonPressed for the same floor yields Stopped state`() {
+    val events = listOf(
+        ElevatorEvent.ButtonPressed(floor = 0)
+    )
+    val state = foldElevatorEvents(events)
+    expectThat(state).isEqualTo(ElevatorState.Stopped(floor = 0))
+}
+
+@Test
+fun `ElevatorMoved always yields Stopped at toFloor`() {
+    val events = listOf(
+        ElevatorEvent.ElevatorMoved(fromFloor = 5, toFloor = 2)
+    )
+    val state = foldElevatorEvents(events)
+    expectThat(state).isEqualTo(ElevatorState.Stopped(floor = 2))
+}
+
+@Test
+fun `mixed sequence of ButtonPressed and ElevatorMoved folds correctly`() {
+    val events = listOf(
+        ElevatorEvent.ButtonPressed(floor = 2),
+        ElevatorEvent.ElevatorMoved(fromFloor = 0, toFloor = 2),
+        ElevatorEvent.ButtonPressed(floor = 5),
+        ElevatorEvent.ElevatorMoved(fromFloor = 2, toFloor = 5)
+    )
+    val state = foldElevatorEvents(events)
+    expectThat(state).isEqualTo(ElevatorState.Stopped(floor = 5))
+}
+```
+
+## 연습문제 6.2
+```kotlin
+@Test
+fun `elevator opens the doors at the called floor`() {
+    val events = listOf<ElevatorEvent>(ElevatorEvent.ElevatorMoved(fromFloor = 0, toFloor = 3))
+    val newEvents = processCommand(events, ElevatorCommand.Call(floor = 5))
+    expectThat(foldElevatorEvents(newEvents))
+        .isEqualTo(ElevatorState.Stopped(floor = 5))
+}
+
+@Test
+fun `elevator opens the doors at the selected floor when someone presses a floor button`() {
+    val events = listOf<ElevatorEvent>(ElevatorEvent.ElevatorMoved(fromFloor = 0, toFloor = 5))
+    val newEvents = processCommand(events, ElevatorCommand.Select(floor = 10))
+    expectThat(foldElevatorEvents(newEvents))
+        .isEqualTo(ElevatorState.Stopped(floor = 10))
+}
+
+@Test
+fun `elevator doesn't move if someone selects the same floor it's already on`() {
+    val events = listOf(
+        ElevatorEvent.ButtonPressed(floor = 10),
+        ElevatorEvent.ElevatorMoved(fromFloor = 0, toFloor = 10)
+    )
+    val newEvents = processCommand(events, ElevatorCommand.Select(floor = 10))
+    expectThat(foldElevatorEvents(newEvents))
+        .isEqualTo(ElevatorState.Stopped(floor = 10))
+}
+
+private fun processCommand(
+    events: List<ElevatorEvent>,
+    command: ElevatorCommand
+): List<ElevatorEvent> =
+    events + handleElevatorCommand(foldElevatorEvents(events), command)
+```
+
+## 연습문제 6.3
+```kotlin
+@Test
+fun `if elevator is broken it won't move`() {
+    val events = listOf<ElevatorEvent>(ElevatorEvent.Broken(0))
+    val newEvents = events + handleElevatorCommand(
+        foldElevatorEvents(events),
+        ElevatorCommand.Call(5)
+    )
+    expectThat(foldElevatorEvents(newEvents)).isEqualTo(ElevatorState.Broken(0))
+}
+
+@Test
+fun `if elevator is fixed change status`() {
+
+    val events = listOf<ElevatorEvent>(ElevatorEvent.Broken(0))
+    val newEvents = events + handleElevatorCommand(
+        foldElevatorEvents(events),
+        ElevatorCommand.Fix(0)
+    )
+    expectThat(foldElevatorEvents(newEvents)).isEqualTo(ElevatorState.Stopped(0))
+}
+```

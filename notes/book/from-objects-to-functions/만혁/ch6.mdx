@@ -1,0 +1,244 @@
+# 연습문제 6.1
+
+```kt
+// ElevatorState.kt
+sealed class ElevatorState
+
+data class WaitingAt(val floor: Int) : ElevatorState() {
+    fun handle(command: ElevatorCommand): ElevatorState = when (command) {
+        is CallElevator -> MovingTo(to = command.floor, from = floor)
+        is SelectFloor -> MovingTo(to = command.destination, from = floor)
+    }
+}
+data class MovingTo(val to: Int, val from: Int): ElevatorState() {
+    fun handle(command: ElevatorCommand) = this
+}
+
+
+// ElevatorCommand.kt
+sealed class ElevatorCommand
+
+data class CallElevator(val floor: Int): ElevatorCommand() 
+data class SelectFloor(val destination: Int) : ElevatorCommand()
+
+// Elevator.kt
+
+fun handle(state: ElevatorState, command: ElevatorCommand): ElevatorState {
+    return when (state) {
+        is MovingTo -> state.handle(command)
+        is WaitingAt -> state.handle(command)
+    }
+}
+
+// ElevatorTest.kt
+class ElevatorTest {
+    @Test
+    fun waitToMove() {
+        val initState = WaitingAt(1)
+        val command = SelectFloor(5)
+
+        val handled = handle(initState, command)
+
+        Assertions.assertEquals(MovingTo(5, 1), handled)
+    }
+}
+```
+
+# 연습문제 6.2
+
+```kt
+// ElevatorState.kt
+sealed class ElevatorState
+
+data class WaitingAt(val floor: Int) : ElevatorState() {
+    fun commandToEvents(command: ElevatorCommand): List<ElevatorEvent> = when (command) {
+        is CallElevator -> listOf(
+            ElevatorCalled(floor = command.floor),
+            ElevatorMoved(from = floor, to = command.floor)
+        )
+        is SelectFloor -> listOf(
+            FloorSelected(command.destination),
+            ElevatorMoved(to = command.destination, from = floor)
+        )
+    }
+}
+data class MovingTo(val to: Int, val from: Int): ElevatorState() {
+    fun commandToEvents(command: ElevatorCommand) = this
+}
+
+
+// ElevatorCommand.kt
+sealed class ElevatorCommand
+
+data class CallElevator(val floor: Int): ElevatorCommand() 
+data class SelectFloor(val destination: Int) : ElevatorCommand()
+
+// ElevatorEvent.kt
+sealed class ElevatorEvent
+
+data class ElevatorMoved(val from: Int, val to: Int): ElevatorEvent()
+data class ElevatorArrived(val floor: Int): ElevatorEvent()
+data class FloorSelected(val floor: Int): ElevatorEvent()
+data class ElevatorCalled(val floor: Int): ElevatorEvent()
+
+
+
+// Elevator.kt
+fun handleCommand(state: ElevatorState, command: ElevatorCommand) : List<ElevatorEvent> {
+    return when(state) {
+        is MovingTo -> emptyList()
+        is WaitingAt -> {
+            when(command) {
+                is CallElevator -> state.commandToEvents(command)
+                is SelectFloor -> state.commandToEvents(command)
+            }
+        }
+    }
+}
+
+fun evolve(state: ElevatorState, event: ElevatorEvent): ElevatorState = when (event) {
+    is ElevatorMoved -> MovingTo(to = event.to, from = event.from)
+    is ElevatorArrived -> WaitingAt(event.floor)
+    is FloorSelected -> state  // 상태 변화 없음
+    is ElevatorCalled -> state  // 상태 변화 없음
+}
+
+fun fold(initial: ElevatorState, events: List<ElevatorEvent>): ElevatorState =
+    events.fold(initial) { state, event -> evolve(state, event) }
+
+
+// ElevatorTest.kt
+class ElevatorTest {
+    @Test
+    fun addEvents() {
+        val initState = WaitingAt(floor = 1)
+        val events = listOf(
+            ElevatorCalled(3),
+            ElevatorMoved(from = 1, to = 3),
+            ElevatorArrived(3),
+            FloorSelected(5),
+            ElevatorMoved(from = 3, to = 5),
+            ElevatorArrived(floor = 5)
+        )
+
+        val result = fold(initState, events)
+
+        Assertions.assertEquals(
+            result, WaitingAt(floor = 5)
+        )
+    }
+}
+```
+
+# 연습문제 6.3
+
+```kt
+// ElevatorState.kt
+sealed class ElevatorState
+
+data class WaitingAt(val floor: Int) : ElevatorState() {
+    fun handle(command: ElevatorCommand): ElevatorState = when (command) {
+        is CallElevator -> MovingTo(to = command.floor, from = floor)
+        is SelectFloor -> MovingTo(to = command.destination, from = floor)
+        is BreakDown -> MovingTo(to = 1, from = floor)
+        is RepairElevator -> WaitingAt(floor = 1)
+    }
+
+    fun decide(command: ElevatorCommand): List<ElevatorEvent> = when (command) {
+        is CallElevator -> listOf(
+            ElevatorCalled(floor = command.floor),
+            ElevatorMoved(from = floor, to = command.floor)
+        )
+
+        is SelectFloor -> listOf(
+            FloorSelected(command.destination),
+            ElevatorMoved(to = command.destination, from = floor)
+        )
+
+        is RepairElevator -> listOf(
+            ElevatorRepaired(),
+        )
+
+        is BreakDown -> listOf(
+            ElevatorMoved(from = floor, to = 1)
+        )
+    }
+}
+
+data class MovingTo(val to: Int, val from: Int) : ElevatorState() {
+    fun handle(command: ElevatorCommand) = this
+    fun decide(command: ElevatorCommand): List<ElevatorEvent> = emptyList()
+}
+
+data class Broken(val cause: String) : ElevatorState() {
+    fun handle(command: ElevatorCommand): ElevatorState = this
+    fun decide(command: ElevatorCommand): List<ElevatorEvent> = when (command) {
+        is CallElevator, is SelectFloor, is BreakDown -> emptyList()
+        is RepairElevator -> listOf(ElevatorRepaired())
+    }
+
+}
+
+
+// ElevatorCommand.kt
+data class CallElevator(val floor: Int): ElevatorCommand()
+
+data class SelectFloor(val destination: Int) : ElevatorCommand()
+
+data class BreakDown(val cause: String): ElevatorCommand()
+
+class RepairElevator : ElevatorCommand()
+
+
+
+
+// ElevatorEvent.kt
+sealed class ElevatorEvent
+
+data class ElevatorMoved(val from: Int, val to: Int): ElevatorEvent()
+data class ElevatorArrived(val floor: Int): ElevatorEvent()
+data class FloorSelected(val floor: Int): ElevatorEvent()
+data class ElevatorCalled(val floor: Int): ElevatorEvent()
+data class ElevatorBroken(val cause: String): ElevatorEvent()
+class ElevatorRepaired : ElevatorEvent()
+
+
+// Elevator.kt
+fun handleCommand(state: ElevatorState, command: ElevatorCommand): List<ElevatorEvent> = when (state) {
+    is MovingTo -> state.decide(command)
+    is WaitingAt -> state.decide(command)
+    is Broken -> state.decide(command)
+}
+
+fun evolve(state: ElevatorState, event: ElevatorEvent): ElevatorState = when (event) {
+    is ElevatorMoved -> MovingTo(to = event.to, from = event.from)
+    is ElevatorArrived -> WaitingAt(event.floor)
+    is FloorSelected -> state  // 상태 변화 없음
+    is ElevatorCalled -> state  // 상태 변화 없음
+    is ElevatorBroken -> Broken(cause = event.cause)
+    is ElevatorRepaired -> WaitingAt(floor = 1)
+}
+
+fun fold(initial: ElevatorState, events: List<ElevatorEvent>): ElevatorState =
+    events.fold(initial) { state, event -> evolve(state, event) }
+
+
+// ElevatorTest.kt
+class ElevatorTest {
+    @Test
+    fun brokenTest() {
+        val initState = WaitingAt(floor = 1)
+        val events = listOf(
+            ElevatorCalled(3),
+            ElevatorMoved(from = 1, to = 3),
+            ElevatorBroken("케이블 끊어짐"),
+            ElevatorRepaired(),
+        )
+        val result = fold(initState, events)
+
+        Assertions.assertEquals(
+            result, WaitingAt(floor = 1)
+        )
+    }
+}
+```

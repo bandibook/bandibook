@@ -1,0 +1,340 @@
+<details>
+  <summary>도은</summary>
+  
+> - 네임스페이스 패턴에 대해 알아본다.
+> - 네임스페이스는 **코드 단위를 고유한 식별자로 그룹화한 것**
+> - 자바스크립트는 다른 언어들처럼 네임스페이스를 기본적으로 지원하지는 않지만, 객체와 클로저를 활용하여 비슷한 효과를 얻을 수 있다.
+
+## 11.1 네임스페이스의 기초
+
+이번 장에서 살펴볼 네임스페이스 패턴의 종류는 다음과 같다.
+
+- 단일 전역 변수
+- 접두사 네임스페이스
+- 객체 리터럴 표기법
+- 중첩 네임스페이스
+- 즉시 실행 함수 표현식
+- 네임스페이스 주입
+
+## 11.2 단일 전역 변수 패턴
+
+> 전체 애플리케이션에서 딱 하나의 전역 변수만 만들어 모든 기능을 담는 방식
+
+```js
+const myUniqueApplication = (() => {
+  function myMethod() {
+    // 코드
+    return;
+  }
+  return {
+    myMethod,
+  };
+})();
+
+// 사용법
+myUniqueApplication.myMethod(); // myUniqueApplication 객체에서 외부로 노출된 myMethod 메서드 호출
+```
+
+## 11.3 접두사 네임스페이스 패턴
+
+> 전역 변수를 줄이기 위해 접두사를 붙여 네임스페이스를 만드는 방식
+
+```js
+const myApplication_propertyA = {};
+const myApplication_propertyA = {};
+function myApplication_myMethod() {
+  // ...
+}
+```
+
+## 11.4 객체 리터럴 표기법
+
+> 객체 리터럴 표기법을 사용하여 네임스페이스를 만드는 방식
+
+```js
+const myApplication = {
+  getInfo() {
+    // ...
+  },
+  // 객체 안에 추가로 객체 네임스페이스를 만들어 필요한 요소들을 담을 수도 있다.
+  models: {},
+  views: {
+    pages: {},
+  },
+  collections: {},
+};
+```
+
+## 11.5 중첩 네임스페이스 패턴
+
+> 객체 리터럴 표기법을 중첩 사용하여 네임스페이스를 만드는 방식
+
+```js
+YAHOO.util.getElementsByClassName('test');
+```
+
+## 11.6 즉시 실행 함수 표현식
+
+> 즉시 실행 함수 표현식을 사용하여 네임스페이스를 만드는 방식
+
+- 자바스크립트에서는 즉시 실행 함수로 정의된 내부의 변수와 함수 모두 외부에서 접근 불가능
+- 따라서 함수를 호출하는 것만으로도 쉽게 코드의 은닉성을 구현 가능
+
+```js
+const namespace = {};
+
+// 함수 매개변수로 네임스페이스 객체를 전달하고, 공용 메서드와 속성을 할당
+((o) => {
+  o.foo = 'foo';
+  o.bar = () => 'bar';
+})(namespace);
+
+console.log(namespace); // {foo: 'foo', bar: ƒ}
+```
+
+아래는 더 유용하게 기능을 확장하는 방식이다.
+
+```js
+/**
+ * 네임스페이스의 이름과 undefined를 인자로 전달한다.
+ * 1. 네임스페이스를 지역적으로 변경할 수 있고, 함수 컨텍스트 밖에서 덮여쓰여지지 않는다.
+ * 2. undefined 값이 정말로 undefined임을 보장한다. ES5 이전 버전의 undefined는 변경될 수 있었기 때문에 필요한 과정이다.
+ */
+((namespace, undefined) => {
+  // 비공개 속성들
+  const foo = 'foo';
+  const bar = 'bar';
+
+  // 공개 메서드와 속성
+  namespace.foobar = 'foobar';
+  namespace.sayHello = () => {
+    speak('hello world');
+  };
+
+  // 비공개 메서드
+  function speak(msg) {
+    console.log(`You said: ${msg}`);
+  }
+})(namespace);
+```
+
+## 11.7 네임스페이스 주입
+
+> 함수 내에서 `this`를 네임스페이스의 프록시로 활용하여 특정 네임스페이스에 메서드와 속성을 주입
+
+```js
+const myApp = {};
+myApp.utils = {};
+
+(function () {
+  let val = 5;
+
+  this.getValue = () => val;
+  this.setValue = (newVal) => {
+    val = newVal;
+  };
+
+  // utils 하위에 새로운 하위 네임스페이스인 tools를 생성
+  this.tools = {};
+}).apply(myApp.utils);
+
+// 위에서 utils를 통해 정의한 tools 네임스페이스에 새로운 동작을 추가한다.
+(function () {
+  this.diagnose = () => 'diagnosis';
+}).apply(myApp.utils.tools);
+
+console.log(myApp.utils.getValue()); // 5
+myApp.utils.setValue(25); // 25
+console.log(myApp.utils.getValue()); // 25
+```
+
+## 11.8 고급 네임스페이스 패턴
+
+### 중첩 네임스페이스 자동화 패턴
+
+- 중첩 구조를 계속해서 사용하다보면 중첩의 깊이가 커질수록 매우 번거로워질 수 있다.
+- 하나의 문자열 인자를 받아서 파싱한 뒤에 필요한 객체를 기반 네임스페이스에 자동으로 추가하는 방법
+
+```js
+// 최상ㅟ 네임스페이스에 객체 리터ㄹ을 할당한다.
+const myApp = {};
+
+// 문자열 형식의 네임스페이스를 파싱하고 자동으로 중첩 네임스페이스를 생성해주는 간편한 함수
+function extend(ns, ns_string) {
+  const parts = ns_string.split('.');
+  let pl;
+
+  pl = parts.length;
+
+  for (let i = 0; i < pl; i++) {
+    // 프로퍼티가 존재하지 않을 경우에만 생성
+    if (typeof ns[parts[i]] === 'undefined') {
+      parent[parts[i]] = {};
+    }
+    parent = parent[parts[i]];
+  }
+  return parent;
+}
+
+// 사용법: myApp에 깊게 중첩된 네임스페이스를 확장
+const mod = extend(myApp, 'modules.module2');
+console.loog(mod == myApp.modules.module2); // true
+```
+
+</details>
+
+<details>
+  <summary>세민</summary>
+  # 네임 스페이스 패턴
+
+## 주요 특징
+
+1. 전역 변수 최소화
+
+- 네임스페이스 객체 하나만 전역에 선언하고, 모든 속성과 메서드를 그 객체의 하위로 배치한다.
+
+2. 코드 구조화
+
+- 관련된 함수와 변수를 논리적으로 그룹화하여 코드의 가독성과 유지보수성을 높인다.
+
+3. 이름 충돌 방지
+
+- 동일한 이름의 변수나 함수가 여러 곳에서 선언되어도 네임스페이스로 구분되므로 충돌이 발생하지 않는다.
+
+## 단일 전역 변수 패턴
+
+```js
+var name = "book";
+function showName() { ... }
+```
+
+위 코드를 단일 전역 변수 패턴으로 보완하면 다음과 같다.
+
+```js
+var MyApp = MyApp || {};
+
+MyApp.name = 'book';
+MyApp.showName = function () {
+  // ...
+};
+```
+
+## 접두사 네임스페이스 패턴
+
+- 변수나 함수 이름 앞에 특정 접두사를 붙여서, 네임스페이스처럼 사용하는 방식
+  - 이 방법은 객체를 사용하지 않고, 이름 자체로 구분하는 전통적인 방식이다.
+
+```js
+var MYAPP_name = 'book';
+function MYAPP_showName() {
+  console.log(MYAPP_name);
+}
+```
+
+## 객체 리터럴 표기법 패턴
+
+- 객체 리터럴을 사용하여 네임스페이스를 정의하고, 관련된 변수와 함수를 그 객체의 속성으로 추가하는 방식
+  - 이 방법은 코드의 구조화와 전역 변수 오염 방지에 효과적이다
+
+```js
+var MyApp = {
+  name: 'book',
+  showName: function () {
+    console.log(this.name);
+  },
+};
+
+MyApp.showName(); // "book"
+```
+
+## 중첩 네임스페이스 패턴
+
+- 중첩 네임스페이스 패턴은 네임스페이스 객체 안에 또 다른 네임스페이스(객체)를 계층적으로 정의하는 방식
+  - 이렇게 하면 관련된 기능을 더 세분화하여 그룹화할 수 있고, 대규모 프로젝트에서 코드의 충돌을 더욱 효과적으로 방지할 수 있다.
+
+```js
+var MyApp = MyApp || {};
+MyApp.utils = MyApp.utils || {};
+
+MyApp.utils.string = {
+  trim: function (str) {
+    return str.replace(/^\s+|\s+$/g, '');
+  },
+};
+
+MyApp.utils.number = {
+  isEven: function (num) {
+    return num % 2 === 0;
+  },
+};
+
+console.log(MyApp.utils.string.trim('  hello  ')); // "hello"
+console.log(MyApp.utils.number.isEven(4)); // true
+```
+
+## 즉시 실행함수 표현식 패턴
+
+- 즉시 실행함수 표현식(IIFE) 패턴은 함수를 정의하자마자 즉시 실행하는 방식
+  - 이 패턴을 사용하면 함수 내부에 선언된 변수나 함수가 외부(전역)로 노출되지 않아, 전역 네임스페이스를 오염시키지 않고도 필요한 기능을 캡슐화할 수 있다.
+  - 주로 모듈화, 프라이빗 변수/함수 구현, 네임스페이스 보호 등에 활용된다.
+
+```js
+var MyApp = MyApp || {};
+
+MyApp.counter = (function () {
+  // private 변수
+  var count = 0;
+
+  return {
+    increment: function () {
+      count++;
+      return count;
+    },
+    decrement: function () {
+      count--;
+      return count;
+    },
+    getCount: function () {
+      return count;
+    },
+  };
+})();
+
+console.log(MyApp.counter.increment()); // 1
+console.log(MyApp.counter.increment()); // 2
+console.log(MyApp.counter.getCount()); // 2
+console.log(MyApp.counter.decrement()); // 1
+```
+
+## 네임스페이스 주입 패턴
+
+- 네임스페이스 주입 패턴은 외부에서 정의된 네임스페이스(객체)를 함수의 인자로 전달하여, 내부에서 해당 네임스페이스에 속성이나 메서드를 동적으로 추가하는 방식
+  - 이 패턴을 사용하면 여러 모듈이나 기능을 하나의 네임스페이스에 유연하게 결합할 수 있고, 테스트나 확장성, 의존성 관리에도 유리하다.
+
+```js
+var MyApp = MyApp || {};
+
+(function (ns) {
+  ns.sayHello = function () {
+    console.log('안녕하세요!');
+  };
+  ns.version = '1.0.0';
+})(MyApp);
+
+console.log(MyApp.version); // "1.0.0"
+MyApp.sayHello(); // "안녕하세요!"
+```
+
+## 고급 네임스페이스 패턴
+
+- 중첩 네임스페이스 패턴: `app.utils.drawing.canvas.id` 같은 형식으로 체계적으로 계층화된 구조로 사용하는 패턴
+  - DOM 구조가 이에 해당되는 것 같다.
+- 의존성 선언 패턴: 객체에 대한 로컬 참조가 전체적인 조회 시간을 단축한다는 점을 이용한 패턴
+  - `const obj = someObj.someProperty.ref` 와 같이 객체 일부를 미리 참조하는 것
+- 심층 객체 확장 패턴: `deepmerge` 와 같은 객체를 병합하여 확장하여 사용하는 것
+
+## 개인적인 생각
+
+패턴의 코드들을 보면 실제 작성하는 메서드나 일부 속성들이 위 패턴을 기반으로 만들어져있다고 생각한다. DOM 등 하지만 일반적인 작업에서 이러한 패턴을 직접 다루기엔 조금 애매하고, 모듈로 정의하고 사용하는게 더 낫지 않나는 생각이다.
+
+</details>

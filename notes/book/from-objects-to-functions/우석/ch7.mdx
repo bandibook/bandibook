@@ -1,0 +1,64 @@
+# 연습문제 7.1
+```kotlin
+fun combine(other: Holder<T>, f: (T, T) -> T): Holder<T> =
+    transform { v -> f(v, other.value) }
+```
+
+
+## 연습문제 7.2
+```kotlin
+@Test
+fun 펑터는_항등사상을_보존해야_한다() {
+    repeat(1000) {
+        val randomNumber = random.nextInt().asSuccess()
+        val sut = randomNumber.transform(::identity)
+
+        expectThat(randomNumber).isEqualTo(sut)
+    }
+
+}
+
+@Test
+fun 펑터는_사상의_합성을_보존해야_한다() {
+    repeat(1000) {
+        val randomString = getRandomString(random.nextInt(1000)).asSuccess()
+        val o1 = randomString.transform {
+            v -> v.length
+        }.transform {
+            v -> v + 1
+        }
+
+        val lengthPlusOne = String::length andThen Int::inc
+        val o2 = randomString.transform(lengthPlusOne)
+
+        expectThat(o1).isEqualTo(o2)
+    }
+}
+
+fun getRandomString(length: Int): String {
+    val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+    return (1..length)
+        .map { allowedChars.random() }
+        .joinToString("")
+}
+```
+
+## 연습문제 7.3
+```kotlin
+fun <F : OutcomeError> transformFailure(f: (E) -> F): Outcome<F, T> =
+    when (this) {
+        is Failure -> f(this.error).asFailure()
+        is Success -> this
+    }
+```
+
+## 연습문제 7.4
+```kotlin
+fun <T> tryAndCatch(block: () -> T): Outcome<ThrowableError, T> {
+   return try {
+       block().asSuccess()
+   } catch (t: Throwable) {
+       ThrowableError(t).asFailure()
+   }
+}
+```

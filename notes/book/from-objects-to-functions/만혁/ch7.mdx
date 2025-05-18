@@ -1,0 +1,61 @@
+# 연습문제 7.1
+
+```kt
+data class Holder<T>(private val value: T) {
+    fun<U> transform(f: (T) -> U): Holder<U> = Holder(f(value))
+
+    fun combine(other: Holder<T>, f: (T, T) -> T): Holder<T> {
+        return Holder(f(this.value, other.value))
+    }
+    
+    fun combine2(other: Holder<T>, f: (T, T) -> T): Holder<T> {
+        return this.transform { it -> f(it, other.value) }
+    }
+
+    @Test
+    fun test() {
+        val hello = Holder("Hello")
+        val world = Holder("World")
+
+        val result = hello.combine(world) {first, second -> "$first $second"}
+        Assertions.assertEquals(result, Holder("Hello World"))
+
+    }
+}
+```
+
+
+# 연습문제 7.3
+
+```kt
+fun <T> T.asSuccess(): Outcome<Nothing, T> = Success(this)
+fun <E : OutcomeError> E.asFailure(): Outcome<E, Nothing> = Failure(this)
+
+sealed class Outcome<out E : OutcomeError, out T> {
+
+    fun <U> transform(f: (T) -> U): Outcome<E, U> =
+        when (this) {
+            is Success -> f(value).asSuccess()
+            is Failure -> this
+        }
+
+    fun <F : OutcomeError> transformFailure(f: (E) -> F): Outcome<F, T> =
+        when (this) {
+            is Success -> this
+            is Failure -> f(error).asFailure()
+        }
+}
+```
+
+
+# 연습문제 7.4
+
+```kt
+fun <T> tryAndCatch(f: () -> T): Outcome<ThrowableError, T> {
+    return try {
+        f().asSuccess()
+    } catch (t: Throwable) {
+        ThrowableError(t).asFailure()
+    }
+}
+```

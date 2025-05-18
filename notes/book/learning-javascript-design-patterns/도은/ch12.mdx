@@ -1,0 +1,159 @@
+> 리액트의 디자인 패턴에 대해 다뤄보자
+
+- 고차 컴포넌트 패턴
+- 렌더링 Prpos 패턴
+- Hooks 패턴
+- 동적 가져오기
+- 코드 스플리팅
+- PPPL 패턴
+- 로딩 우선순위
+
+## 고차 컴포넌트
+
+> https://patterns-dev-kr.github.io/design-patterns/hoc-pattern/
+
+- 여러 컴포넌트에서 동일한 로직을 재사용하는 방법 중 하나
+- 이 패턴을 사용하면 애플리케이션 전체에서 **컴포넌트 로직을 재사용 가능**
+
+```
+💡 고차 컴포넌트 다른 컴포넌트를 인자로 받아 새로운 컴포넌트를 반환하는 컴포넌트
+  → 인자로 받은 컴포넌트에 추가 기능을 적용한 새로운 컴포넌트를 반환
+```
+
+```tsx
+function withStyles<P>(Component: React.ComponentType<P>) {
+  return (props: P) => {
+    const style = { ...props.style, padding: '0.2rem', margin: '1rem' };
+    return <Component {...props} style={style} />;
+  };
+}
+
+const Button = () => <button>Click me</button>;
+const Text = () => <p>Hello</p>;
+
+const StyledButton = withStyles(Button);
+const StyledText = withStyles(Text);
+```
+
+👇 `withLoader`라는 고차 컴포넌트를 만들어보자. 데이터를 가져오는 동안 로딩 중임을 표시할 대상 컴포넌트를 받는다.
+
+```tsx
+/**
+ * 데이터를 가져오는 동안에는 로딩중 텍스트 요소를 반환하고
+ * 데이터 가져오기가 완료되면, data 상태를 가져온 데이터를 할당
+ */
+function withLoader<P extends { data: any }>(Component: React.ComponentType<P>, url: string) {
+  return (props: P) => {
+    const [data, setData] = useState(url);
+
+    useEffect(() => {
+      const getData = async () => {
+        const res = await fetch(url);
+        const data = await res.json();
+        setData(data);
+      };
+      getData();
+    }, [url]);
+
+    if (data == null) {
+      return <div>Loading...</div>;
+    }
+
+    return <Component {...props} data={data} />;
+  };
+}
+```
+
+### 고차 컴포넌트 조합하기
+
+- 여러 고차 컴포넌트를 조합하여 사용하는 것도 가능
+
+```tsx
+export default withHover(withLoader(DogImages, 'https://dog.ceo/api/breeds/image/random/6'));
+```
+
+### 장단점
+
+- 장점
+  - 재사용하고자 하는 로직을 한 곳에 모아 관리 가능
+  - 로직은 한 곳에 집중시킴으로써 DRY(Don't Repeat Yourself, 반복하지 말라)하게 유지, 효과적 관심사 분리
+- 단점
+  - props 충돌 가능성. 이미 있는 props라면 이어서 같이 리턴할 수 있도록 해야 함
+
+## 렌더링 Props 패턴
+
+> https://patterns-dev-kr.github.io/design-patterns/render-props-pattern/
+
+- 렌더링 prop은 JSX 요소를 반환하는 함수 값을 가지는 컴포넌트의 prop
+
+```
+💡 렌더링 prop 외에는 아무것도 렌더링 X
+  → 자신의 렌더링 로직을 구현하는 대신, 렌더링 prop을 호출!
+```
+
+```tsx
+<Title render={() => <h1>Hello</h1>} />
+```
+
+**`🧐 react-dom의 render`**
+
+- 실제 DOM에 렌더링하는 함수
+
+```tsx
+// main.tsx
+import { render } from 'react-dom';
+import App from './App';
+
+render(<App />, document.getElementById('root'));
+```
+
+```tsx
+import React from 'react';
+import { render } from 'react-dom';
+
+interface TitleProps {
+  render: () => React.ReactNode;
+}
+
+const Title = (props: TitleProps) => {
+  return props.render();
+};
+
+render(
+  <div className="App">
+    <Title render={() => <h1>Hello</h1>} />
+  </div>,
+  document.getElementById('root'),
+);
+```
+
+**`🤔 음.. render prop이 왜 좋은지 모르겠다. 그냥 JSX를 넘기는 prop이랑 다른건가?`**
+
+아래와 같이 쓸 때 유용하다.
+
+```tsx
+<MyComponent content={(state) => <Message text={state.error ? 'error!' : 'ok'} />} />
+```
+
+회사에서도 간혹 위 패턴이 있는 prop이 있었다. 🫢 예를 들면, 아래와 같이 children이 render 패턴으로 되어 있어서 내부에서 관리하고 있는 상태를 이용해서 사용처에서 유연하게 렌더링할 수 있도록 제공한다.
+
+```tsx
+<Autocomplete.Values>
+  {({ values }) => (
+    <div>
+      {values.map((value) => (
+        <div key={value}>{value}</div>
+      ))}
+    </div>
+  )}
+</Autocomplete.Values>
+```
+
+### 장점과 단점
+
+- 장점
+  - UI는 외부에서 자유롭게 구성 가능
+- 단점
+  - 일반적으로 JSX를 렌더링하는 로직은 아니여서 조금의 학습비용..?!
+
+## 정적 가져오기

@@ -1,0 +1,103 @@
+# 연습문제 8.1
+```kotlin
+fun sumOfOddSquaresList(numbers: List<Long>): Long =
+    numbers.filter { it.isOdd() }.sumOf { it * it }
+
+fun sumOfOddSquaresSequence(numbers: Sequence<Long>): Long =
+    numbers.filter { it.isOdd() }.sumOf { it * it }
+
+fun sumOfOddSquaresForLoop(numbers: List<Long>): Long {
+    var tot = 0L
+    for (i in numbers) {
+        if (i.isOdd()) tot += i * i
+    }
+    return tot
+}
+```
+
+
+## 연습문제 8.2
+```kotlin
+data class NextFunction<T>(
+    private val list: List<T>
+): () -> T?  {
+
+    private var index = 0
+
+    override fun invoke(): T? {
+        return if (index >= list.size)
+            null
+        else
+            list[index++]
+    }
+}
+```
+
+## 연습문제 8.3
+```kotlin
+sealed class ElevatorEvent {
+    abstract val elevatorId: Int
+    abstract val eventId: Int
+
+    data class ButtonPressed(override val elevatorId: Int, val floor: Int, override val eventId: Int) : ElevatorEvent()
+    data class ElevatorMoved(override val elevatorId: Int, val fromFloor: Int, val toFloor: Int, override val eventId: Int) : ElevatorEvent()
+    data class ElevatorBroken(override val elevatorId: Int, override val eventId: Int) : ElevatorEvent()
+    data class ElevatorFixed(override val elevatorId: Int, override val eventId: Int) : ElevatorEvent()
+}
+
+
+sealed class ElevatorState {
+
+    abstract val floor: Int
+
+    data class DoorsOpenAtFloor(override val floor: Int) : ElevatorState()
+    data class TravelingAtFloor(override val floor: Int) : ElevatorState()
+    object OutOfOrder : ElevatorState() {
+        override val floor: Int = 0
+    }
+}
+
+data class ElevatorProjectionRow(val elevatorId: Int, val floor: Int, val state: ElevatorState)
+
+fun foldEvents(events: List<ElevatorEvent>): ElevatorState =
+    events.fold(DoorsOpenAtFloor(0) as ElevatorState) { state, event ->
+        when (event) {
+            is ButtonPressed ->
+                if (state != DoorsOpenAtFloor(event.floor))
+                    TravelingAtFloor(event.floor)
+                else
+                    state
+
+            is ElevatorMoved -> DoorsOpenAtFloor(
+                event.toFloor
+            )
+
+            is ElevatorBroken -> OutOfOrder
+            is ElevatorFixed -> DoorsOpenAtFloor(0) // assume elevator goes back to ground floor when fixed
+
+        }
+    }
+
+
+interface ElevatorProjection {
+    fun allRows(): List<ElevatorProjectionRow>
+    fun getRow(elevatorId: Int): ElevatorProjectionRow?
+}
+
+class ElevatorProjectionInMemory(events: List<ElevatorEvent>) : ElevatorProjection {
+    val stateMap: Map<Int, ElevatorProjectionRow> =
+        events.sortedBy { it.eventId }
+            .groupBy { it.elevatorId }
+            .mapValues { foldEvents(it.value).toProjectionRow(it.key) }
+
+    override fun allRows(): List<ElevatorProjectionRow> = stateMap.values.toList()
+
+
+
+    override fun getRow(elevatorId: Int): ElevatorProjectionRow? = stateMap[elevatorId]
+}
+
+private fun ElevatorState.toProjectionRow(elevatorId: Int) =
+    ElevatorProjectionRow(elevatorId, this.floor, this)
+
+```

@@ -1,0 +1,41 @@
+### 연습문제 8.1
+
+```kotlin
+fun sumOfOddSquaresAsSequence(numbers: Sequence<Long>): Long 
+    = numbers.filter { it.isOdd() }.sumOf { it * it }
+```
+
+
+
+### 연습문제 8.2
+
+```kotlin
+data class NextFunction<T>(private val list: List<T>) : () -> T? {
+    private var idx = 0
+    override fun invoke(): T? {
+        if (list.size <= idx) return null
+
+        val item = list[idx]
+        idx += 1
+        return item
+    }
+}
+```
+
+
+### 연습문제 8.3
+
+```kotlin
+class ElevatorProjectionImpl(events: List<ElevatorEvent>) : ElevatorProjection {
+    val map: Map<Int, ElevatorProjectRow> = events
+            .groupBy { it.id }
+            .mapValues { fold(it.value).toProjectionRow(it.key) }
+
+    override fun allRows(): List<ElevatorProjectRow> {
+        return map.values.toList()
+    }
+    override fun getRow(elevatorId: Int): ElevatorProjectRow? {
+        return map[elevatorId]
+    }
+}
+```

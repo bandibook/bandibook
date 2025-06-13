@@ -1,0 +1,271 @@
+> 리액트의 디자인 패턴에 대해 다뤄보자
+
+- 고차 컴포넌트 패턴
+- 렌더링 Prpos 패턴
+- Hooks 패턴
+- 동적 가져오기
+- 코드 스플리팅
+- PPPL 패턴
+- 로딩 우선순위
+
+## 고차 컴포넌트
+
+> https://patterns-dev-kr.github.io/design-patterns/hoc-pattern/
+
+- 여러 컴포넌트에서 동일한 로직을 재사용하는 방법 중 하나
+- 이 패턴을 사용하면 애플리케이션 전체에서 **컴포넌트 로직을 재사용 가능**
+
+```
+💡 고차 컴포넌트 다른 컴포넌트를 인자로 받아 새로운 컴포넌트를 반환하는 컴포넌트
+  → 인자로 받은 컴포넌트에 추가 기능을 적용한 새로운 컴포넌트를 반환
+```
+
+```tsx
+function withStyles<P>(Component: React.ComponentType<P>) {
+  return (props: P) => {
+    const style = { ...props.style, padding: '0.2rem', margin: '1rem' };
+    return <Component {...props} style={style} />;
+  };
+}
+
+const Button = () => <button>Click me</button>;
+const Text = () => <p>Hello</p>;
+
+const StyledButton = withStyles(Button);
+const StyledText = withStyles(Text);
+```
+
+👇 `withLoader`라는 고차 컴포넌트를 만들어보자. 데이터를 가져오는 동안 로딩 중임을 표시할 대상 컴포넌트를 받는다.
+
+```tsx
+/**
+ * 데이터를 가져오는 동안에는 로딩중 텍스트 요소를 반환하고
+ * 데이터 가져오기가 완료되면, data 상태를 가져온 데이터를 할당
+ */
+function withLoader<P extends { data: any }>(Component: React.ComponentType<P>, url: string) {
+  return (props: P) => {
+    const [data, setData] = useState(url);
+
+    useEffect(() => {
+      const getData = async () => {
+        const res = await fetch(url);
+        const data = await res.json();
+        setData(data);
+      };
+      getData();
+    }, [url]);
+
+    if (data == null) {
+      return <div>Loading...</div>;
+    }
+
+    return <Component {...props} data={data} />;
+  };
+}
+```
+
+### 고차 컴포넌트 조합하기
+
+- 여러 고차 컴포넌트를 조합하여 사용하는 것도 가능
+
+```tsx
+export default withHover(withLoader(DogImages, 'https://dog.ceo/api/breeds/image/random/6'));
+```
+
+### 장단점
+
+- 장점
+  - 재사용하고자 하는 로직을 한 곳에 모아 관리 가능
+  - 로직은 한 곳에 집중시킴으로써 DRY(Don't Repeat Yourself, 반복하지 말라)하게 유지, 효과적 관심사 분리
+- 단점
+  - props 충돌 가능성. 이미 있는 props라면 이어서 같이 리턴할 수 있도록 해야 함
+
+## 렌더링 Props 패턴
+
+> https://patterns-dev-kr.github.io/design-patterns/render-props-pattern/
+
+- 렌더링 prop은 JSX 요소를 반환하는 함수 값을 가지는 컴포넌트의 prop
+
+```
+💡 렌더링 prop 외에는 아무것도 렌더링 X
+  → 자신의 렌더링 로직을 구현하는 대신, 렌더링 prop을 호출!
+```
+
+```tsx
+<Title render={() => <h1>Hello</h1>} />
+```
+
+**`🧐 react-dom의 render`**
+
+- 실제 DOM에 렌더링하는 함수
+
+```tsx
+// main.tsx
+import { render } from 'react-dom';
+import App from './App';
+
+render(<App />, document.getElementById('root'));
+```
+
+```tsx
+import React from 'react';
+import { render } from 'react-dom';
+
+interface TitleProps {
+  render: () => React.ReactNode;
+}
+
+const Title = (props: TitleProps) => {
+  return props.render();
+};
+
+render(
+  <div className="App">
+    <Title render={() => <h1>Hello</h1>} />
+  </div>,
+  document.getElementById('root'),
+);
+```
+
+**`🤔 음.. render prop이 왜 좋은지 모르겠다. 그냥 JSX를 넘기는 prop이랑 다른건가?`**
+
+아래와 같이 쓸 때 유용하다.
+
+```tsx
+<MyComponent content={(state) => <Message text={state.error ? 'error!' : 'ok'} />} />
+```
+
+회사에서도 간혹 위 패턴이 있는 prop이 있었다. 🫢 예를 들면, 아래와 같이 children이 render 패턴으로 되어 있어서 내부에서 관리하고 있는 상태를 이용해서 사용처에서 유연하게 렌더링할 수 있도록 제공한다.
+
+```tsx
+<Autocomplete.Values>
+  {({ values }) => (
+    <div>
+      {values.map((value) => (
+        <div key={value}>{value}</div>
+      ))}
+    </div>
+  )}
+</Autocomplete.Values>
+```
+
+### 장점과 단점
+
+- 장점
+  - UI는 외부에서 자유롭게 구성 가능
+- 단점
+  - 일반적으로 JSX를 렌더링하는 로직은 아니여서 조금의 학습비용..?!
+
+## 정적 가져오기
+
+- `import` 키워드를 사용하면 다른 모듈에서 내보낸 코드를 가져올 수 있다.
+
+```
+💡 기본적으로 정적으로 가져오는 모든 모듈은 초기 번들에 추가된다.
+```
+
+- ES2015+의 기본 import 문법인 `import module from 'module'`을 사용하여 가져오는 모듈 → 모두 정적으로 가져온 것
+- 각 모듈은 **자바스크립트 엔진이 해당 모듈을 `import`하는 코드에 도달하는 즉시 실행**
+
+```
+💡 정적으로 가져왔기 때문에, 웹팩은 이 모듈들을 초기 번들에 포함시키게 된다.
+```
+
+## 동적 가져오기
+
+- 초기에 필요하지 않은 번들은 동적으로 가져오는 것도 가능 (실제로 필요한 시점에 맞춰 불러오는 것)
+- 리액트에서 제공하는 `Suspense` 컴포넌트는 동적으로 로드되어야 할 컴포넌트를 감싼다.
+
+## PRPL 패턴
+
+- 인터넷 연겨링 불안정한 지역에서도 원활하게 작동시키기 위해 PLPR 패턴을 사용할 수 있다.
+  - 푸시(push): 중요한 리소스를 효율적으로 푸시하여 서버 왕복 횟수를 최소화하고 로딩 시간을 단축
+  - 렌더링(render): 사용자 경험을 개선하기 위해 초기 경로를 최대한 빠르게 렌더링
+  - 사전 캐싱(pre-cache): 자주 방문하는 경로의 에셋을 백그라운드에서 미리 캐싱하여 서버 요청 횟수를 줄이고 더 나은 오프라인 경험을 제공
+  - 지연 로딩(lazy-load): 자주 요청되지 않는 경로나 에셋은 지연 로딩
+- 웹 사이트를 방문하면
+  - 브라우저는 서버에 필요한 리소스를 요청
+  - 보통은 애플리케이션의 초기 HTML 파일인데, 서버는 해당 파일의 진입점을 보내준다.
+  - 이후 브라우저의 HTML 파서는 서버로부터 데이터를 받는 즉시 파싱을 시작
+  - 파싱 중에 스타일시트나 스크립트와 같은 추가 리소스가 필요하다고 보면, 해당 리소스를 가져오기 위해 서버에 추가 HTTP 요청
+
+👉 이렇게 리소스를 반복적으로 추가 요청하는 것은 비효율적
+
+**HTTP/1.1**
+
+- 요청과 응답에 줄바꿈 문자로 구분되는 일반 텍스트 프로토콜을 사용
+- 클라이언트와 서버 간에 최대 6개의 TCP 연결만 가능성
+- 마지막 요청이 완료되는 데 시간이 오래 걸리는 경우, 다른 요청을 전송 X
+
+**HTTP/2**
+
+- 양방향 스트림 사용자
+- 단일 TCP 연결을 통해 여러 개의 양방향 스트림을 만들어 **클라이언트와 서버 간에 여러 개의 요청 및 응답 프레임을 동시에 전달 가능**
+- 이전에 보낸 요청이 완료되기 전에 동일한 TCP 연결을 통해 여러 요청을 보낼 수 있도록
+- 서버 푸시
+  - 최적화된 데이터 가져오기 방식
+  - HTTP 요청을 통해 매번 명시적으로 리소스를 요청하는 대신
+  - 서버가 이러한 리소스를 푸시하여 자동으로 추가 리소스를 전송할 수 있게 된 것
+
+**`🤔 서버 푸시?`**
+
+- 기존 방식에서는 브라우저가 HTML 파일만 먼저 받고, 이후에 HTML 내에서 필요한 리소스(스크립트, 스타일 등)를 하나씩 서버에 추가로 요청해야 했음
+- 하지만 서버 푸시를 사용하면
+  - 서버가 HTML을 전송할 때, 해당 페이지에 필요한 리소스들을 미리 한 번에 묶어서(세트로) 함께 전송해줌
+  - 브라우저가 별도로 요청하지 않아도 서버가 알아서 필요한 리소스들을 즉시 전달해주기 때문에, 리소스 로딩 속도가 빨라지고 네트워크 효율이 높아짐
+- 서버가 필요한 걸 보내는 것이기 때문에 브라우저 캐싱 도움 X
+- 세트 중 중요한 것에는 `preload` 힌트를 추가하여 브라우저도 미리 로드할 수 있도록
+
+**PRPL 패턴을 적용할 때는**
+
+- 번들이 해당 시점에 필요한 최소한의 리소스만을 포함하고
+- 브라우저에서는 리소스를 캐싱할 수 있도록 해야 한다.
+
+👉 초기 렌더링 시간을 단축하되, 그 다음부터는 브라우저 캐싱을 활용하는 전략으로
+
+## 로딩 우선순위
+
+- 예상되는 특정 리소스를 우선적으로 요청하도록 설정
+- `<link rel="preload">`는 브라우저 최적화 기능, 더 일찍 요청할 수 있도록
+
+**`🤔 미리 로드?`**
+
+> - https://www.patterns.dev/vanilla/preload/
+> - https://www.debugbear.com/docs/link-rel-preload
+> - https://www.debugbear.com/blog/rel-preload-problems
+> - https://stackoverflow.com/questions/36641137/how-exactly-does-link-rel-preload-work
+
+- `rel`은 일단 이 리소스가 **문서와 어떤 관계**이다임을 의미
+- `rel="preload"`는 **곧 필요하니까 미리 불러올 관계**이다임을 의미
+- 로드 우선순위를 명시적으로 올리는 것
+- LCP 개선을 위해 가장 큰 컨텐츠를 미리 로드하는 개선을 할 수 있음
+
+**`🤔 어차피 HTML 파싱은 순차적 아닌가..?`**
+
+HTML 파싱이 어차피 위에서 아래로 순차적으로 진행되면, 리소스도 만나는 순서대로 그냥 순차적으로 로드되는 거 아닌가?
+여기서 "우선순위가 높다"는 게 실제로 어떤 차이를 만드는지 궁금
+
+실제로는 브라우저가 HTML을 파싱하면서 외부 리소스(스크립트, 스타일, 이미지 등)를 만나면,  
+그때마다 해당 리소스를 네트워크로 다운로드하기 시작
+하지만 모든 리소스가 똑같은 방식, 똑같은 속도로 처리되는 건 X
+
+- `<script>` 태그(특히 `async`/`defer` 없는 경우)는 파싱을 멈추게 만들기도 하고,
+- `<link rel="stylesheet">`는 렌더링을 막는(차단하는) 리소스라서 브라우저가 우선적으로 다운로드함
+- 이미지, 폰트 등은 상대적으로 우선순위가 낮아서, 브라우저가 "급하지 않다"고 판단하면 나중에 다운로드할 수도 있음
+
+여기서 `<link rel="preload">`를 쓰면,  
+브라우저에게 "이 리소스는 진짜 곧 필요하니까, 지금 바로 다운로드 시작해줘!"라고 명확하게 알려주는 효과가 있어.  
+즉, HTML에서 해당 리소스를 만나는 시점과 상관없이,  
+브라우저가 리소스 다운로드 스케줄러에서 우선순위를 높여서 더 빨리 받아오게 됨.
+
+예를 들어,
+
+- `<img>`로 이미지를 나중에 만나더라도, `<link rel="preload">`로 미리 선언해두면 이미 다운로드가 시작되어 있을 수 있음
+- 폰트도 마찬가지로, 실제로 텍스트가 렌더링되기 전에 미리 받아올 수 있음
+- 특히 LCP(최대 콘텐츠ful 페인트)처럼 "화면에 빨리 보여줘야 하는" 리소스에 효과적
+
+정리하면,
+
+- HTML 파싱은 순차적이지만, 리소스 다운로드는 브라우저가 병렬적으로 처리하고,
+- `<link rel="preload">`를 쓰면 "이거 진짜 곧 쓸 거야!"라고 브라우저에 힌트를 줘서
+- 실제로 중요한 리소스가 더 빨리 준비되고, 초기 렌더링 속도가 개선되는 것임

@@ -1,0 +1,104 @@
+<details>
+  <summary>우석</summary>
+  # 연습문제 9.1
+```kotlin
+@Test
+fun `왼쪽 항등원 법칙`() {
+    val initialValue = Random.nextInt()
+    val f: (Int) -> ContextReader<Int, Int> = { x -> ContextReader { it * 2 } }
+    val initialMonad = ContextReader { _: Int -> initialValue }
+    expectThat(initialMonad.bind(f).runWith(2)).isEqualTo(f(initialValue).runWith(2))
+}
+
+@Test
+fun `오른쪽 항등원 법칙`() {
+    val initialValue = Random.nextInt()
+    val initialMonad = ContextReader { _: Int -> initialValue }
+    val identity: (Int) -> ContextReader<Int, Int> = { value -> ContextReader { value } }
+    val initialMonadWithIdentity = initialMonad.bind(identity)
+
+    assert(initialMonad.runWith(1) == initialMonadWithIdentity.runWith(1))
+}
+
+@Test
+fun `결합 법칙`() {
+    val initialValue = Random.nextInt()
+
+    val f: (Int) -> ContextReader<Int, Int> = { x -> ContextReader { it + x } }
+    val g: (Int) -> ContextReader<Int, Int> = { ContextReader { it * 2 } }
+
+    val left = ContextReader { _: Int -> initialValue }.bind(f).bind(g)
+    val right = ContextReader { _: Int -> initialValue }.bind { x -> f(x).bind(g) }
+
+    assert(left.runWith(3) == right.runWith(3))
+}
+```
+
+
+## 연습문제 9.2
+```kotlin
+fun <CTX, T> ContextReader<CTX, ContextReader<CTX, T>>.join(): ContextReader<CTX, T> = ContextReader { ctx -> this.runWith(ctx).runWith(ctx) }
+
+fun <U> bind(f: (T) -> ContextReader<CTX, U>): ContextReader<CTX, U> = this.transform(f).join()
+```
+</details><details>
+  <summary>만혁</summary>
+  
+
+# 연습문제 9.1
+```kotlin
+private val f: (Int) -> ContextReader<Int, Int> = { x -> ContextReader { ctx -> x * 2 } }
+    private val g: (Int) -> ContextReader<Int, Int> = { y -> ContextReader { ctx -> y + 10 } }
+
+    @Test
+    fun `Left Identity Law`() {
+        val random = Random.nextInt()
+        val value = 5
+
+        val init = ContextReader { ctx: Int -> random }
+        val left = init.bind(f).runWith(value)
+        val right = f(value).runWith(value)
+
+        println("Left Identity: $left == $right")
+    }
+
+    @Test
+    fun `Right Identity Law`() {
+        val random = Random.nextInt(10)
+        val value = 5
+
+        val reader = ContextReader { _: Int -> 10 + random }
+        val right = reader.runWith(value)
+        val left = reader.bind { x -> ContextReader { _: Int -> x } }.runWith(value)
+
+        println("Right Identity: $left == $right")
+
+    }
+
+    @Test
+    fun `ContextReader Associativity Law`() {
+        val random = Random.nextInt(10)
+        val value = 5
+
+        val reader = ContextReader { _: Int -> 3 + random } // 3 + 12 = 15
+
+        val left = reader.bind(f).bind(g).runWith(value)
+        val right = reader.bind { value -> f(value).bind(g) }.runWith(value)
+
+        println("Associativity: $left == $right")
+    }
+```
+
+# 연습문제 9.2
+
+```kotlin
+fun <CTX, T> ContextReader<CTX, ContextReader<CTX, T>>.join(): ContextReader<CTX, T>
+ = ContextReader { ctx -> this.runWith(ctx).runWith(ctx) }
+
+
+fun <CTX, T, U> ContextReader<CTX, T>.bind(
+    f: (T) -> ContextReader<CTX, U>
+): ContextReader<CTX, U> = this.transform(f).join()
+
+```
+</details>

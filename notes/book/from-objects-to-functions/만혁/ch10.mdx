@@ -1,0 +1,230 @@
+### 연습문제 10.1
+
+```kotlin
+data class Logger<T>(val value: T, val log: List<String>) {
+    companion object {
+        fun <T> pure(value: T): Logger<T> = Logger(value, emptyList())
+    }
+
+    fun <U> transform(f: (T) -> U): Logger<U> {
+        return Logger(f(value), log)
+    }
+
+    fun <U> bind(f: (T) -> Logger<U>): Logger<U> {
+        val nextLogger = f(value)
+        return Logger(nextLogger.value, log + nextLogger.log)
+    }
+}
+class LoggerMonadTest {
+    @Test
+    fun `Logger Monad - Left Identity Law`() {
+        val x = 10
+        val f: (Int) -> Logger<Int> = { a -> Logger(a * 2, listOf("Doubled $a")) }
+
+        val result1 = Logger.pure(x).bind(f)
+        val result2 = f(x)
+
+        assertEquals(result2, result1)
+    }
+
+    @Test
+    fun `Logger Monad - Right Identity Law`() {
+        val m = Logger(5, listOf("Initial value"))
+        val pureF: (Int) -> Logger<Int> = { a -> Logger.pure(a) }
+
+        val result1 = m.bind(pureF)
+        val result2 = m
+
+        assertEquals(result2, result1)
+    }
+
+    @Test
+    fun `Logger Monad - Associativity Law`() {
+        val m = Logger(3, listOf("Start"))
+        val f: (Int) -> Logger<Int> = { a -> Logger(a + 1, listOf("Added 1 to $a")) }
+        val g: (Int) -> Logger<String> = { a -> Logger("Value is $a", listOf("Formatted $a")) }
+
+        val result1 = m.bind(f).bind(g)
+        val result2 = m.bind { x -> f(x).bind(g) }
+
+        assertEquals(result2, result1)
+    }
+
+    @Test
+    fun `Logger usage example`() {
+        val process: Logger<Int> = Logger.pure(5)
+            .bind { value -> Logger(value * 2, listOf("Multiplied by 2")) }
+            .bind { value -> Logger(value + 1, listOf("Added 1")) }
+            .bind { value -> Logger(value / 3, listOf("Divided by 3")) }
+
+        println("Final Value: ${process.value}")
+        println("Log: ${process.log}")
+
+        assertEquals(3, process.value)
+        assertEquals(listOf("Multiplied by 2", "Added 1", "Divided by 3"), process.log)
+    }
+}
+```
+
+
+
+### 연습문제 10.2
+
+```kotlin
+data class ContextReader<CTX, T>(val runWith: (CTX) -> T) {
+    fun <U> transform(f: (T) -> U): ContextReader<CTX, U> =
+        ContextReader { ctx -> f(runWith(ctx)) }
+
+    fun <U> bind(f: (T) -> ContextReader<CTX, U>): ContextReader<CTX, U> =
+        ContextReader { ctx -> f(runWith(ctx)).runWith(ctx) }
+}
+
+interface ConsoleContext {
+    fun println(msg: String): Unit
+    fun readLine(): String
+}
+
+class SystemConsole : ConsoleContext {
+    private val scanner = Scanner(System.`in`)
+
+    override fun println(msg: String): Unit {
+        System.out.println(msg)
+    }
+
+    override fun readLine(): String {
+        return scanner.nextLine()
+    }
+}
+
+fun contextPrintIn(msg: String): ContextReader<ConsoleContext, Unit> =
+    ContextReader { ctx -> ctx.println(msg) }
+
+fun contextReadIn(): ContextReader<ConsoleContext, String> =
+    ContextReader { ctx -> ctx.readLine() }
+
+fun main() {
+    val program = contextPrintIn("Hello, what's your name?")
+        .bind { 
+            contextReadIn()
+        }
+        .bind { name ->
+            contextPrintIn("Hello, $name!")
+        }
+        .bind {
+            contextPrintIn("Nice to meet you.")
+        }
+
+    program.runWith(SystemConsole())
+}
+
+class ConsoleMonadTest {
+    private val originalIn = System.`in`
+    private val originalOut = System.out
+    private lateinit var testOut: ByteArrayOutputStream
+
+    @BeforeEach
+    fun setUp() {
+        testOut = ByteArrayOutputStream()
+        System.setOut(PrintStream(testOut))
+    }
+
+    @AfterEach
+    fun tearDown() {
+        System.setIn(originalIn)
+        System.setOut(originalOut)
+    }
+
+    @Test
+    fun `should print and read correctly`() {
+        val testInput = "Alice\n"
+        System.setIn(ByteArrayInputStream(testInput.toByteArray()))
+
+        val program = contextPrintIn("Enter your name:")
+            .bind {
+                contextReadIn()
+            }
+            .bind { name ->
+                contextPrintIn("Hello, $name!")
+            }
+
+        program.runWith(SystemConsole())
+
+        val expectedOutput = "Enter your name:\nHello, Alice!\n"
+        assertEquals(expectedOutput, testOut.toString())
+    }
+}
+```
+
+
+#### 연습문제 10.3
+
+```kotlin
+fun calculateRpn(input: String, currentStack: Stack<Int>): ContextReader<ConsoleContext, Stack<Int>> {
+    val tokens = input.split(" ")
+    val stack = currentStack
+
+    return ContextReader { ctx ->
+        try {
+            for (token in tokens) {
+                when (token) {
+                    "+" -> {
+                        val b = stack.pop()
+                        val a = stack.pop()
+                        stack.push(a + b)
+                    }
+                    "-" -> {
+                        val b = stack.pop()
+                        val a = stack.pop()
+                        stack.push(a - b)
+                    }
+                    "*" -> {
+                        val b = stack.pop()
+                        val a = stack.pop()
+                        stack.push(a * b)
+                    }
+                    "/" -> {
+                        val b = stack.pop()
+                        if (b == 0) throw IllegalArgumentException("Division by zero")
+                        val a = stack.pop()
+                        stack.push(a / b)
+                    }
+                    else -> {
+                        stack.push(token.toInt())
+                    }
+                }
+            }
+            stack
+        } catch (e: Exception) {
+            ctx.println("Error: ${e.message}")
+            Stack<Int>()
+        }
+    }
+}
+
+fun rpnReplLoop(currentStack: Stack<Int>): ContextReader<ConsoleContext, Unit> =
+    contextPrintIn("Enter RPN expression (or 'q' to quit): ")
+        .bind {
+            contextReadIn()
+        }
+        .bind { input ->
+            if (input.toLowerCase() == "q") {
+                contextPrintIn("Exiting RPN Calculator.")
+            } else {
+                calculateRpn(input, currentStack)
+                    .bind { newStack ->
+                        if (!newStack.isEmpty()) {
+                            contextPrintIn("Result: ${newStack.peek()}")
+                        }
+                        // 재귀적으로 자신을 호출하여 다음 계산을 기다림
+                        rpnReplLoop(newStack) // 업데이트된 스택을 다음 루프에 전달
+                    }
+            }
+        }
+
+fun main() {
+    println("Welcome to RPN Calculator!")
+    val initialStack = Stack<Int>()
+    rpnReplLoop(initialStack).runWith(SystemConsole())
+}
+
+```

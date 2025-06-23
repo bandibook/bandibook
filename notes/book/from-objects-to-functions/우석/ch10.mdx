@@ -1,0 +1,78 @@
+# 연습문제 10.1
+```kotlin
+data class Logger<T>(val value: T, val log: List<String>) {
+    fun <U> transform(f: (T) -> U): Logger<U> = Logger(f(value), log)
+
+    fun <U> bind(f: (T) -> Logger<U>): Logger<U> = Logger(newValue, log + newLog)
+}
+
+@Test
+fun testBind() {
+    val f: (Int) -> Logger<Int> = { value -> Logger(value * 2, listOf("multiplied by 2")) }
+    val g: (Int) -> Logger<Int> = { value -> Logger(value + 1, listOf("increased by 1")) }
+
+    val m = Logger(2, emptyList())
+
+    // Left identity
+    expectThat(m.bind(f)).isEqualTo(f(2))
+
+    // Right identity
+    val pure = { value: Int -> Logger(value, emptyList()) }
+    expectThat(m.bind(pure)).isEqualTo(m)
+
+    // Associativity
+    expectThat((m.bind(f)).bind(g)).isEqualTo(m.bind { x -> (f(x).bind(g)) })
+}
+
+@Test
+fun testTransform() {
+    val f: (Int) -> Int = { value -> value * 2 }
+    val g: (Int) -> Int = { value -> value * 3 }
+
+    val m = Logger(2, emptyList())
+
+    // Left identity
+    expectThat(m.transform(f).value).isEqualTo(f(2))
+
+    // Right identity
+    val pure: (Int) -> Int = { value -> value * 1 }
+    expectThat(m.transform(pure)).isEqualTo(m)
+
+    // Associativity
+    expectThat((m.transform(f)).transform(g)).isEqualTo(m.transform(g).transform(f))
+}
+```
+
+
+## 연습문제 10.2
+```kotlin
+class SystemConsole : ConsoleContext {
+    override fun printLine(msg: String): String = msg.also { println(msg)}
+
+    val reader = BufferedReader(InputStreamReader(System.`in`))
+    override fun readLine(): String = reader.readLine()
+}
+```
+
+## 연습문제 10.3
+```kotlin
+fun main() {
+    consoleRpnCalculator().runWith(SystemConsole())
+}
+
+tailrec fun consoleRpnCalculator(): ContextReader<ConsoleContext, String> =
+    contextPrintln("Write an RPN expression to calculate or Q to quit.")
+        .bind { _ -> contextReadln() }
+        .bind { input ->
+            if (input == "Q")
+                contextPrintln("Bye!")
+            else
+                contextPrintln("The result is: ${RpnCalc.calc(input)}")
+        }
+        .bind { msg ->
+            if (msg == "Bye!")
+                contextPrintln("")
+            else
+                consoleRpnCalculator()
+        }
+```

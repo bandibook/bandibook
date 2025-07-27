@@ -31,6 +31,16 @@ export const membersInfo: Record<string, Array<MembersInfo>> = {
       profileUrl: 'https://avatars.githubusercontent.com/u/89172499?v=4',
       github: 'https://github.com/semnil5202',
     },
+    {
+      username: 'Nahyeon Kim',
+      profileUrl: 'https://avatars.githubusercontent.com/u/69833665?v=4',
+      github: 'https://github.com/nahyeon99',
+    },
+    {
+      username: '이한음',
+      profileUrl: 'https://avatars.githubusercontent.com/u/103233513?v=4',
+      github: 'https://github.com/LeeHanEum',
+    },
   ],
   '10000-bagger': [
     {

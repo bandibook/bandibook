@@ -4,23 +4,30 @@
 
 <br />
 
-## 🛋️ 스터디 방식
+## 🛋️ 스터디 진행 방식
 
-- 매 주 **수요일 오후 10시** 모임
+같이 책을 읽는 그룹끼리 자유롭게 정할 수 있어요.
 
-- 매 주 `week{N}/base`가 생겨요.
+### 내용 정리하기
 
-  1. 이를 base로 하여 `week{N}/{username}`으로 브랜치를 생성해요.
-  2. `notes/{name}` 폴더에서 자유롭게 내용을 정리해요.
-  3. 모임 전까지 Pull Request를 올려야 해요. (`제목 ex. [리액트 훅을 활용한 마이크로 상태 관리] ch1~ch3 김도은`)
-  4. 모임날에 같이 내용을 취합해요!
+[`notes/book`](https://github.com/bandibook/bandibook/tree/main/notes/book) 폴더 아래 `책 제목/이름`으로 정리해요.
 
-### 진행 방식
 
-- 정해진 분량만큼의 책을 읽고 **정리**해요.
-- 모임 날에는 돌아가면서 **정리한 내용을 발표**해요.
-- 책 내용 뿐만 아니라 **더 깊고 궁금했던 내용을 함께 정리**하는 것도 좋아요.
-- **같이 토론해보고 싶은 내용**을 모임날에 가져오는 것도 좋아요.
+### Pull Request
+
+- `제목`, `assginee`, `label`을 꼭 추가해주세요.
+
+```
+# PR 제목
+[책 제목] (-자유롭게-)
+
+# assignee
+본인
+
+# label
+책 제목과 동일
+```
+
 
 <br />
 
@@ -28,4 +35,5 @@
 
 
 
-<img width="5636" height="3453" alt="Group 1000012328" src="https://github.com/user-attachments/assets/9f4e68f3-a5a9-4a0d-948d-5ee592b6c55b" />
+
+<img width="5636" height="3453" alt="Group 1000012329" src="https://github.com/user-attachments/assets/f0dd93cc-5fac-4351-9069-0bed86097eb5" />

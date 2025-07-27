@@ -26,5 +26,6 @@
 
 ## 🗺️ 책 지도
 
-![Group 1000012325](https://github.com/user-attachments/assets/4cca4c4e-eada-4c4c-ae17-868670369f37)
 
+
+<img width="5636" height="3453" alt="Group 1000012328" src="https://github.com/user-attachments/assets/9f4e68f3-a5a9-4a0d-948d-5ee592b6c55b" />
